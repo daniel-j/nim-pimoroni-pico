@@ -1,7 +1,7 @@
 import picostdlib/[
   hardware/i2c, hardware/rtc
 ]
-import pimoroni_common, pimoroni_i2c
+import ../common/[pimoroni_common, pimoroni_i2c]
 
 const
   ## Constants

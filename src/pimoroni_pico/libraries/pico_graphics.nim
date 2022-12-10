@@ -2,7 +2,7 @@
 #   libraries/hersheyFonts/hersheyFonts, libraries/bitmapFonts/bitmapFonts,
 #   libraries/bitmapFonts/font6Data, libraries/bitmapFonts/font8Data,
 #   libraries/bitmapFonts/font14OutlineData
-import pimoroni_common
+import ../common/pimoroni_common
 
 proc builtinBswap16(a: uint16): uint16 {.importc: "__builtin_bswap16", nodecl, noSideEffect.}
 

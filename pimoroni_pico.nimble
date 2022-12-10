@@ -2,7 +2,7 @@
 
 version       = "0.1.0"
 author        = "djazz"
-description   = "Inky Frame package using pico-sdk"
+description   = "Pimoroni Pico drivers and libraries Nim port"
 license       = "MIT"
 srcDir        = "src"
 bin           = @["example"]

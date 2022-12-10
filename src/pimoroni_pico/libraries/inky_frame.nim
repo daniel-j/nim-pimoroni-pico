@@ -1,6 +1,5 @@
-import inkyframe/[
-  pico_graphics, uc8159, pcf85063a
-]
+import pico_graphics, ../drivers/uc8159, ../drivers/pcf85063a
+
 import picostdlib/[
   hardware/gpio, hardware/i2c,
   hardware/pwm, pico/time, pico/platform

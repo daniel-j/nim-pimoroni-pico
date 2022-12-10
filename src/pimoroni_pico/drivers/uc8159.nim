@@ -1,5 +1,5 @@
 import picostdlib/[pico/types, pico/platform]
-import pimoroni_common, pico_graphics
+import ../common/pimoroni_common, ../libraries/pico_graphics
 
 type
   Reg {.pure, size: sizeof(uint8).} = enum

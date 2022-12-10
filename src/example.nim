@@ -6,7 +6,7 @@ import picostdlib/[
   pico/cyw43_arch
 ]
 
-import inkyframe
+import pimoroni_pico/libraries/inky_frame
 
 discard stdioUsbInit()
 

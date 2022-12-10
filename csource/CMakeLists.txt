@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.13)
 
 if(NOT DEFINED OUTPUT_NAME)
-  set(OUTPUT_NAME inkyframe)
+  set(OUTPUT_NAME pimoroni_pico)
 endif()
 
 # initialize pico-sdk from GIT
