@@ -61,7 +61,7 @@ type
   
   Pen* = uc8159.Colour
 
-  InkyFrame* = object of PicoGraphicsPen3Bit
+  InkyFrame* = object #of PicoGraphicsPen3Bit
     uc8159*: Uc8159
     i2c*: I2cInst
     rtc*: Pcf85063a
@@ -159,7 +159,7 @@ proc pressed*(button: Button): bool =
 ##  set the LED brightness by generating a gamma corrected target value for
 ##  the 16-bit pwm channel. brightness values are from 0 to 100.
 
-proc led*(led: Led; brightness: uint8) =
+proc led*(self: InkyFrame; led: Led; brightness: range[0.uint8..100.uint8]) =
   pwmSetGpioLevel(led.Gpio, (pow(brightness.float / 100, 2.8) * 65535.0f + 0.5f).uint16)
 
 proc sleep*(self: var InkyFrame; wakeInMinutes: int) =
@@ -184,6 +184,9 @@ proc sleepUntil*(self: var InkyFrame; second: int; minute: int; hour: int; day: 
     self.rtc.enableAlarmInterrupt(true)
   gpioPut(PinHoldSysEn, Low)
 
+proc getWakeUpEvent*(self: InkyFrame): WakeUpEvent = self.wakeUpEvent
+
+#[
 proc image*(self: var InkyFrame; data: openArray[uint8]; stride: int; sx: int; sy: int; dw: int; dh: int; dx: int; dy: int) =
   var y = 0
   while y < dh:
@@ -208,3 +211,4 @@ proc image*(self: var InkyFrame; data: openArray[uint8]; w: int; h: int; x: int;
 proc image*(self: var InkyFrame; data: openArray[uint8]) =
   ##  Display an image that fills the screen
   self.image(data, self.width, 0, 0, self.width, self.height, 0, 0)
+]#

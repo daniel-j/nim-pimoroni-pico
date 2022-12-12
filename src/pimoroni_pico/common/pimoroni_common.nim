@@ -2,14 +2,11 @@ import picostdlib/[
   hardware/i2c, hardware/spi, hardware/gpio,
   pico/time
 ]
+
 export i2c, spi, gpio, time
 
-##  Template to return a value clamped between a minimum and maximum
-template clamp*(a, mn, mx: untyped): untyped =
-  (if (a) < (mx): (if (a) > (mn): (a) else: (mn)) else: (mx))
-
 const
-  PinUnused* = -1
+  PinUnused* = -1.int8
 
   ##  I2C
   I2cDefaultBaudrate* = 400_000
@@ -33,35 +30,7 @@ const
   SpiBgBackPwm* = 21.Gpio
   SpiBgBackCs* = 22.Gpio
 
-let
-  PimoroniI2cDefaultInstance* = i2c0
-  PimoroniSpiDefaultInstance* = spi0
-
-type
-  BgSpiSlot* {.pure.} = enum
-    Front, Back, PicoExplorerOnboard
-
-type
-  Board* = enum
-    BREAKOUT_GARDEN, PICO_EXPLORER, PLASMA_STICK, PLASMA_2040, INTERSTATE_75,
-    SERVO_2040, MOTOR_2040
-
-type
-  Rotation* = enum
-    Rotate_0 = 0, Rotate_90 = 90, Rotate_180 = 180, Rotate_270 = 270
-
-type
-  Polarity* = enum
-    ActiveLow = 0, ActiveHigh = 1
-
-type
-  Direction* = enum
-    NormalDir = 0, ReversedDir = 1
-
-proc millis*(): uint32 {.inline.} =
-  return toMsSinceBoot(getAbsoluteTime())
-
-const Gamma8Bit* = [0.uint8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+  Gamma8Bit* = [0.uint8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
                     1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5,
                     5, 5, 6, 6, 6, 7, 7, 7, 8, 8, 8, 9, 9, 9, 10, 10, 11, 11, 11, 12,
                     12, 13, 13, 13, 14, 14, 15, 15, 16, 16, 17, 17, 18, 18, 19,
@@ -80,9 +49,9 @@ const Gamma8Bit* = [0.uint8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
                     214, 216, 218, 220, 222, 224, 227, 229, 231, 233, 235,
                     237, 239, 241, 244, 246, 248, 250, 252, 255]
 
-##  Moved from pico_unicorn.cpp
-##     v = (uint16_t)(powf((float)(n) / 255.0f, 2.2) * 16383.0f + 0.5f)
-const Gamma14Bit* = [0.uint16, 0, 0, 1, 2, 3, 4, 6, 8, 10, 13, 16, 20, 23, 28, 32, 37,
+  ##  Moved from pico_unicorn.cpp
+  ##     v = (uint16_t)(powf((float)(n) / 255.0f, 2.2) * 16383.0f + 0.5f)
+  Gamma14Bit* = [0.uint16, 0, 0, 1, 2, 3, 4, 6, 8, 10, 13, 16, 20, 23, 28, 32, 37,
                       42, 48, 54, 61, 67, 75, 82, 90, 99, 108, 117, 127, 137,
                       148, 159, 170, 182, 195, 207, 221, 234, 249, 263, 278,
                       294, 310, 326, 343, 361, 379, 397, 416, 435, 455, 475,
@@ -112,3 +81,30 @@ const Gamma14Bit* = [0.uint16, 0, 0, 1, 2, 3, 4, 6, 8, 10, 13, 16, 20, 23, 28, 3
                       13817, 13946, 14076, 14206, 14337, 14469, 14602,
                       14735, 14868, 15003, 15138, 15273, 15410, 15547,
                       15685, 15823, 15962, 16102, 16242, 16383]
+
+let
+  PimoroniI2cDefaultInstance* = i2c0
+  PimoroniSpiDefaultInstance* = spi0
+
+type
+  BgSpiSlot* {.pure.} = enum
+    Front, Back, PicoExplorerOnboard
+
+  Board* {.pure.} = enum
+    BreakoutGarden, PicoExplorer, PlasmaStick, Plasma2040, Interstate75,
+    Servo2040, Motor2040
+
+  Rotation* {.pure.} = enum
+    Rotate_0 = 0, Rotate_90 = 90, Rotate_180 = 180, Rotate_270 = 270
+
+  Polarity* {.pure.} = enum
+    ActiveLow = 0, ActiveHigh = 1
+
+  Direction* {.pure.} = enum
+    NormalDir = 0, ReversedDir = 1
+
+##  Template to return a value clamped between a minimum and maximum
+template clamp*(a, mn, mx: untyped): untyped =
+  (if (a) < (mx): (if (a) > (mn): (a) else: (mn)) else: (mx))
+
+proc millis*(): uint32 {.inline.} = toMsSinceBoot(getAbsoluteTime())

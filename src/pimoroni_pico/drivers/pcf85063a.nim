@@ -9,7 +9,7 @@ const
   ParamUnused* = -1
 
 type
-  Pcf85063a* {.bycopy.} = object
+  Pcf85063a* = object
     i2c: I2c               ##  Interface pins with our standard defaults where appropriate
     address: I2cAddress
     interrupt: int8
@@ -77,12 +77,14 @@ proc bcdDecode*(v: uint): int8 =
     v1: uint = v and 0x0f
   return (v1 + (v10 * 10)).int8
 
-proc init*(self: var Pcf85063a) =
+proc init*(self: var Pcf85063a; interrupt: int8 = PinUnused) =
+  self.address = DefaultI2cAddress
+  self.interrupt = interrupt
   if self.interrupt != PinUnused:
     gpioSetFunction(self.interrupt.Gpio, GpioFunction.Sio)
     gpioSetDir(self.interrupt.Gpio, In)
     gpioSetPulls(self.interrupt.Gpio, up=false, down=true)
-  self.i2c = initI2c()
+  self.i2c.init()
 
 proc reset*(self: var Pcf85063a) =
   ##  magic soft reset command

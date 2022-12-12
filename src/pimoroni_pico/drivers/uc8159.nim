@@ -2,6 +2,17 @@ import picostdlib/[pico/types, pico/platform]
 import ../common/pimoroni_common, ../libraries/pico_graphics
 
 type
+  Uc8159* = object of DisplayDriver
+    spi: ptr SpiInst
+    csPin: Gpio
+    dcPin: Gpio
+    sckPin: Gpio
+    mosiPin: Gpio
+    busyPin: int8
+    resetPin: Gpio
+    timeout: AbsoluteTime
+    blocking: bool
+
   Reg {.pure, size: sizeof(uint8).} = enum
     PSR   = 0x00'u8
     PWR   = 0x01'u8
@@ -42,20 +53,36 @@ type
     Orange
     Clean
 
-  Uc8159* {.bycopy.} = object of DisplayDriver
-    spi: ptr SpiInst
-    csPin: Gpio
-    dcPin: Gpio
-    sckPin: Gpio
-    mosiPin: Gpio
-    busyPin: int
-    resetPin: Gpio
-    timeout: AbsoluteTime
-    blocking: bool
 
+proc init*(self: var Uc8159) =
+  self.spi = spi0
+  self.csPin = SpiBgFrontCs
+  self.dcPin = 28.Gpio
+  self.sckPin = SpiDefaultSck
+  self.mosiPin = SpiDefaultMosi
+  self.busyPin = PinUnused
+  self.resetPin = 27.Gpio
+  self.blocking = false
+
+  ##  configure spi interface and pins
+  discard spiInit(self.spi, 3_000_000.cuint)
+  gpioSetFunction(self.dcPin, GpioFunction.Sio)
+  gpioSetDir(self.dcPin, Out)
+  gpioSetFunction(self.csPin, GpioFunction.Sio)
+  gpioSetDir(self.csPin, Out)
+  gpioPut(self.csPin, High)
+  gpioSetFunction(self.resetPin, GpioFunction.Sio)
+  gpioSetDir(self.resetPin, Out)
+  gpioPut(self.resetPin, High)
+  if self.busyPin != PinUnused:
+    gpioSetFunction(self.busyPin.Gpio, GpioFunction.Sio)
+    gpioSetDir(self.busyPin.Gpio, In)
+    gpioSetPulls(self.busyPin.Gpio, up=true, down=false)
+  gpioSetFunction(self.sckPin, GpioFunction.Spi)
+  gpioSetFunction(self.mosiPin, GpioFunction.Spi)
 
 proc isBusy*(self: Uc8159): bool =
-  if self.busyPin.int == PinUnused:
+  if self.busyPin == PinUnused:
     if absoluteTimeDiffUs(getAbsoluteTime(), self.timeout) > 0:
       return true
     else:
@@ -85,31 +112,6 @@ proc command*(self: var Uc8159; reg: Reg; data: openArray[uint8] = []) =
     ##  data mode
     discard spiWriteBlocking(self.spi, cast[ptr uint8](data.unsafeAddr), data.len.csize_t)
   gpioPut(self.csPin, High)
-
-proc init*(self: var Uc8159) =
-  self.spi = spi0
-  self.csPin = SpiBgFrontCs
-  self.dcPin = 28.Gpio
-  self.sckPin = SpiDefaultSck
-  self.mosiPin = SpiDefaultMosi
-  self.busyPin = PinUnused
-  self.resetPin = 27.Gpio
-  self.blocking = false
-  ##  configure spi interface and pins
-  discard spiInit(self.spi, 3_000_000.cuint)
-  gpioSetFunction(self.dcPin, GpioFunction.Sio)
-  gpioSetDir(self.dcPin, Out)
-  gpioSetFunction(self.csPin, GpioFunction.Sio)
-  gpioSetDir(self.csPin, Out)
-  gpioPut(self.csPin, High)
-  gpioSetFunction(self.resetPin, GpioFunction.Sio)
-  gpioSetDir(self.resetPin, Out)
-  gpioPut(self.resetPin, High)
-  gpioSetFunction(self.busyPin.Gpio, GpioFunction.Sio)
-  gpioSetDir(self.busyPin.Gpio, In)
-  gpioSetPulls(self.busyPin.Gpio, up=true, down=false)
-  gpioSetFunction(self.sckPin, GpioFunction.Spi)
-  gpioSetFunction(self.mosiPin, GpioFunction.Spi)
 
 proc setup*(self: var Uc8159) =
   self.reset()

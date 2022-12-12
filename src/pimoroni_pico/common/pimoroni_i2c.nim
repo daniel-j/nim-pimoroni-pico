@@ -2,24 +2,22 @@ import picostdlib/[hardware/i2c, hardware/gpio]
 import pimoroni_common
 
 type
-  I2c* {.bycopy.} = object
-    i2c*: ptr I2cInst
-    sda*: Gpio
-    scl*: Gpio
-    interrupt*: int
-    baudrate*: uint
+  I2c* = object
+    i2c: ptr I2cInst
+    sda: Gpio
+    scl: Gpio
+    interrupt: int8
+    baudrate: uint
 
 proc pinToInst*(pin: Gpio): ptr I2cInst =
   if ((pin.uint shr 1) and 0b1).bool: i2c1 else: i2c0
 
-proc initI2c*(sda: Gpio = I2cDefaultSda; scl: Gpio = I2cDefaultScl; baudrate: uint = I2cDefaultBaudrate): I2c =
-  result.sda = sda
-  result.scl = scl
-  result.baudrate = baudrate
-  result.interrupt = PinUnused
-  result.i2c = PimoroniI2cDefaultInstance
-
-  let self = result
+proc init*(self: var I2c; sda: Gpio = I2cDefaultSda; scl: Gpio = I2cDefaultScl; baudrate: uint = I2cDefaultBaudrate) =
+  self.sda = sda
+  self.scl = scl
+  self.baudrate = baudrate
+  self.interrupt = PinUnused
+  self.i2c = PimoroniI2cDefaultInstance
 
   #self.i2c = pinToInst(self.sda)
   ##  TODO call pin_to_inst on sda and scl, and verify they are a valid i2c pin pair
@@ -38,7 +36,7 @@ proc initI2c*(sda: Gpio = I2cDefaultSda; scl: Gpio = I2cDefaultScl; baudrate: ui
   gpioSetFunction(self.scl, GpioFunction.I2c)
   gpioPullUp(self.scl)
 
-proc destroyI2c*(self: var I2c) =
+proc `=destroy`*(self: var I2c) =
   i2cDeinit(self.i2c)
   gpioDisablePulls(self.sda)
   gpioSetFunction(self.sda, GpioFunction.Null)

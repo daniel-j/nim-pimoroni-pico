@@ -120,7 +120,7 @@ proc `/=`*(self: var Point; a: int32): var Point {.inline.} =
   self.y = self.y div a
   return self
 
-proc clamp*(self: Point, r: Rect): Point {.noSideEffect.} =
+proc clamp*(self: Point; r: Rect): Point {.noSideEffect.} =
   result.x = min(max(self.x, r.x), r.x + r.w)
   result.y = min(max(self.y, r.y), r.y + r.h)
 
@@ -164,7 +164,7 @@ var rgb332ToRgb565Lut*: array[256, uint16] = [
 var dither16Pattern*: array[16, uint8]
 
 type
-  PicoGraphics* {.bycopy.} = object of RootObj
+  PicoGraphics* = object of RootObj
     frameBuffer*: pointer
     penType*: PicoGraphicsPenType
     bounds*: Rect
@@ -438,7 +438,7 @@ proc bufferSize*(self: var PicoGraphicsPenRGB888; w: uint; h: uint): csize_t =
   return w * h * uint sizeof(Rgb888)
 
 type
-  DisplayDriver* {.bycopy.} = object of RootObj
+  DisplayDriver* = object of RootObj
     width*: uint16
     height*: uint16
     rotation*: Rotation
@@ -468,3 +468,38 @@ proc powerOff*(self: var DisplayDriver) =
 
 proc cleanup*(self: var DisplayDriver) =
   discard
+
+
+
+
+
+
+proc empty*(self: Rect): bool {.noSideEffect.} =
+  return self.w <= 0 or self.h <= 0
+
+proc contains*(self: Rect; p: Point): bool {.noSideEffect.} =
+  return p.x >= self.x and p.y >= self.y and p.x < self.x + self.w and p.y < self.y + self.h
+
+proc contains*(self: Rect; p: Rect): bool {.noSideEffect.} =
+  return p.x >= self.x and p.y >= self.y and p.x + p.w < self.x + self.w and p.y + p.h < self.y + self.h
+
+proc intersects*(self: Rect; r: Rect): bool {.noSideEffect.} =
+  return not (self.x > r.x + r.w or self.x + self.w < r.x or self.y > r.y + r.h or self.y + self.h < r.y)
+
+proc intersection*(self: Rect; r: Rect): Rect {.noSideEffect.} =
+  result.x = max(self.x, r.x)
+  result.y = max(self.y, r.y)
+  result.w = min(self.x + self.w, r.x + r.w) - max(self.x, r.x)
+  result.h = min(self.y + self.h, r.y + r.h) - max(self.y, r.y)
+
+proc inflate*(self: var Rect; v: int32) =
+  dec(self.x, v)
+  dec(self.y, v)
+  inc(self.w, v * 2)
+  inc(self.h, v * 2)
+
+proc deflate*(self: var Rect; v: int32) =
+  inc(self.x, v)
+  inc(self.y, v)
+  dec(self.w, v * 2)
+  dec(self.h, v * 2)
