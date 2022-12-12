@@ -54,140 +54,140 @@ type
     blocking: bool
 
 
-proc isBusy*(this: Uc8159): bool =
-  if this.busyPin.int == PinUnused:
-    if absoluteTimeDiffUs(getAbsoluteTime(), this.timeout) > 0:
+proc isBusy*(self: Uc8159): bool =
+  if self.busyPin.int == PinUnused:
+    if absoluteTimeDiffUs(getAbsoluteTime(), self.timeout) > 0:
       return true
     else:
       return false
-  return not gpioGet(this.busyPin.Gpio).bool
+  return not gpioGet(self.busyPin.Gpio).bool
 
-proc busyWait*(this: var Uc8159, minimumWaitMs: uint32 = 0) =
-  this.timeout = makeTimeoutTimeMs(minimumWaitMs)
-  while this.isBusy():
+proc busyWait*(self: var Uc8159, minimumWaitMs: uint32 = 0) =
+  self.timeout = makeTimeoutTimeMs(minimumWaitMs)
+  while self.isBusy():
     tightLoopContents()
 
-proc reset*(this: var Uc8159) =
-  gpioPut(this.resetPin, Low)
+proc reset*(self: var Uc8159) =
+  gpioPut(self.resetPin, Low)
   sleepMs(10)
-  gpioPut(this.resetPin, High)
+  gpioPut(self.resetPin, High)
   sleepMs(10)
-  this.busyWait()
+  self.busyWait()
 
-proc command*(this: var Uc8159; reg: Reg; data: openArray[uint8] = []) =
-  gpioPut(this.csPin, Low)
-  gpioPut(this.dcPin, Low)
+proc command*(self: var Uc8159; reg: Reg; data: openArray[uint8] = []) =
+  gpioPut(self.csPin, Low)
+  gpioPut(self.dcPin, Low)
   var regNum = reg.uint8
   ##  command mode
-  discard spiWriteBlocking(this.spi, regNum.addr, 1)
+  discard spiWriteBlocking(self.spi, regNum.addr, 1)
   if data.len > 0:
-    gpioPut(this.dcPin, High)
+    gpioPut(self.dcPin, High)
     ##  data mode
-    discard spiWriteBlocking(this.spi, cast[ptr uint8](data.unsafeAddr), data.len.csize_t)
-  gpioPut(this.csPin, High)
+    discard spiWriteBlocking(self.spi, cast[ptr uint8](data.unsafeAddr), data.len.csize_t)
+  gpioPut(self.csPin, High)
 
-proc init*(this: var Uc8159) =
-  this.spi = spi0
-  this.csPin = SpiBgFrontCs
-  this.dcPin = 28.Gpio
-  this.sckPin = SpiDefaultSck
-  this.mosiPin = SpiDefaultMosi
-  this.busyPin = PinUnused
-  this.resetPin = 27.Gpio
-  this.blocking = false
+proc init*(self: var Uc8159) =
+  self.spi = spi0
+  self.csPin = SpiBgFrontCs
+  self.dcPin = 28.Gpio
+  self.sckPin = SpiDefaultSck
+  self.mosiPin = SpiDefaultMosi
+  self.busyPin = PinUnused
+  self.resetPin = 27.Gpio
+  self.blocking = false
   ##  configure spi interface and pins
-  discard spiInit(this.spi, 3_000_000.cuint)
-  gpioSetFunction(this.dcPin, GpioFunction.Sio)
-  gpioSetDir(this.dcPin, Out)
-  gpioSetFunction(this.csPin, GpioFunction.Sio)
-  gpioSetDir(this.csPin, Out)
-  gpioPut(this.csPin, High)
-  gpioSetFunction(this.resetPin, GpioFunction.Sio)
-  gpioSetDir(this.resetPin, Out)
-  gpioPut(this.resetPin, High)
-  gpioSetFunction(this.busyPin.Gpio, GpioFunction.Sio)
-  gpioSetDir(this.busyPin.Gpio, In)
-  gpioSetPulls(this.busyPin.Gpio, up=true, down=false)
-  gpioSetFunction(this.sckPin, GpioFunction.Spi)
-  gpioSetFunction(this.mosiPin, GpioFunction.Spi)
+  discard spiInit(self.spi, 3_000_000.cuint)
+  gpioSetFunction(self.dcPin, GpioFunction.Sio)
+  gpioSetDir(self.dcPin, Out)
+  gpioSetFunction(self.csPin, GpioFunction.Sio)
+  gpioSetDir(self.csPin, Out)
+  gpioPut(self.csPin, High)
+  gpioSetFunction(self.resetPin, GpioFunction.Sio)
+  gpioSetDir(self.resetPin, Out)
+  gpioPut(self.resetPin, High)
+  gpioSetFunction(self.busyPin.Gpio, GpioFunction.Sio)
+  gpioSetDir(self.busyPin.Gpio, In)
+  gpioSetPulls(self.busyPin.Gpio, up=true, down=false)
+  gpioSetFunction(self.sckPin, GpioFunction.Spi)
+  gpioSetFunction(self.mosiPin, GpioFunction.Spi)
 
-proc setup*(this: var Uc8159) =
-  this.reset()
-  this.busyWait()
-  var dimensions = [uint8(this.width shr 8),  uint8(this.width),
-                    uint8(this.height shr 8), uint8(this.height)]
-  if this.width == 600:
-    if this.rotation == Rotate_0:
-      this.command(Psr, [uint8 0xE3, 0x08])
+proc setup*(self: var Uc8159) =
+  self.reset()
+  self.busyWait()
+  var dimensions = [uint8(self.width shr 8),  uint8(self.width),
+                    uint8(self.height shr 8), uint8(self.height)]
+  if self.width == 600:
+    if self.rotation == Rotate_0:
+      self.command(Psr, [uint8 0xE3, 0x08])
     else:
-      this.command(Psr, [uint8 0xEF, 0x08])
+      self.command(Psr, [uint8 0xEF, 0x08])
   else:
-    if this.rotation == Rotate_0:
-      this.command(Psr, [uint8 0xA3, 0x08])
+    if self.rotation == Rotate_0:
+      self.command(Psr, [uint8 0xA3, 0x08])
     else:
-      this.command(Psr, [uint8 0xAF, 0x08])
-  this.command(Pwr, [uint8 0x37, 0x00, 0x23, 0x23])
-  this.command(Pfs, [uint8 0x00,])
-  this.command(Btst, [uint8 0xC7, 0xC7, 0x1D])
-  this.command(Pll, [uint8 0x3C,])
-  this.command(Tsc, [uint8 0x00,])
-  this.command(Cdi, [uint8 0x37,])
-  this.command(Tcon, [uint8 0x22,])
-  this.command(Tres, dimensions)
-  this.command(Pws, [uint8 0xAA,])
+      self.command(Psr, [uint8 0xAF, 0x08])
+  self.command(Pwr, [uint8 0x37, 0x00, 0x23, 0x23])
+  self.command(Pfs, [uint8 0x00,])
+  self.command(Btst, [uint8 0xC7, 0xC7, 0x1D])
+  self.command(Pll, [uint8 0x3C,])
+  self.command(Tsc, [uint8 0x00,])
+  self.command(Cdi, [uint8 0x37,])
+  self.command(Tcon, [uint8 0x22,])
+  self.command(Tres, dimensions)
+  self.command(Pws, [uint8 0xAA,])
   sleepMs(100)
-  this.command(Cdi, [uint8 0x37,])
+  self.command(Cdi, [uint8 0x37,])
 
-proc setBlocking*(this: var Uc8159; blocking: bool) =
-  this.blocking = blocking
+proc setBlocking*(self: var Uc8159; blocking: bool) =
+  self.blocking = blocking
 
-proc powerOff*(this: var Uc8159) =
-  this.busyWait()
-  this.command(Pof)
+proc powerOff*(self: var Uc8159) =
+  self.busyWait()
+  self.command(Pof)
   ##  turn off
 
-proc data*(this: var Uc8159, len: uint; data: ptr uint8) =
-  gpioPut(this.csPin, Low)
-  gpioPut(this.dcPin, High)
+proc data*(self: var Uc8159, len: uint; data: ptr uint8) =
+  gpioPut(self.csPin, Low)
+  gpioPut(self.dcPin, High)
 
   ##  data mode
-  discard spiWriteBlocking(this.spi, data, len)
-  gpioPut(this.csPin, High)
+  discard spiWriteBlocking(self.spi, data, len)
+  gpioPut(self.csPin, High)
 
-proc update*(this: var Uc8159, graphics: var PicoGraphics) =
+proc update*(self: var Uc8159, graphics: var PicoGraphics) =
   if graphics.penType != Pen3Bit:
     return
-  if this.blocking:
-    this.busyWait()
-  this.setup()
-  gpioPut(this.csPin, Low)
+  if self.blocking:
+    self.busyWait()
+  self.setup()
+  gpioPut(self.csPin, Low)
   var reg = Dtm1.uint8
-  gpioPut(this.dcPin, Low)
+  gpioPut(self.dcPin, Low)
   ##  command mode
-  discard spiWriteBlocking(this.spi, reg.addr, 1)
-  gpioPut(this.dcPin, High)
+  discard spiWriteBlocking(self.spi, reg.addr, 1)
+  gpioPut(self.dcPin, High)
   ##  data mode
   ##  HACK: Output 48 rows of data since our buffer is 400px tall
   ##  but the display has no offset configuration and H/V scan
   ##  are reversed.
   ##  Any garbage data will do.
   ##  2px per byte, so we need width * 24 bytes
-  if this.height == 400 and this.rotation == Rotate_0:
-    discard spiWriteBlocking(this.spi, cast[ptr uint8](graphics.frameBuffer), this.width * 24)
+  if self.height == 400 and self.rotation == Rotate_0:
+    discard spiWriteBlocking(self.spi, cast[ptr uint8](graphics.frameBuffer), self.width * 24)
   graphics.frameConvert(Pen_P4, (proc (buf: pointer; length: csize_t): auto =
     if length > 0:
-      discard spiWriteBlocking(this.spi, cast[ptr uint8](buf), length)))
-  gpioPut(this.csPin, High)
-  this.busyWait()
-  this.command(Pon)
+      discard spiWriteBlocking(self.spi, cast[ptr uint8](buf), length)))
+  gpioPut(self.csPin, High)
+  self.busyWait()
+  self.command(Pon)
   ##  turn on
-  this.busyWait(200)
-  this.command(Drf)
+  self.busyWait(200)
+  self.command(Drf)
   ##  start display refresh
-  this.busyWait(200)
-  if this.blocking:
-    this.busyWait(32 * 1000)
-    this.command(Pof)
+  self.busyWait(200)
+  if self.blocking:
+    self.busyWait(32 * 1000)
+    self.command(Pof)
     ##  turn off
   else:
-    this.timeout = makeTimeoutTimeMs(32 * 1000)
+    self.timeout = makeTimeoutTimeMs(32 * 1000)

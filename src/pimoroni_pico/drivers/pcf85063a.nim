@@ -77,42 +77,42 @@ proc bcdDecode*(v: uint): int8 =
     v1: uint = v and 0x0f
   return (v1 + (v10 * 10)).int8
 
-proc init*(this: var Pcf85063a) =
-  if this.interrupt != PinUnused:
-    gpioSetFunction(this.interrupt.Gpio, GpioFunction.Sio)
-    gpioSetDir(this.interrupt.Gpio, In)
-    gpioSetPulls(this.interrupt.Gpio, up=false, down=true)
-  this.i2c = initI2c()
+proc init*(self: var Pcf85063a) =
+  if self.interrupt != PinUnused:
+    gpioSetFunction(self.interrupt.Gpio, GpioFunction.Sio)
+    gpioSetDir(self.interrupt.Gpio, In)
+    gpioSetPulls(self.interrupt.Gpio, up=false, down=true)
+  self.i2c = initI2c()
 
-proc reset*(this: var Pcf85063a) =
+proc reset*(self: var Pcf85063a) =
   ##  magic soft reset command
-  this.i2c.regWriteUint8(this.address, Registers.CONTROL_1.uint8, 0x58'u8)
+  self.i2c.regWriteUint8(self.address, Registers.CONTROL_1.uint8, 0x58'u8)
   ##  read the oscillator status bit until it is cleared
   var status: uint8 = 0x80
   while (status and 0x80) != 0:
     ##  attempt to clear oscillator stop flag, then read it back
-    this.i2c.regWriteUint8(this.address, OSCILLATOR_STATUS.uint8, 0x00)
-    status = this.i2c.regReadUint8(this.address, OSCILLATOR_STATUS.uint8)
+    self.i2c.regWriteUint8(self.address, OSCILLATOR_STATUS.uint8, 0x00)
+    status = self.i2c.regReadUint8(self.address, OSCILLATOR_STATUS.uint8)
 
 ##  i2c helper methods
-proc getI2c*(this: var Pcf85063a): ptr I2cInst {.noSideEffect.} =
-  return this.i2c.getI2c()
+proc getI2c*(self: var Pcf85063a): ptr I2cInst {.noSideEffect.} =
+  return self.i2c.getI2c()
 
-proc getAddress*(this: var Pcf85063a): I2cAddress {.noSideEffect.} =
-  return this.address
+proc getAddress*(self: var Pcf85063a): I2cAddress {.noSideEffect.} =
+  return self.address
 
-proc getSda*(this: var Pcf85063a): Gpio {.noSideEffect.} =
-  return this.i2c.getSda()
+proc getSda*(self: var Pcf85063a): Gpio {.noSideEffect.} =
+  return self.i2c.getSda()
 
-proc getScl*(this: var Pcf85063a): Gpio {.noSideEffect.} =
-  return this.i2c.getScl()
+proc getScl*(self: var Pcf85063a): Gpio {.noSideEffect.} =
+  return self.i2c.getScl()
 
-proc getInt*(this: var Pcf85063a): Gpio {.noSideEffect.} =
-  return this.interrupt.Gpio
+proc getInt*(self: var Pcf85063a): Gpio {.noSideEffect.} =
+  return self.interrupt.Gpio
 
-proc getDatetime*(this: var Pcf85063a): DateTime =
+proc getDatetime*(self: var Pcf85063a): DateTime =
   var resultArray: array[7, uint8]
-  discard this.i2c.readBytes(this.address, Registers.SECONDS.uint8, resultArray[0].addr, 7)
+  discard self.i2c.readBytes(self.address, Registers.SECONDS.uint8, resultArray[0].addr, 7)
   result.year = (int16)(bcdDecode(resultArray[6]) + 2000)
   result.month = cast[int8](bcdDecode(resultArray[5]))
   result.day = cast[int8](bcdDecode(resultArray[3]))
@@ -121,7 +121,7 @@ proc getDatetime*(this: var Pcf85063a): DateTime =
   result.min = cast[int8](bcdDecode(resultArray[1]))
   result.sec = cast[int8](bcdDecode(resultArray[0] and 0x7f))     ##  mask out status bit
 
-proc setDatetime*(this: var Pcf85063a; t: ptr DateTime) =
+proc setDatetime*(self: var Pcf85063a; t: ptr DateTime) =
   var data: array[7, uint8] = [bcdEncode(cast[uint](t.sec)),
                            bcdEncode(cast[uint](t.min)),
                            bcdEncode(cast[uint](t.hour)),
@@ -129,80 +129,80 @@ proc setDatetime*(this: var Pcf85063a; t: ptr DateTime) =
                            bcdEncode(cast[uint](t.dotw)),
                            bcdEncode(cast[uint](t.month)),
                            bcdEncode(cast[uint](t.year) - 2000)] ##  offset year
-  discard this.i2c.writeBytes(this.address, Registers.SECONDS.uint8, data[0].addr, data.len.cuint)
+  discard self.i2c.writeBytes(self.address, Registers.SECONDS.uint8, data[0].addr, data.len.cuint)
 
-proc setAlarm*(this: var Pcf85063a; second: int; minute: int; hour: int; day: int) =
+proc setAlarm*(self: var Pcf85063a; second: int; minute: int; hour: int; day: int) =
   var alarm: array[5, uint8] = [
     if second != ParamUnused: bcdEncode(second.uint) else: 0x80,
     if minute != ParamUnused: bcdEncode(minute.uint) else: 0x80,
     if hour != ParamUnused: bcdEncode(hour.uint) else: 0x80,
     if day != ParamUnused: bcdEncode(day.uint) else: 0x80,
     0x80]
-  discard this.i2c.writeBytes(this.address, Registers.SECOND_ALARM.uint8, alarm[0].addr, alarm.len.cuint)
+  discard self.i2c.writeBytes(self.address, Registers.SECOND_ALARM.uint8, alarm[0].addr, alarm.len.cuint)
 
-proc setWeekdayAlarm*(this: var Pcf85063a; second: int; minute: int; hour: int; dotw: DayOfWeek) =
+proc setWeekdayAlarm*(self: var Pcf85063a; second: int; minute: int; hour: int; dotw: DayOfWeek) =
   var alarm: array[5, uint8] = [
     if second != ParamUnused: bcdEncode(second.uint) else: 0x80,
     if minute != ParamUnused: bcdEncode(minute.uint) else: 0x80,
     if hour != ParamUnused: bcdEncode(hour.uint) else: 0x80,
     0x80,
     if dotw != None: bcdEncode(dotw.uint) else: 0x80]
-  discard this.i2c.writeBytes(this.address, Registers.SECOND_ALARM.uint8, alarm[0].addr, alarm.len.cuint)
+  discard self.i2c.writeBytes(self.address, Registers.SECOND_ALARM.uint8, alarm[0].addr, alarm.len.cuint)
 
-proc enableAlarmInterrupt*(this: var Pcf85063a; enable: bool) =
-  var bits: uint8 = this.i2c.regReadUint8(this.address, Registers.CONTROL_2.uint8)
+proc enableAlarmInterrupt*(self: var Pcf85063a; enable: bool) =
+  var bits: uint8 = self.i2c.regReadUint8(self.address, Registers.CONTROL_2.uint8)
   bits = if enable: (bits or 0x80) else: (bits and not 0x80'u8)
   bits = bits or 0x40
   ##  ensure alarm flag isn't reset
-  this.i2c.regWriteUint8(this.address, Registers.CONTROL_2.uint8, bits)
+  self.i2c.regWriteUint8(self.address, Registers.CONTROL_2.uint8, bits)
 
-proc readAlarmFlag*(this: var Pcf85063a): bool =
-  var bits: uint8 = this.i2c.regReadUint8(this.address, Registers.CONTROL_2.uint8)
+proc readAlarmFlag*(self: var Pcf85063a): bool =
+  var bits: uint8 = self.i2c.regReadUint8(self.address, Registers.CONTROL_2.uint8)
   return (bits and 0x40'u8).bool
 
-proc clearAlarmFlag*(this: var Pcf85063a) =
-  var bits: uint8 = this.i2c.regReadUint8(this.address, Registers.CONTROL_2.uint8)
+proc clearAlarmFlag*(self: var Pcf85063a) =
+  var bits: uint8 = self.i2c.regReadUint8(self.address, Registers.CONTROL_2.uint8)
   bits = bits and not 0x40'u8
-  this.i2c.regWriteUint8(this.address, Registers.CONTROL_2.uint8, bits)
+  self.i2c.regWriteUint8(self.address, Registers.CONTROL_2.uint8, bits)
 
-proc unsetAlarm*(this: var Pcf85063a) =
+proc unsetAlarm*(self: var Pcf85063a) =
   var dummy: array[5, uint8]
-  discard this.i2c.writeBytes(this.address, Registers.SECOND_ALARM.uint8, dummy[0].addr, dummy.len.cuint)
+  discard self.i2c.writeBytes(self.address, Registers.SECOND_ALARM.uint8, dummy[0].addr, dummy.len.cuint)
 
-proc setTimer*(this: var Pcf85063a; ticks: uint8; ttp: TimerTickPeriod) =
-  var bits: uint8 = this.i2c.regReadUint8(this.address, Registers.TIMER_MODE.uint8)
+proc setTimer*(self: var Pcf85063a; ticks: uint8; ttp: TimerTickPeriod) =
+  var bits: uint8 = self.i2c.regReadUint8(self.address, Registers.TIMER_MODE.uint8)
   var timer: array[2, uint8] = [ticks, uint8(
       (bits and not 0x18'u8) or (ttp.uint8 shl 3) or 0x04'u8)] ##  mask out current ttp and set new + enable
-  discard this.i2c.writeBytes(this.address, Registers.TIMER_VALUE.uint8, timer[0].addr, timer.len.cuint)
+  discard self.i2c.writeBytes(self.address, Registers.TIMER_VALUE.uint8, timer[0].addr, timer.len.cuint)
 
-proc enableTimerInterrupt*(this: var Pcf85063a; enable: bool; flagOnly: bool) =
-  var bits: uint8 = this.i2c.regReadUint8(this.address, Registers.TIMER_MODE.uint8)
+proc enableTimerInterrupt*(self: var Pcf85063a; enable: bool; flagOnly: bool) =
+  var bits: uint8 = self.i2c.regReadUint8(self.address, Registers.TIMER_MODE.uint8)
   bits = (bits and not 0x03'u8) or (if enable: 0x02 else: 0x00) or
       (if flagOnly: 0x01 else: 0x00)
-  this.i2c.regWriteUint8(this.address, Registers.TIMER_MODE.uint8, bits)
+  self.i2c.regWriteUint8(self.address, Registers.TIMER_MODE.uint8, bits)
 
-proc readTimerFlag*(this: var Pcf85063a): bool =
-  var bits: uint8 = this.i2c.regReadUint8(this.address, Registers.CONTROL_2.uint8)
+proc readTimerFlag*(self: var Pcf85063a): bool =
+  var bits: uint8 = self.i2c.regReadUint8(self.address, Registers.CONTROL_2.uint8)
   return (bits and 0x08).bool
 
-proc clearTimerFlag*(this: var Pcf85063a) =
-  var bits: uint8 = this.i2c.regReadUint8(this.address, Registers.CONTROL_2.uint8)
+proc clearTimerFlag*(self: var Pcf85063a) =
+  var bits: uint8 = self.i2c.regReadUint8(self.address, Registers.CONTROL_2.uint8)
   bits = bits and not 0x08'u8
-  this.i2c.regWriteUint8(this.address, Registers.CONTROL_2.uint8, bits)
+  self.i2c.regWriteUint8(self.address, Registers.CONTROL_2.uint8, bits)
 
-proc unsetTimer*(this: var Pcf85063a) =
-  var bits: uint8 = this.i2c.regReadUint8(this.address, Registers.TIMER_MODE.uint8)
+proc unsetTimer*(self: var Pcf85063a) =
+  var bits: uint8 = self.i2c.regReadUint8(self.address, Registers.TIMER_MODE.uint8)
   bits = bits and not 0x04'u8
-  this.i2c.regWriteUint8(this.address, Registers.TIMER_MODE.uint8, bits)
+  self.i2c.regWriteUint8(self.address, Registers.TIMER_MODE.uint8, bits)
 
-proc setClockOutput*(this: var Pcf85063a; co: ClockOut) =
+proc setClockOutput*(self: var Pcf85063a; co: ClockOut) =
   ##  set the speed of (or turn off) the clock output
-  var bits: uint8 = this.i2c.regReadUint8(this.address, Registers.CONTROL_2.uint8)
+  var bits: uint8 = self.i2c.regReadUint8(self.address, Registers.CONTROL_2.uint8)
   bits = (bits and not 0x07'u8) or co.uint8
-  this.i2c.regWriteUint8(this.address, Registers.CONTROL_2.uint8, bits)
+  self.i2c.regWriteUint8(self.address, Registers.CONTROL_2.uint8, bits)
 
-proc setByte*(this: var Pcf85063a; v: uint8) =
-  this.i2c.regWriteUint8(this.address, Registers.RAM_BYTE.uint8, v)
+proc setByte*(self: var Pcf85063a; v: uint8) =
+  self.i2c.regWriteUint8(self.address, Registers.RAM_BYTE.uint8, v)
 
-proc getByte*(this: var Pcf85063a): uint8 =
-  this.i2c.regReadUint8(this.address, Registers.RAM_BYTE.uint8)
+proc getByte*(self: var Pcf85063a): uint8 =
+  self.i2c.regReadUint8(self.address, Registers.RAM_BYTE.uint8)

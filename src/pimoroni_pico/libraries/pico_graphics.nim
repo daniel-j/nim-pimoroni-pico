@@ -34,58 +34,58 @@ proc constructRgb*(c: Rgb565): Rgb {.constructor.} =
 proc constructRgb*(r: int16; g: int16; b: int16): Rgb {.constructor.} =
   discard
 
-proc `+`*(this: Rgb; c: Rgb): Rgb {.noSideEffect.} =
-  return constructRGB(this.r + c.r, this.g + c.g, this.b + c.b)
+proc `+`*(self: Rgb; c: Rgb): Rgb {.noSideEffect.} =
+  return constructRGB(self.r + c.r, self.g + c.g, self.b + c.b)
 
-proc `+=`*(this: var Rgb; c: Rgb): var Rgb =
-  inc(this.r, c.r)
-  inc(this.g, c.g)
-  inc(this.b, c.b)
-  return this
+proc `+=`*(self: var Rgb; c: Rgb): var Rgb =
+  inc(self.r, c.r)
+  inc(self.g, c.g)
+  inc(self.b, c.b)
+  return self
 
-proc `-=`*(this: var Rgb; c: Rgb): var Rgb =
-  dec(this.r, c.r)
-  dec(this.g, c.g)
-  dec(this.b, c.b)
-  return this
+proc `-=`*(self: var Rgb; c: Rgb): var Rgb =
+  dec(self.r, c.r)
+  dec(self.g, c.g)
+  dec(self.b, c.b)
+  return self
 
-proc `-`*(this: Rgb; c: Rgb): Rgb {.noSideEffect.} =
-  return constructRGB(this.r - c.r, this.g - c.g, this.b - c.b)
+proc `-`*(self: Rgb; c: Rgb): Rgb {.noSideEffect.} =
+  return constructRGB(self.r - c.r, self.g - c.g, self.b - c.b)
 
-proc luminance*(this: Rgb): int {.noSideEffect.} =
+proc luminance*(self: Rgb): int {.noSideEffect.} =
   ##  weights based on https://www.johndcook.com/blog/2009/08/24/algorithms-convert-color-grayscale/
-  return this.r * 21 + this.g * 72 + this.b * 7
+  return self.r * 21 + self.g * 72 + self.b * 7
 
-proc distance*(this: Rgb; c: Rgb): int {.noSideEffect.} =
-  var rmean = (this.r + c.r) div 2
-  var rx = this.r - c.r
-  var gx = this.g - c.g
-  var bx = this.b - c.b
+proc distance*(self: Rgb; c: Rgb): int {.noSideEffect.} =
+  var rmean = (self.r + c.r) div 2
+  var rx = self.r - c.r
+  var gx = self.g - c.g
+  var bx = self.b - c.b
   return abs((int)((((512 + rmean) * rx * rx) shr 8) + 4 * gx * gx +
       (((767 - rmean) * bx * bx) shr 8)))
 
-proc closest*(this: Rgb; palette: openArray[Rgb]; len: int): int {.noSideEffect.} =
+proc closest*(self: Rgb; palette: openArray[Rgb]; len: int): int {.noSideEffect.} =
   var
     d = int.high
     m = -1
   var i = 0
   while i < len:
-    var dc = this.distance(palette[i])
+    var dc = self.distance(palette[i])
     if dc < d:
       m = i
       d = dc
     inc(i)
   return m
 
-proc toRgb565*(this: Rgb): Rgb565 =
-  let p = ((this.r and 0b11111000) shl 8).uint16 or ((this.g and 0b11111100) shl 3).uint16 or ((this.b and 0b11111000) shr 3).uint16
+proc toRgb565*(self: Rgb): Rgb565 =
+  let p = ((self.r and 0b11111000) shl 8).uint16 or ((self.g and 0b11111100) shl 3).uint16 or ((self.b and 0b11111000) shr 3).uint16
   return builtinBswap16(p).Rgb565
 
-proc toRgb332*(this: Rgb): Rgb332 =
-  ((this.r and 0b11100000) or ((this.g and 0b11100000) shr 3) or ((this.b and 0b11000000) shr 6)).Rgb332
+proc toRgb332*(self: Rgb): Rgb332 =
+  ((self.r and 0b11100000) or ((self.g and 0b11100000) shr 3) or ((self.b and 0b11000000) shr 6)).Rgb332
 
-proc toRgb888*(this: Rgb): Rgb888 =
-  ((this.r shl 16).uint32 or (this.g shl 8).uint32 or (this.b shl 0).uint32).Rgb888
+proc toRgb888*(self: Rgb): Rgb888 =
+  ((self.r shl 16).uint32 or (self.g shl 8).uint32 or (self.b shl 0).uint32).Rgb888
 
 type
   Pen* = int
@@ -105,24 +105,24 @@ proc constructPoint*(): Point {.constructor.} = discard
 proc constructPoint*(x: int32; y: int32): Point {.constructor.} =
   discard
 
-proc `-=`*(this: var Point; a: Point): var Point {.inline.} =
-  dec(this.x, a.x)
-  dec(this.y, a.y)
-  return this
+proc `-=`*(self: var Point; a: Point): var Point {.inline.} =
+  dec(self.x, a.x)
+  dec(self.y, a.y)
+  return self
 
-proc `+=`*(this: var Point; a: Point): var Point {.inline.} =
-  inc(this.x, a.x)
-  inc(this.y, a.y)
-  return this
+proc `+=`*(self: var Point; a: Point): var Point {.inline.} =
+  inc(self.x, a.x)
+  inc(self.y, a.y)
+  return self
 
-proc `/=`*(this: var Point; a: int32): var Point {.inline.} =
-  this.x = this.x div a
-  this.y = this.y div a
-  return this
+proc `/=`*(self: var Point; a: int32): var Point {.inline.} =
+  self.x = self.x div a
+  self.y = self.y div a
+  return self
 
-proc clamp*(this: Point, r: Rect): Point {.noSideEffect.} =
-  result.x = min(max(this.x, r.x), r.x + r.w)
-  result.y = min(max(this.y, r.y), r.y + r.h)
+proc clamp*(self: Point, r: Rect): Point {.noSideEffect.} =
+  result.x = min(max(self.x, r.x), r.x + r.w)
+  result.y = min(max(self.y, r.y), r.y + r.h)
 
 proc `==`*(lhs: Point; rhs: Point): bool {.inline.} =
   return lhs.x == rhs.x and lhs.y == rhs.y
@@ -205,51 +205,51 @@ proc rgb565ToRgb*(c: Rgb565): Rgb =
 # proc constructPicoGraphics*(width: uint16; height: uint16; frameBuffer: pointer): PicoGraphics {.constructor.} =
 #   setFont(addr(font6))
 
-proc setPen*(this: var PicoGraphics; c: uint) = discard
-proc setPen*(this: var PicoGraphics; r: uint8; g: uint8; b: uint8) = discard
-proc setPixel*(this: var PicoGraphics; p: Point) =
+proc setPen*(self: var PicoGraphics; c: uint) = discard
+proc setPen*(self: var PicoGraphics; r: uint8; g: uint8; b: uint8) = discard
+proc setPixel*(self: var PicoGraphics; p: Point) =
   discard
-proc setPixelSpan*(this: var PicoGraphics; p: Point; l: uint) = discard
-proc createPen*(this: var PicoGraphics; r: uint8; g: uint8; b: uint8): cint = discard
-proc updatePen*(this: var PicoGraphics; i: uint8; r: uint8; g: uint8; b: uint8): cint = discard
-proc resetPen*(this: var PicoGraphics; i: uint8): cint = discard
-proc setPixelDither*(this: var PicoGraphics; p: Point; c: Rgb) =
+proc setPixelSpan*(self: var PicoGraphics; p: Point; l: uint) = discard
+proc createPen*(self: var PicoGraphics; r: uint8; g: uint8; b: uint8): cint = discard
+proc updatePen*(self: var PicoGraphics; i: uint8; r: uint8; g: uint8; b: uint8): cint = discard
+proc resetPen*(self: var PicoGraphics; i: uint8): cint = discard
+proc setPixelDither*(self: var PicoGraphics; p: Point; c: Rgb) =
   discard
-proc setPixelDither*(this: var PicoGraphics; p: Point; c: Rgb565) =
+proc setPixelDither*(self: var PicoGraphics; p: Point; c: Rgb565) =
   discard
-proc setPixelDither*(this: var PicoGraphics; p: Point; c: uint8) =
+proc setPixelDither*(self: var PicoGraphics; p: Point; c: uint8) =
   discard
-proc frameConvert*(this: var PicoGraphics; `type`: PicoGraphicsPenType;
+proc frameConvert*(self: var PicoGraphics; `type`: PicoGraphicsPenType;
                   callback: PicoGraphicsconversionCallbackFunc) = discard
-proc sprite*(this: var PicoGraphics; data: pointer; sprite: Point; dest: Point;
+proc sprite*(self: var PicoGraphics; data: pointer; sprite: Point; dest: Point;
             scale: cint; transparent: cint) =
   discard
-# proc setFont*(this: var PicoGraphics; font: ptr FontT)
-# proc setFont*(this: var PicoGraphics; font: ptr FontT) = discard
-proc setFont*(this: var PicoGraphics; font: string) =
+# proc setFont*(self: var PicoGraphics; font: ptr FontT)
+# proc setFont*(self: var PicoGraphics; font: ptr FontT) = discard
+proc setFont*(self: var PicoGraphics; font: string) =
   discard
-proc setDimensions*(this: var PicoGraphics; width: cint; height: cint) = discard
-proc setFramebuffer*(this: var PicoGraphics; frameBuffer: pointer) = discard
-proc getData*(this: var PicoGraphics): pointer = discard
-proc getData*(this: var PicoGraphics; `type`: PicoGraphicsPenType; y: uint;
+proc setDimensions*(self: var PicoGraphics; width: cint; height: cint) = discard
+proc setFramebuffer*(self: var PicoGraphics; frameBuffer: pointer) = discard
+proc getData*(self: var PicoGraphics): pointer = discard
+proc getData*(self: var PicoGraphics; `type`: PicoGraphicsPenType; y: uint;
              rowBuf: pointer) = discard
-proc setClip*(this: var PicoGraphics; r: Rect) = discard
-proc removeClip*(this: var PicoGraphics) = discard
-proc clear*(this: var PicoGraphics) = discard
-proc pixel*(this: var PicoGraphics; p: Point) = discard
-proc pixelSpan*(this: var PicoGraphics; p: Point; l: int32) = discard
-proc rectangle*(this: var PicoGraphics; r: Rect) = discard
-proc circle*(this: var PicoGraphics; p: Point; r: int32) = discard
-proc character*(this: var PicoGraphics; c: char; p: Point; s: cfloat = 2.0f;
+proc setClip*(self: var PicoGraphics; r: Rect) = discard
+proc removeClip*(self: var PicoGraphics) = discard
+proc clear*(self: var PicoGraphics) = discard
+proc pixel*(self: var PicoGraphics; p: Point) = discard
+proc pixelSpan*(self: var PicoGraphics; p: Point; l: int32) = discard
+proc rectangle*(self: var PicoGraphics; r: Rect) = discard
+proc circle*(self: var PicoGraphics; p: Point; r: int32) = discard
+proc character*(self: var PicoGraphics; c: char; p: Point; s: cfloat = 2.0f;
                a: cfloat = 0.0f) = discard
-proc text*(this: var PicoGraphics; t: string; p: Point; wrap: int32; s: cfloat = 2.0f;
+proc text*(self: var PicoGraphics; t: string; p: Point; wrap: int32; s: cfloat = 2.0f;
           a: cfloat = 0.0f; letterSpacing: uint8 = 1) = discard
-proc measureText*(this: var PicoGraphics; t: string; s: cfloat = 2.0f;
+proc measureText*(self: var PicoGraphics; t: string; s: cfloat = 2.0f;
                  letterSpacing: uint8 = 1): int32 = discard
-proc polygon*(this: var PicoGraphics; points: openArray[Point]) = discard
-proc triangle*(this: var PicoGraphics; p1: Point; p2: Point; p3: Point) = discard
-proc line*(this: var PicoGraphics; p1: Point; p2: Point) = discard
-proc frameConvertRgb565*(this: var PicoGraphics;
+proc polygon*(self: var PicoGraphics; points: openArray[Point]) = discard
+proc triangle*(self: var PicoGraphics; p1: Point; p2: Point; p3: Point) = discard
+proc line*(self: var PicoGraphics; p1: Point; p2: Point) = discard
+proc frameConvertRgb565*(self: var PicoGraphics;
                         callback: PicoGraphicsconversionCallbackFunc;
                         getNextPixel: PicoGraphicsnextPixelFunc) = discard
 type
@@ -260,12 +260,12 @@ type
 proc constructPicoGraphicsPen1Bit*(width: uint16; height: uint16;
                                   frameBuffer: pointer): PicoGraphicsPen1Bit {.
     constructor.} = discard
-proc setPen*(this: var PicoGraphicsPen1Bit; c: uint) = discard
-proc setPen*(this: var PicoGraphicsPen1Bit; r: uint8; g: uint8; b: uint8) = discard
-proc setPixel*(this: var PicoGraphicsPen1Bit; p: Point) = discard
-proc setPixelSpan*(this: var PicoGraphicsPen1Bit; p: Point; l: uint) =
+proc setPen*(self: var PicoGraphicsPen1Bit; c: uint) = discard
+proc setPen*(self: var PicoGraphicsPen1Bit; r: uint8; g: uint8; b: uint8) = discard
+proc setPixel*(self: var PicoGraphicsPen1Bit; p: Point) = discard
+proc setPixelSpan*(self: var PicoGraphicsPen1Bit; p: Point; l: uint) =
   discard
-proc bufferSize*(this: var PicoGraphicsPen1Bit; w: uint; h: uint): csize_t =
+proc bufferSize*(self: var PicoGraphicsPen1Bit; w: uint; h: uint): csize_t =
   return w * h div 8
 
 type
@@ -276,14 +276,14 @@ type
 proc constructPicoGraphicsPen1BitY*(width: uint16; height: uint16;
                                    frameBuffer: pointer): PicoGraphicsPen1BitY {.
     constructor.} = discard
-proc setPen*(this: var PicoGraphicsPen1BitY; c: uint) =
+proc setPen*(self: var PicoGraphicsPen1BitY; c: uint) =
   discard
-proc setPen*(this: var PicoGraphicsPen1BitY; r: uint8; g: uint8; b: uint8) =
+proc setPen*(self: var PicoGraphicsPen1BitY; r: uint8; g: uint8; b: uint8) =
   discard
-proc setPixel*(this: var PicoGraphicsPen1BitY; p: Point) = discard
-proc setPixelSpan*(this: var PicoGraphicsPen1BitY; p: Point; l: uint) =
+proc setPixel*(self: var PicoGraphicsPen1BitY; p: Point) = discard
+proc setPixelSpan*(self: var PicoGraphicsPen1BitY; p: Point; l: uint) =
   discard
-proc bufferSize*(this: var PicoGraphicsPen1BitY; w: uint; h: uint): csize_t =
+proc bufferSize*(self: var PicoGraphicsPen1BitY; w: uint; h: uint): csize_t =
   return w * h div 8
 
 type
@@ -310,16 +310,16 @@ const PicoGraphicsPen3BitPaletteSize*: uint16 = 8
 proc constructPicoGraphicsPen3Bit*(width: uint16; height: uint16;
                                   frameBuffer: pointer): PicoGraphicsPen3Bit {.
     constructor.} = discard
-proc setPen*(this: var PicoGraphicsPen3Bit; c: uint) = discard
-proc setPen*(this: var PicoGraphicsPen3Bit; r: uint8; g: uint8; b: uint8) = discard
-proc setPixel*(this: var PicoGraphicsPen3Bit; p: Point) = discard
-proc setPixelSpan*(this: var PicoGraphicsPen3Bit; p: Point; l: uint) = discard
-proc getDitherCandidates*(this: var PicoGraphicsPen3Bit; col: Rgb; palette: ptr Rgb;
+proc setPen*(self: var PicoGraphicsPen3Bit; c: uint) = discard
+proc setPen*(self: var PicoGraphicsPen3Bit; r: uint8; g: uint8; b: uint8) = discard
+proc setPixel*(self: var PicoGraphicsPen3Bit; p: Point) = discard
+proc setPixelSpan*(self: var PicoGraphicsPen3Bit; p: Point; l: uint) = discard
+proc getDitherCandidates*(self: var PicoGraphicsPen3Bit; col: Rgb; palette: ptr Rgb;
                          len: csize_t; candidates: var array[16, uint8]) = discard
-proc setPixelDither*(this: var PicoGraphicsPen3Bit; p: Point; c: Rgb) = discard
-proc frameConvert*(this: var PicoGraphicsPen3Bit; `type`: PicoGraphicsPenType;
+proc setPixelDither*(self: var PicoGraphicsPen3Bit; p: Point; c: Rgb) = discard
+proc frameConvert*(self: var PicoGraphicsPen3Bit; `type`: PicoGraphicsPenType;
                   callback: PicoGraphicsconversionCallbackFunc) = discard
-proc bufferSize*(this: var PicoGraphicsPen3Bit; w: uint; h: uint): csize_t =
+proc bufferSize*(self: var PicoGraphicsPen3Bit; w: uint; h: uint): csize_t =
   return (w * h div 8) * 3
 
 const PicoGraphicsPenP4PaletteSize*: uint16 = 16
@@ -336,19 +336,19 @@ type
 proc constructPicoGraphicsPenP4*(width: uint16; height: uint16;
                                 frameBuffer: pointer): PicoGraphicsPenP4 {.
     constructor.} = discard
-proc setPen*(this: var PicoGraphicsPenP4; c: uint) = discard
-proc setPen*(this: var PicoGraphicsPenP4; r: uint8; g: uint8; b: uint8) = discard
-proc updatePen*(this: var PicoGraphicsPenP4; i: uint8; r: uint8; g: uint8; b: uint8): cint = discard
-proc createPen*(this: var PicoGraphicsPenP4; r: uint8; g: uint8; b: uint8): cint = discard
-proc resetPen*(this: var PicoGraphicsPenP4; i: uint8): cint = discard
-proc setPixel*(this: var PicoGraphicsPenP4; p: Point) = discard
-proc setPixelSpan*(this: var PicoGraphicsPenP4; p: Point; l: uint) = discard
-proc getDitherCandidates*(this: var PicoGraphicsPenP4; col: Rgb; palette: ptr Rgb;
+proc setPen*(self: var PicoGraphicsPenP4; c: uint) = discard
+proc setPen*(self: var PicoGraphicsPenP4; r: uint8; g: uint8; b: uint8) = discard
+proc updatePen*(self: var PicoGraphicsPenP4; i: uint8; r: uint8; g: uint8; b: uint8): cint = discard
+proc createPen*(self: var PicoGraphicsPenP4; r: uint8; g: uint8; b: uint8): cint = discard
+proc resetPen*(self: var PicoGraphicsPenP4; i: uint8): cint = discard
+proc setPixel*(self: var PicoGraphicsPenP4; p: Point) = discard
+proc setPixelSpan*(self: var PicoGraphicsPenP4; p: Point; l: uint) = discard
+proc getDitherCandidates*(self: var PicoGraphicsPenP4; col: Rgb; palette: ptr Rgb;
                          len: csize_t; candidates: var array[16, uint8]) = discard
-proc setPixelDither*(this: var PicoGraphicsPenP4; p: Point; c: Rgb) = discard
-proc frameConvert*(this: var PicoGraphicsPenP4; `type`: PicoGraphicsPenType;
+proc setPixelDither*(self: var PicoGraphicsPenP4; p: Point; c: Rgb) = discard
+proc frameConvert*(self: var PicoGraphicsPenP4; `type`: PicoGraphicsPenType;
                   callback: PicoGraphicsConversionCallbackFunc) = discard
-proc bufferSize*(this: var PicoGraphicsPenP4; w: uint; h: uint): csize_t =
+proc bufferSize*(self: var PicoGraphicsPenP4; w: uint; h: uint): csize_t =
   return w * h div 2
 
 const PicoGraphicsPenP8PaletteSize*: uint16 = 256
@@ -366,17 +366,17 @@ type
 proc constructPicoGraphicsPenP8*(width: uint16; height: uint16;
                                 frameBuffer: pointer): PicoGraphicsPenP8 {.
     constructor.} = discard
-proc setPen*(this: var PicoGraphicsPenP8; c: uint) = discard
-proc setPen*(this: var PicoGraphicsPenP8; r: uint8; g: uint8; b: uint8) = discard
-proc updatePen*(this: var PicoGraphicsPenP8; i: uint8; r: uint8; g: uint8; b: uint8): cint = discard
-proc createPen*(this: var PicoGraphicsPenP8; r: uint8; g: uint8; b: uint8): cint = discard
-proc resetPen*(this: var PicoGraphicsPenP8; i: uint8): cint = discard
-proc setPixel*(this: var PicoGraphicsPenP8; p: Point) = discard
-proc setPixelSpan*(this: var PicoGraphicsPenP8; p: Point; l: uint) = discard
-proc getDitherCandidates*(this: var PicoGraphicsPenP8; col: Rgb; palette: ptr Rgb;
+proc setPen*(self: var PicoGraphicsPenP8; c: uint) = discard
+proc setPen*(self: var PicoGraphicsPenP8; r: uint8; g: uint8; b: uint8) = discard
+proc updatePen*(self: var PicoGraphicsPenP8; i: uint8; r: uint8; g: uint8; b: uint8): cint = discard
+proc createPen*(self: var PicoGraphicsPenP8; r: uint8; g: uint8; b: uint8): cint = discard
+proc resetPen*(self: var PicoGraphicsPenP8; i: uint8): cint = discard
+proc setPixel*(self: var PicoGraphicsPenP8; p: Point) = discard
+proc setPixelSpan*(self: var PicoGraphicsPenP8; p: Point; l: uint) = discard
+proc getDitherCandidates*(self: var PicoGraphicsPenP8; col: Rgb; palette: ptr Rgb;
                          len: csize_t; candidates: var array[16, uint8]) = discard
-proc setPixelDither*(this: var PicoGraphicsPenP8; p: Point; c: Rgb) = discard
-proc frameConvert*(this: var PicoGraphicsPenP8; `type`: PicoGraphicsPenType;
+proc setPixelDither*(self: var PicoGraphicsPenP8; p: Point; c: Rgb) = discard
+proc frameConvert*(self: var PicoGraphicsPenP8; `type`: PicoGraphicsPenType;
                   callback: PicoGraphicsConversionCallbackFunc) = discard
 proc bufferSize*(w: uint; h: uint): csize_t =
   return w * h
@@ -389,18 +389,18 @@ type
 proc constructPicoGraphicsPenRGB332*(width: uint16; height: uint16;
                                     frameBuffer: pointer): PicoGraphicsPenRGB332 {.
     constructor.} = discard
-proc setPen*(this: var PicoGraphicsPenRGB332; c: uint) = discard
-proc setPen*(this: var PicoGraphicsPenRGB332; r: uint8; g: uint8; b: uint8) = discard
-proc createPen*(this: var PicoGraphicsPenRGB332; r: uint8; g: uint8; b: uint8): cint = discard
-proc setPixel*(this: var PicoGraphicsPenRGB332; p: Point) = discard
-proc setPixelSpan*(this: var PicoGraphicsPenRGB332; p: Point; l: uint) = discard
-proc setPixelDither*(this: var PicoGraphicsPenRGB332; p: Point; c: Rgb) = discard
-proc setPixelDither*(this: var PicoGraphicsPenRGB332; p: Point; c: Rgb565) = discard
-proc sprite*(this: var PicoGraphicsPenRGB332; data: pointer; sprite: Point; dest: Point;
+proc setPen*(self: var PicoGraphicsPenRGB332; c: uint) = discard
+proc setPen*(self: var PicoGraphicsPenRGB332; r: uint8; g: uint8; b: uint8) = discard
+proc createPen*(self: var PicoGraphicsPenRGB332; r: uint8; g: uint8; b: uint8): cint = discard
+proc setPixel*(self: var PicoGraphicsPenRGB332; p: Point) = discard
+proc setPixelSpan*(self: var PicoGraphicsPenRGB332; p: Point; l: uint) = discard
+proc setPixelDither*(self: var PicoGraphicsPenRGB332; p: Point; c: Rgb) = discard
+proc setPixelDither*(self: var PicoGraphicsPenRGB332; p: Point; c: Rgb565) = discard
+proc sprite*(self: var PicoGraphicsPenRGB332; data: pointer; sprite: Point; dest: Point;
             scale: cint; transparent: cint) = discard
-proc frameConvert*(this: var PicoGraphicsPenRGB332; `type`: PicoGraphicsPenType;
+proc frameConvert*(self: var PicoGraphicsPenRGB332; `type`: PicoGraphicsPenType;
                   callback: PicoGraphicsConversionCallbackFunc) = discard
-proc bufferSize*(this: var PicoGraphicsPenRGB332; w: uint; h: uint): csize_t =
+proc bufferSize*(self: var PicoGraphicsPenRGB332; w: uint; h: uint): csize_t =
   return w * h
 
 type
@@ -412,12 +412,12 @@ type
 proc constructPicoGraphicsPenRGB565*(width: uint16; height: uint16;
                                     frameBuffer: pointer): PicoGraphicsPenRGB565 {.
     constructor.} = discard
-proc setPen*(this: var PicoGraphicsPenRGB565; c: uint) = discard
-proc setPen*(this: var PicoGraphicsPenRGB565; r: uint8; g: uint8; b: uint8) = discard
-proc createPen*(this: var PicoGraphicsPenRGB565; r: uint8; g: uint8; b: uint8): cint = discard
-proc setPixel*(this: var PicoGraphicsPenRGB565; p: Point) = discard
-proc setPixelSpan*(this: var PicoGraphicsPenRGB565; p: Point; l: uint) = discard
-proc bufferSize*(this: var PicoGraphicsPenRGB565; w: uint; h: uint): csize_t =
+proc setPen*(self: var PicoGraphicsPenRGB565; c: uint) = discard
+proc setPen*(self: var PicoGraphicsPenRGB565; r: uint8; g: uint8; b: uint8) = discard
+proc createPen*(self: var PicoGraphicsPenRGB565; r: uint8; g: uint8; b: uint8): cint = discard
+proc setPixel*(self: var PicoGraphicsPenRGB565; p: Point) = discard
+proc setPixelSpan*(self: var PicoGraphicsPenRGB565; p: Point; l: uint) = discard
+proc bufferSize*(self: var PicoGraphicsPenRGB565; w: uint; h: uint): csize_t =
   return w * h * uint sizeof(Rgb565)
 
 type
@@ -429,12 +429,12 @@ type
 proc constructPicoGraphicsPenRGB888*(width: uint16; height: uint16;
                                     frameBuffer: pointer): PicoGraphicsPenRGB888 {.
     constructor.} = discard
-proc setPen*(this: var PicoGraphicsPenRGB888; c: uint) = discard
-proc setPen*(this: var PicoGraphicsPenRGB888; r: uint8; g: uint8; b: uint8) = discard
-proc createPen*(this: var PicoGraphicsPenRGB888; r: uint8; g: uint8; b: uint8): cint = discard
-proc setPixel*(this: var PicoGraphicsPenRGB888; p: Point) = discard
-proc setPixelSpan*(this: var PicoGraphicsPenRGB888; p: Point; l: uint) = discard
-proc bufferSize*(this: var PicoGraphicsPenRGB888; w: uint; h: uint): csize_t =
+proc setPen*(self: var PicoGraphicsPenRGB888; c: uint) = discard
+proc setPen*(self: var PicoGraphicsPenRGB888; r: uint8; g: uint8; b: uint8) = discard
+proc createPen*(self: var PicoGraphicsPenRGB888; r: uint8; g: uint8; b: uint8): cint = discard
+proc setPixel*(self: var PicoGraphicsPenRGB888; p: Point) = discard
+proc setPixelSpan*(self: var PicoGraphicsPenRGB888; p: Point; l: uint) = discard
+proc bufferSize*(self: var PicoGraphicsPenRGB888; w: uint; h: uint): csize_t =
   return w * h * uint sizeof(Rgb888)
 
 type
@@ -448,23 +448,23 @@ proc constructDisplayDriver*(width: uint16; height: uint16; rotation: Rotation):
     constructor.} =
   discard
 
-proc update*(this: var DisplayDriver; display: ptr PicoGraphics) =
+proc update*(self: var DisplayDriver; display: ptr PicoGraphics) =
   discard
 
-proc partialUpdate*(this: var DisplayDriver; display: ptr PicoGraphics; region: Rect) =
+proc partialUpdate*(self: var DisplayDriver; display: ptr PicoGraphics; region: Rect) =
   discard
 
-proc setUpdateSpeed*(this: var DisplayDriver; updateSpeed: cint): bool =
+proc setUpdateSpeed*(self: var DisplayDriver; updateSpeed: cint): bool =
   return false
 
-proc setBacklight*(this: var DisplayDriver; brightness: uint8) =
+proc setBacklight*(self: var DisplayDriver; brightness: uint8) =
   discard
 
-proc isBusy*(this: var DisplayDriver): bool =
+proc isBusy*(self: var DisplayDriver): bool =
   return false
 
-proc powerOff*(this: var DisplayDriver) =
+proc powerOff*(self: var DisplayDriver) =
   discard
 
-proc cleanup*(this: var DisplayDriver) =
+proc cleanup*(self: var DisplayDriver) =
   discard
