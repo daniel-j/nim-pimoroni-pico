@@ -4,6 +4,8 @@
 #   libraries/bitmapFonts/font14OutlineData
 import ../common/pimoroni_common
 
+import std/algorithm
+
 proc builtinBswap16(a: uint16): uint16 {.importc: "__builtin_bswap16", nodecl, noSideEffect.}
 
 ##  A tiny graphics library for our Pico products
@@ -49,17 +51,15 @@ func constructRgb*(r: int16; g: int16; b: int16): Rgb {.constructor.} =
 func `+`*(self: Rgb; c: Rgb): Rgb =
   return constructRgb(self.r + c.r, self.g + c.g, self.b + c.b)
 
-proc `+=`*(self: var Rgb; c: Rgb): var Rgb =
+proc inc*(self: var Rgb; c: Rgb) =
   inc(self.r, c.r)
   inc(self.g, c.g)
   inc(self.b, c.b)
-  return self
 
-proc `-=`*(self: var Rgb; c: Rgb): var Rgb =
+proc dec*(self: var Rgb; c: Rgb) =
   dec(self.r, c.r)
   dec(self.g, c.g)
   dec(self.b, c.b)
-  return self
 
 func `-`*(self: Rgb; c: Rgb): Rgb =
   return constructRgb(self.r - c.r, self.g - c.g, self.b - c.b)
@@ -76,17 +76,15 @@ func distance*(self: Rgb; c: Rgb): int =
   return abs((int)((((512 + rmean) * rx * rx) shr 8) + 4 * gx * gx +
       (((767 - rmean) * bx * bx) shr 8)))
 
-func closest*(self: Rgb; palette: openArray[Rgb]; len: int): int =
+func closest*(self: Rgb; palette: openArray[Rgb]): int =
   var
     d = int.high
     m = -1
-  var i = 0
-  while i < len:
+  for i in 0 ..< palette.len:
     var dc = self.distance(palette[i])
     if dc < d:
       m = i
       d = dc
-    inc(i)
   return m
 
 func toRgb565*(self: Rgb): Rgb565 =
@@ -233,7 +231,7 @@ var dither16Pattern*: array[16, uint8]
 
 type
   PicoGraphics* = object of RootObj
-    frameBuffer*: pointer
+    frameBuffer*: seq[uint8]
     penType*: PicoGraphicsPenType
     bounds*: Rect
     clip*: Rect
@@ -243,9 +241,9 @@ type
     #hersheyFont*: ref Font
 
   PicoGraphicsPenType* {.pure.} = enum
-    Pen1Bit, Pen3Bit, PenP2, PenP4, PenP8, PenRGB332, PenRGB565, PenRGB888
+    Pen_1Bit, Pen_3Bit, Pen_P2, Pen_P4, Pen_P8, Pen_RGB332, Pen_RGB565, Pen_RGB888
 
-  PicoGraphicsConversionCallbackFunc* = proc (data: pointer; length: uint)
+  PicoGraphicsConversionCallbackFunc* = proc (data: pointer; length: uint) {.closure.}
   PicoGraphicsNextPixelFunc* = proc (): Rgb565
 
 func rgbToRgb332*(r: uint8; g: uint8; b: uint8): Rgb332 = constructRgb(r.int16, g.int16, b.int16).toRgb332()
@@ -267,30 +265,33 @@ func rgb332ToRgb*(c: Rgb332): Rgb = constructRgb(c)
 
 func rgb565ToRgb*(c: Rgb565): Rgb = constructRgb(c)
 
-func constructPicoGraphics*(width: uint16; height: uint16; frameBuffer: pointer): PicoGraphics {.constructor.} =
-  result.bounds.x = 0
-  result.bounds.y = 0
-  result.bounds.w = width.int
-  result.bounds.h = height.int
-  result.clip.x = 0
-  result.clip.y = 0
-  result.clip.w = width.int
-  result.clip.h = height.int
-  result.frameBuffer = frameBuffer
-  # setFont(font6)
+proc init*(self: var PicoGraphics; width: uint16; height: uint16; frameBuffer: seq[uint8] = @[]) =
+  self.bounds.x = 0
+  self.bounds.y = 0
+  self.bounds.w = width.int
+  self.bounds.h = height.int
+  self.clip.x = 0
+  self.clip.y = 0
+  self.clip.w = width.int
+  self.clip.h = height.int
+  self.frameBuffer = frameBuffer
+  # self.setFont(font6)
 
-method setPen*(self: var PicoGraphics; c: uint) {.base.} = discard
-method setPen*(self: var PicoGraphics; r: uint8; g: uint8; b: uint8) {.base.} = discard
-method setPixel*(self: var PicoGraphics; p: Point) {.base.} = discard
-method setPixelSpan*(self: var PicoGraphics; p: Point; l: uint) {.base.} = discard
-method createPen*(self: var PicoGraphics; r: uint8; g: uint8; b: uint8): int {.base.} = discard
-method updatePen*(self: var PicoGraphics; i: uint8; r: uint8; g: uint8; b: uint8): int {.base.} = discard
-method resetPen*(self: var PicoGraphics; i: uint8): int {.base.} = discard
-method setPixelDither*(self: var PicoGraphics; p: Point; c: Rgb) {.base.} = discard
-method setPixelDither*(self: var PicoGraphics; p: Point; c: Rgb565) {.base.} = discard
-method setPixelDither*(self: var PicoGraphics; p: Point; c: uint8) {.base.} = discard
-method frameConvert*(self: var PicoGraphics; `type`: PicoGraphicsPenType; callback: PicoGraphicsconversionCallbackFunc) {.base.} = discard
-method sprite*(self: var PicoGraphics; data: pointer; sprite: Point; dest: Point; scale: int; transparent: int) {.base.} = discard
+func constructPicoGraphics*(width: uint16; height: uint16; frameBuffer: seq[uint8] = @[]): PicoGraphics {.constructor.} =
+  result.init(width, height, frameBuffer)
+
+proc setPen*(self: var PicoGraphics; c: uint) = discard
+proc setPen*(self: var PicoGraphics; r: uint8; g: uint8; b: uint8) = discard
+proc setPixel*(self: var PicoGraphics; p: Point) = discard
+proc setPixelSpan*(self: var PicoGraphics; p: Point; l: uint) = discard
+proc createPen*(self: var PicoGraphics; r: uint8; g: uint8; b: uint8): int = discard
+proc updatePen*(self: var PicoGraphics; i: uint8; r: uint8; g: uint8; b: uint8): int = discard
+proc resetPen*(self: var PicoGraphics; i: uint8): int = discard
+proc setPixelDither*(self: var PicoGraphics; p: Point; c: Rgb) = discard
+proc setPixelDither*(self: var PicoGraphics; p: Point; c: Rgb565) = discard
+proc setPixelDither*(self: var PicoGraphics; p: Point; c: uint8) = discard
+proc frameConvert*(self: var PicoGraphics; `type`: PicoGraphicsPenType; callback: PicoGraphicsconversionCallbackFunc) = discard
+proc sprite*(self: var PicoGraphics; data: pointer; sprite: Point; dest: Point; scale: int; transparent: int) = discard
 
 # proc setFont*(self: var PicoGraphics; font: BitmapFont) = discard
 # proc setFont*(self: var PicoGraphics; font: HersheyFont) = discard
@@ -306,7 +307,7 @@ proc setDimensions*(self: var PicoGraphics; width: uint16; height: uint16) =
   self.clip.w = width.int
   self.clip.h = height.int
 
-proc setFramebuffer*(self: var PicoGraphics; frameBuffer: pointer) = self.frameBuffer = frameBuffer
+proc setFramebuffer*(self: var PicoGraphics; frameBuffer: seq[uint8]) = self.frameBuffer = frameBuffer
 
 ## these seem to be unused?
 # proc getData*(self: var PicoGraphics): pointer = discard
@@ -579,16 +580,16 @@ proc frameConvertRgb565*(self: var PicoGraphics; callback: PicoGraphicsconversio
 
     ##  Transfer a filled buffer and swap to the next one
     if bufEntry == BUF_LEN:
-      callback(rowBuf[bufIdx].addr, BUF_LEN * sizeof(RGB565))
+      callback(rowBuf[bufIdx][0].addr, BUF_LEN * sizeof(RGB565))
       bufIdx = bufIdx xor 1
       bufEntry = 0
 
   ##  Transfer any remaining pixels ( < BUF_LEN )
   if bufEntry > 0:
-    callback(rowBuf[bufIdx].addr, uint(bufEntry * sizeof(RGB565)))
+    callback(rowBuf[bufIdx][0].addr, uint(bufEntry * sizeof(RGB565)))
 
   ##  Callback with zero length to ensure previous buffer is fully written
-  callback(rowBuf[bufIdx].addr, 0)
+  callback(rowBuf[bufIdx][0].addr, 0)
 
 
 ##
@@ -599,17 +600,47 @@ type
   PicoGraphicsPen1Bit* {.bycopy.} = object of PicoGraphics
     color*: uint8
 
-
-proc constructPicoGraphicsPen1Bit*(width: uint16; height: uint16;
-                                  frameBuffer: pointer): PicoGraphicsPen1Bit {.
-    constructor.} = discard
-proc setPen*(self: var PicoGraphicsPen1Bit; c: uint) = discard
-proc setPen*(self: var PicoGraphicsPen1Bit; r: uint8; g: uint8; b: uint8) = discard
-proc setPixel*(self: var PicoGraphicsPen1Bit; p: Point) = discard
-proc setPixelSpan*(self: var PicoGraphicsPen1Bit; p: Point; l: uint) =
-  discard
-proc bufferSize*(self: var PicoGraphicsPen1Bit; w: uint; h: uint): csize_t =
+func bufferSize*(self: PicoGraphicsPen1Bit; w: uint; h: uint): uint =
   return w * h div 8
+
+proc init*(self: var PicoGraphicsPen1Bit; width: uint16; height: uint16; frameBuffer: seq[uint8] = @[]) {.constructor.} =
+  init(PicoGraphics(self), width, height, frameBuffer)
+  self.penType = Pen_1Bit
+  if self.frameBuffer.len == 0:
+    self.frameBuffer = newSeq[uint8](self.bufferSize(width, height))
+
+proc setPen*(self: var PicoGraphicsPen1Bit; c: uint) =
+  self.color = c.uint8
+
+proc setPen*(self: var PicoGraphicsPen1Bit; r: uint8; g: uint8; b: uint8) =
+  self.color = max(r, max(g, b)) shr 4
+
+proc setPixel*(self: var PicoGraphicsPen1Bit; p: Point) =
+  ##  pointer to byte in framebuffer that contains this pixel
+  let f = self.frameBuffer[(p.x div 8) + (p.y * self.bounds.w div 8)].addr
+  let bo: uint = 7 - (uint p.x and 0b111)
+  var dc: uint8 = 0
+  if self.color == 0:
+    dc = 0
+  elif self.color == 15:
+    dc = 1
+  else:
+    let dmv = dither16Pattern[(p.x and 0b11) or ((p.y and 0b11) shl 2)]
+    dc = if self.color > dmv: 1 else: 0
+  ##  forceably clear the bit
+  f[] = f[] and not (uint8 1 shl bo)
+  ##  set pixel
+  f[] = f[] or (dc shl bo)
+
+proc setPixelSpan*(self: var PicoGraphicsPen1Bit; p: Point; l: uint) =
+  var lp: Point = p
+  var length = l.int
+  if p.x + length >= self.bounds.w:
+    length = self.bounds.w - p.x
+  while length > 0:
+    self.setPixel(lp)
+    inc(lp.x)
+    dec(length)
 
 
 ##
@@ -617,22 +648,37 @@ proc bufferSize*(self: var PicoGraphicsPen1Bit; w: uint; h: uint): csize_t =
 ##
 
 type
-  PicoGraphicsPen1BitY* {.bycopy.} = object of PicoGraphics
-    color*: uint8
+  PicoGraphicsPen1BitY* {.bycopy.} = object of PicoGraphicsPen1Bit
 
-
-proc constructPicoGraphicsPen1BitY*(width: uint16; height: uint16;
-                                   frameBuffer: pointer): PicoGraphicsPen1BitY {.
-    constructor.} = discard
-proc setPen*(self: var PicoGraphicsPen1BitY; c: uint) =
-  discard
 proc setPen*(self: var PicoGraphicsPen1BitY; r: uint8; g: uint8; b: uint8) =
-  discard
-proc setPixel*(self: var PicoGraphicsPen1BitY; p: Point) = discard
+  self.color = max(r, max(g, b))
+
+proc setPixel*(self: var PicoGraphicsPen1BitY; p: Point) =
+  ##  pointer to byte in framebuffer that contains this pixel
+  let f = self.frameBuffer[(p.y div 8) + (p.x * self.bounds.h div 8)].addr
+  let bo: uint = 7 - (uint p.y and 0b111)
+  var dc: uint8 = 0
+  if self.color == 0:
+    dc = 0
+  elif self.color == 15:
+    dc = 1
+  else:
+    let dmv = dither16Pattern[(p.x and 0b11) or ((p.y and 0b11) shl 2)]
+    dc = if self.color > dmv: 1 else: 0
+  ##  forceably clear the bit
+  f[] = f[] and not (uint8 1 shl bo)
+  ##  set pixel
+  f[] = f[] or (dc shl bo)
+
 proc setPixelSpan*(self: var PicoGraphicsPen1BitY; p: Point; l: uint) =
-  discard
-proc bufferSize*(self: var PicoGraphicsPen1BitY; w: uint; h: uint): csize_t =
-  return w * h div 8
+  var lp: Point = p
+  var length = l.int
+  if p.x + length >= self.bounds.w:
+    length = self.bounds.w - p.x
+  while length > 0:
+    self.setPixel(lp)
+    inc(lp.x)
+    dec(length)
 
 
 ##
@@ -648,32 +694,121 @@ type
     candidates*: array[16, uint8]
 
 const PicoGraphicsPen3BitPalette*: array[8, Rgb] = [
-  Rgb(r: 0, g: 0, b: 0), ##  black
+  Rgb(r:   0, g:   0, b:   0), ##  black
   Rgb(r: 255, g: 255, b: 255), ##  white
-  Rgb(r: 0, g: 255, b: 0), ##  green
-  Rgb(r: 0, g: 0, b: 255), ##  blue
-  Rgb(r: 255, g: 0, b: 0), ##  red
-  Rgb(r: 255, g: 255, b: 0), ##  yellow
-  Rgb(r: 255, g: 128, b: 0), ##  orange
+  Rgb(r:   0, g: 255, b:   0), ##  green
+  Rgb(r:   0, g:   0, b: 255), ##  blue
+  Rgb(r: 255, g:   0, b:   0), ##  red
+  Rgb(r: 255, g: 255, b:   0), ##  yellow
+  Rgb(r: 255, g: 128, b:   0), ##  orange
   Rgb(r: 220, g: 180, b: 200), ##  clean / taupe
 ]
 
 const PicoGraphicsPen3BitPaletteSize*: uint16 = 8
 
+func bufferSize*(self: PicoGraphicsPen3Bit; w: uint; h: uint): uint =
+  return (w * h div 8) * 3
+
 proc constructPicoGraphicsPen3Bit*(width: uint16; height: uint16;
                                   frameBuffer: pointer): PicoGraphicsPen3Bit {.
     constructor.} = discard
-proc setPen*(self: var PicoGraphicsPen3Bit; c: uint) = discard
+
+proc init*(self: var PicoGraphicsPen3Bit; width: uint16; height: uint16; frameBuffer: seq[uint8] = @[]) {.constructor.} =
+  init(PicoGraphics(self), width, height, frameBuffer)
+  self.penType = Pen_3Bit
+  self.palette = PicoGraphicsPen3BitPalette
+  if self.frameBuffer.len == 0:
+    self.frameBuffer = newSeq[uint8](self.bufferSize(width, height))
+  self.cacheBuilt = false
+
+proc setPen*(self: var PicoGraphicsPen3Bit; c: uint) =
+  self.color = uint8 c and 0xf
+
 proc setPen*(self: var PicoGraphicsPen3Bit; r: uint8; g: uint8; b: uint8) = discard
-proc setPixel*(self: var PicoGraphicsPen3Bit; p: Point) = discard
-proc setPixelSpan*(self: var PicoGraphicsPen3Bit; p: Point; l: uint) = discard
-proc getDitherCandidates*(self: var PicoGraphicsPen3Bit; col: Rgb; palette: ptr Rgb;
-                         len: csize_t; candidates: var array[16, uint8]) = discard
-proc setPixelDither*(self: var PicoGraphicsPen3Bit; p: Point; c: Rgb) = discard
-proc frameConvert*(self: var PicoGraphicsPen3Bit; `type`: PicoGraphicsPenType;
-                  callback: PicoGraphicsconversionCallbackFunc) = discard
-proc bufferSize*(self: var PicoGraphicsPen3Bit; w: uint; h: uint): csize_t =
-  return (w * h div 8) * 3
+
+proc setPixel*(self: var PicoGraphicsPen3Bit; p: Point) =
+  let offset = (self.bounds.w * self.bounds.h) div 8
+  let bo: uint = 7 - (uint p.x and 0b111)
+  let bufA: ptr uint8 = addr(self.frameBuffer[(p.x div 8) + (p.y * self.bounds.w div 8)])
+  let bufB: ptr uint8 = cast[ptr uint8](cast[ByteAddress](bufA) +% offset)
+  let bufC: ptr uint8 = cast[ptr uint8](cast[ByteAddress](bufA) +% offset +% offset)
+  let cA: uint8 = (self.color and 0b100) shr 2
+  bufA[] = bufA[] and not (uint8 1 shl bo)
+  bufA[] = bufA[] or (cA shl bo)
+  let cB: uint8 = (self.color and 0b010) shr 1
+  bufB[] = bufB[] and not (uint8 1 shl bo)
+  bufB[] = bufB[] or (cB shl bo)
+  let cC: uint8 = (self.color and 0b001)
+  bufC[] = bufC[] and not (uint8 1 shl bo)
+  bufC[] = bufC[] or (cC shl bo)
+
+proc setPixelSpan*(self: var PicoGraphicsPen3Bit; p: Point; l: uint) =
+  var lp: Point = p
+  var length = l
+  while length > 0:
+    self.setPixel(lp)
+    inc(lp.x)
+    dec(length)
+
+proc getDitherCandidates*(self: var PicoGraphicsPen3Bit; col: Rgb; palette: openArray[Rgb]; candidates: var array[16, uint8]) =
+  var error: Rgb
+  for i in 0 ..< candidates.len:
+    candidates[i] = (col + error).closest(palette).uint8
+    inc(error, (col - palette[candidates[i]]))
+
+  ##  sort by a rough approximation of luminance, this ensures that neighbouring
+  ##  pixels in the dither matrix are at extreme opposites of luminence
+  ##  giving a more balanced output
+  sort(candidates, (proc (a: uint8; b: uint8): int =
+    return (palette[a].luminance() > palette[b].luminance()).int
+  ))
+
+proc setPixelDither*(self: var PicoGraphicsPen3Bit; p: Point; c: Rgb) =
+  if not self.bounds.contains(p):
+    return
+  if not self.cacheBuilt:
+    for i in 0 ..< 512:
+      let r = (uint i and 0x1c0) shr 1
+      let g = (uint i and 0x38) shl 2
+      let b = (uint i and 0x7) shl 5
+      let cacheCol = Rgb(
+        r: (r or (r shr 3) or (r shr 6)).int16,
+        g: (g or (g shr 3) or (g shr 6)).int16,
+        b: (b or (b shr 3) or (b shr 6)).int16
+      )
+      self.getDitherCandidates(cacheCol, self.palette, self.candidateCache[i])
+    self.cacheBuilt = true
+  var cacheKey = (((c.r and 0xE0) shl 1) or ((c.g and 0xE0) shr 2) or ((c.b and 0xE0) shr 5)).uint
+  ## get_dither_candidates(c, palette, 256, candidates);
+  ##  find the pattern coordinate offset
+  var patternIndex = ((p.x and 0b11) or ((p.y and 0b11) shl 2)).uint
+  ##  set the pixel
+  ## color = candidates[pattern[pattern_index]];
+  self.color = self.candidateCache[cacheKey][dither16Pattern[patternIndex]]
+  self.setPixel(p)
+
+proc frameConvert*(self: var PicoGraphicsPen3Bit; `type`: PicoGraphicsPenType; callback: PicoGraphicsconversionCallbackFunc) =
+  if `type` == PenP4:
+    var rowBuf = newSeq[uint8](self.bounds.w div 2)
+    var offset = (self.bounds.w * self.bounds.h) div 8
+    for y in 0 ..< self.bounds.h:
+
+      for x in 0 ..< self.bounds.w:
+        var bo: uint = 7 - (uint x and 0b111)
+        var bufA: ptr uint8 = addr(self.frameBuffer[(x div 8) + (y * self.bounds.w div 8)])
+        var bufB: ptr uint8 = cast[ptr uint8](cast[ByteAddress](bufA) +% offset)
+        var bufC: ptr uint8 = cast[ptr uint8](cast[ByteAddress](bufA) +% offset +% offset)
+        var nibble: uint8 = (bufA[] shr bo) and 1
+        nibble = nibble shl 1
+        nibble = nibble or (bufB[] shr bo) and 1
+        nibble = nibble shl 1
+        nibble = nibble or (bufC[] shr bo) and 1
+        nibble = nibble shl (if (x and 0b1).bool: 0 else: 4)
+        rowBuf[x div 2] = rowBuf[x div 2] and
+            (if (x and 0b1).bool: 0b11110000 else: 0b00001111)
+        rowBuf[x div 2] = rowBuf[x div 2] or nibble
+
+      callback(cast[pointer](rowBuf[0].addr), rowBuf.len.uint)
 
 
 ##
@@ -741,7 +876,7 @@ proc getDitherCandidates*(self: var PicoGraphicsPenP8; col: Rgb; palette: ptr Rg
 proc setPixelDither*(self: var PicoGraphicsPenP8; p: Point; c: Rgb) = discard
 proc frameConvert*(self: var PicoGraphicsPenP8; `type`: PicoGraphicsPenType;
                   callback: PicoGraphicsConversionCallbackFunc) = discard
-proc bufferSize*(w: uint; h: uint): csize_t =
+func bufferSize*(self: PicoGraphicsPenP8; w: uint; h: uint): uint =
   return w * h
 
 
@@ -768,7 +903,7 @@ proc sprite*(self: var PicoGraphicsPenRGB332; data: pointer; sprite: Point; dest
             scale: int; transparent: int) = discard
 proc frameConvert*(self: var PicoGraphicsPenRGB332; `type`: PicoGraphicsPenType;
                   callback: PicoGraphicsConversionCallbackFunc) = discard
-proc bufferSize*(self: var PicoGraphicsPenRGB332; w: uint; h: uint): csize_t =
+func bufferSize*(self: PicoGraphicsPenRGB332; w: uint; h: uint): uint =
   return w * h
 
 
@@ -790,7 +925,7 @@ proc setPen*(self: var PicoGraphicsPenRGB565; r: uint8; g: uint8; b: uint8) = di
 proc createPen*(self: var PicoGraphicsPenRGB565; r: uint8; g: uint8; b: uint8): int = discard
 proc setPixel*(self: var PicoGraphicsPenRGB565; p: Point) = discard
 proc setPixelSpan*(self: var PicoGraphicsPenRGB565; p: Point; l: uint) = discard
-proc bufferSize*(self: var PicoGraphicsPenRGB565; w: uint; h: uint): csize_t =
+func bufferSize*(self: PicoGraphicsPenRGB565; w: uint; h: uint): uint =
   return w * h * uint sizeof(Rgb565)
 
 

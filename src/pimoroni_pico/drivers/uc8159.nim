@@ -1,6 +1,8 @@
 import picostdlib/[pico/types, pico/platform]
 import ../common/pimoroni_common, ../libraries/pico_graphics
 
+export pico_graphics
+
 type
   Uc8159* = object of DisplayDriver
     spi: ptr SpiInst
@@ -156,11 +158,13 @@ proc data*(self: var Uc8159, len: uint; data: ptr uint8) =
   discard spiWriteBlocking(self.spi, data, len)
   gpioPut(self.csPin, High)
 
-proc update*(self: var Uc8159, graphics: var PicoGraphics) =
-  if graphics.penType != Pen3Bit:
+proc update*(self: var Uc8159; graphics: var PicoGraphics) =
+  if graphics.penType != Pen_3Bit:
     return
+
   if self.blocking:
     self.busyWait()
+
   self.setup()
   gpioPut(self.csPin, Low)
   var reg = Dtm1.uint8
@@ -175,10 +179,12 @@ proc update*(self: var Uc8159, graphics: var PicoGraphics) =
   ##  Any garbage data will do.
   ##  2px per byte, so we need width * 24 bytes
   if self.height == 400 and self.rotation == Rotate_0:
-    discard spiWriteBlocking(self.spi, cast[ptr uint8](graphics.frameBuffer), self.width * 24)
-  graphics.frameConvert(Pen_P4, (proc (buf: pointer; length: csize_t): auto =
+    discard spiWriteBlocking(self.spi, graphics.frameBuffer[0].addr, self.width * 24)
+  let spiPtr = self.spi
+  graphics.frameConvert(Pen_P4, (proc (buf: pointer; length: uint) =
     if length > 0:
-      discard spiWriteBlocking(self.spi, cast[ptr uint8](buf), length)))
+      discard spiWriteBlocking(spiPtr, cast[ptr uint8](buf), length)
+  ))
   gpioPut(self.csPin, High)
   self.busyWait()
   self.command(Pon)

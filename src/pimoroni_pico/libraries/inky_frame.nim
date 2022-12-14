@@ -6,6 +6,9 @@ import picostdlib/[
 ]
 import std/math
 
+export pico_graphics
+export uc8159.Colour
+
 const
   PinHoldSysEn = 2.Gpio
   #PinI2cInt = 3.Gpio
@@ -61,7 +64,7 @@ type
   
   Pen* = uc8159.Colour
 
-  InkyFrame* = object #of PicoGraphicsPen3Bit
+  InkyFrame* = object of PicoGraphicsPen3Bit
     uc8159*: Uc8159
     i2c*: I2cInst
     rtc*: Pcf85063a
@@ -98,20 +101,23 @@ proc readShiftRegister*(): uint8 =
 proc readShiftRegisterBit*(index: uint8): bool =
   (readShiftRegister() and (1'u shl index).uint8).bool
 
-proc init*(self: var InkyFrame) =
-  self.width = 600
-  self.height = 448
+proc init*(self: var InkyFrame; width: int = 600; height: int = 448) =
+  init(PicoGraphicsPen3Bit(self), self.width.uint16, self.height.uint16)
+  self.width = width
+  self.height = height
   self.uc8159.init()
 
   ##  keep the pico awake by holding vsys_en high
   gpioSetFunction(PinHoldSysEn, GpioFunction.Sio)
   gpioSetDir(PinHoldSysEn, Out)
   gpioPut(PinHoldSysEn, High)
+
   ##  setup the shift register
   gpioConfigure(PinSrClock, Out, High)
   gpioConfigure(PinSrLatch, Out, High)
   gpioConfigure(PinSrOut, In)
   self.wakeUpEvent = Unknown
+
   ##  determine wake up event
   if readShiftRegisterBit(Button.A.uint8):
     self.wakeUpEvent = WakeUpEvent.ButtonA
@@ -127,6 +133,11 @@ proc init*(self: var InkyFrame) =
     self.wakeUpEvent = WakeUpEvent.RtcAlarm
   if readShiftRegisterBit(Flags.ExternalTrigger.uint8):
     self.wakeUpEvent = WakeUpEvent.ExternalTrigger
+  ##  there are other reasons a wake event can occur: connect power via usb,
+  ##  connect a battery, or press the reset button. these cannot be
+  ##  disambiguated so we don't attempt to report them
+
+  ##  Disable display update busy wait, we'll handle it ourselves
   self.uc8159.setBlocking(false)
 
   ##  initialise the rtc
@@ -145,10 +156,10 @@ proc isBusy*(): bool =
   ##  check busy flag on shift register
   not readShiftRegisterBit(Flags.EinkBusy.uint8)
 
-proc update*(self: var InkyFrame; blocking: bool) =
+proc update*(self: var InkyFrame; blocking: bool = false) =
   while isBusy():
     tightLoopContents()
-  # uc8159.update(cast[PicoGraphicsPenP4](self))
+  self.uc8159.update(self)
   while isBusy():
     tightLoopContents()
   self.uc8159.powerOff()
@@ -212,3 +223,5 @@ proc image*(self: var InkyFrame; data: openArray[uint8]) =
   ##  Display an image that fills the screen
   self.image(data, self.width, 0, 0, self.width, self.height, 0, 0)
 ]#
+
+proc setPen*(self: var PicoGraphicsPen3Bit; c: Colour) = self.setPen(c.uint)
