@@ -591,6 +591,9 @@ proc frameConvertRgb565*(self: var PicoGraphics; callback: PicoGraphicsconversio
   callback(rowBuf[bufIdx].addr, 0)
 
 
+##
+## Pico Graphics Pen 1-Bit
+##
 
 type
   PicoGraphicsPen1Bit* {.bycopy.} = object of PicoGraphics
@@ -607,6 +610,11 @@ proc setPixelSpan*(self: var PicoGraphicsPen1Bit; p: Point; l: uint) =
   discard
 proc bufferSize*(self: var PicoGraphicsPen1Bit; w: uint; h: uint): csize_t =
   return w * h div 8
+
+
+##
+## Pico Graphics Pen 1-Bit Y
+##
 
 type
   PicoGraphicsPen1BitY* {.bycopy.} = object of PicoGraphics
@@ -625,6 +633,11 @@ proc setPixelSpan*(self: var PicoGraphicsPen1BitY; p: Point; l: uint) =
   discard
 proc bufferSize*(self: var PicoGraphicsPen1BitY; w: uint; h: uint): csize_t =
   return w * h div 8
+
+
+##
+## Pico Graphics Pen 3-Bit
+##
 
 type
   PicoGraphicsPen3Bit* {.bycopy.} = object of PicoGraphics
@@ -662,6 +675,11 @@ proc frameConvert*(self: var PicoGraphicsPen3Bit; `type`: PicoGraphicsPenType;
 proc bufferSize*(self: var PicoGraphicsPen3Bit; w: uint; h: uint): csize_t =
   return (w * h div 8) * 3
 
+
+##
+## Pico Graphics Pen P4
+##
+
 const PicoGraphicsPenP4PaletteSize*: uint16 = 16
 
 type
@@ -690,6 +708,11 @@ proc frameConvert*(self: var PicoGraphicsPenP4; `type`: PicoGraphicsPenType;
                   callback: PicoGraphicsConversionCallbackFunc) = discard
 proc bufferSize*(self: var PicoGraphicsPenP4; w: uint; h: uint): csize_t =
   return w * h div 2
+
+
+##
+## Pico Graphics Pen P8
+##
 
 const PicoGraphicsPenP8PaletteSize*: uint16 = 256
 
@@ -721,6 +744,11 @@ proc frameConvert*(self: var PicoGraphicsPenP8; `type`: PicoGraphicsPenType;
 proc bufferSize*(w: uint; h: uint): csize_t =
   return w * h
 
+
+##
+## Pico Graphics Pen RGB332
+##
+
 type
   PicoGraphicsPenRGB332* {.bycopy.} = object of PicoGraphics
     color*: Rgb332
@@ -743,6 +771,11 @@ proc frameConvert*(self: var PicoGraphicsPenRGB332; `type`: PicoGraphicsPenType;
 proc bufferSize*(self: var PicoGraphicsPenRGB332; w: uint; h: uint): csize_t =
   return w * h
 
+
+##
+## Pico Graphics Pen RGB565
+##
+
 type
   PicoGraphicsPenRGB565* {.bycopy.} = object of PicoGraphics
     srcColor*: Rgb
@@ -760,6 +793,11 @@ proc setPixelSpan*(self: var PicoGraphicsPenRGB565; p: Point; l: uint) = discard
 proc bufferSize*(self: var PicoGraphicsPenRGB565; w: uint; h: uint): csize_t =
   return w * h * uint sizeof(Rgb565)
 
+
+##
+## Pico Graphics Pen RGB888
+##
+
 type
   PicoGraphicsPenRGB888* {.bycopy.} = object of PicoGraphics
     srcColor*: Rgb
@@ -776,6 +814,11 @@ proc setPixel*(self: var PicoGraphicsPenRGB888; p: Point) = discard
 proc setPixelSpan*(self: var PicoGraphicsPenRGB888; p: Point; l: uint) = discard
 proc bufferSize*(self: var PicoGraphicsPenRGB888; w: uint; h: uint): csize_t =
   return w * h * uint sizeof(Rgb888)
+
+
+##
+## Display Driver
+##
 
 type
   DisplayDriver* = object of RootObj
