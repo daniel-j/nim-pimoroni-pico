@@ -12,6 +12,7 @@ switch("define", "checkAbi")
 switch("define", "useMalloc")
 switch("define", "nimAllocPagesViaMalloc")
 switch("define", "nimPage256")
+switch("define", "NDEBUG")
 
 # when using cpp backend
 # see for similar issue: https://github.com/nim-lang/Nim/issues/17040

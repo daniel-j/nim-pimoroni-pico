@@ -102,10 +102,10 @@ proc readShiftRegisterBit*(index: uint8): bool =
   (readShiftRegister() and (1'u shl index).uint8).bool
 
 proc init*(self: var InkyFrame; width: int = 600; height: int = 448) =
-  init(PicoGraphicsPen3Bit(self), self.width.uint16, self.height.uint16)
+  init(PicoGraphicsPen3Bit(self), width.uint16, height.uint16)
   self.width = width
   self.height = height
-  self.uc8159.init()
+  self.uc8159.init(width.uint16, height.uint16)
 
   ##  keep the pico awake by holding vsys_en high
   gpioSetFunction(PinHoldSysEn, GpioFunction.Sio)

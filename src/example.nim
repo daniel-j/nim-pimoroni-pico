@@ -5,7 +5,6 @@ import picostdlib/[
   pico/cyw43_arch
 ]
 #import pimoroni_pico/libraries/jpegdec
-
 import pimoroni_pico/libraries/inky_frame
 
 
@@ -24,16 +23,22 @@ else:
 
   cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, false)
 
+  echo "Starting..."
+
   var inky: InkyFrame
   inky.init()
 
   #var jpeg: JPEGDEC
-  #discard jpeg.openRAM(nil, 0, mydraw)
+  #discard jpeg.openFLASH(cast[ptr uint8](myImage[0].unsafeAddr), myImage.len.cint, mydraw)
+  #jpeg.setPixelType(RGB565_BIG_ENDIAN)
+  #echo "jpeg decode: ", jpeg.decode(0, 0, 0)
 
-  inky.setPen(Colour.Clean)
+  inky.setPen(Colour.White)
   inky.clear()
   inky.setPen(Colour.Red)
-  inky.rectangle(Rect(x: 20, y: 20, w: 100, h: 100))
+  inky.rectangle(Rect(x: 0, y: 0, w: 100, h: 100))
+  inky.setPen(Colour.Green)
+  inky.polygon([P(200, 400), P(300, 100), P(120, 120)])
   inky.update()
 
   echo "Starts!"

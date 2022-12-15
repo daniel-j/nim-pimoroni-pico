@@ -56,7 +56,8 @@ type
     Clean
 
 
-proc init*(self: var Uc8159) =
+proc init*(self: var Uc8159; width: uint16; height: uint16) =
+  init(DisplayDriver(self), width, height)
   self.spi = spi0
   self.csPin = SpiBgFrontCs
   self.dcPin = 28.Gpio
@@ -112,7 +113,7 @@ proc command*(self: var Uc8159; reg: Reg; data: openArray[uint8] = []) =
   if data.len > 0:
     gpioPut(self.dcPin, High)
     ##  data mode
-    discard spiWriteBlocking(self.spi, cast[ptr uint8](data.unsafeAddr), data.len.csize_t)
+    discard spiWriteBlocking(self.spi, cast[ptr uint8](data[0].unsafeAddr), data.len.csize_t)
   gpioPut(self.csPin, High)
 
 proc setup*(self: var Uc8159) =
@@ -131,16 +132,16 @@ proc setup*(self: var Uc8159) =
     else:
       self.command(Psr, [uint8 0xAF, 0x08])
   self.command(Pwr, [uint8 0x37, 0x00, 0x23, 0x23])
-  self.command(Pfs, [uint8 0x00,])
+  self.command(Pfs, [uint8 0x00])
   self.command(Btst, [uint8 0xC7, 0xC7, 0x1D])
-  self.command(Pll, [uint8 0x3C,])
-  self.command(Tsc, [uint8 0x00,])
-  self.command(Cdi, [uint8 0x37,])
-  self.command(Tcon, [uint8 0x22,])
+  self.command(Pll, [uint8 0x3C])
+  self.command(Tsc, [uint8 0x00])
+  self.command(Cdi, [uint8 0x37])
+  self.command(Tcon, [uint8 0x22])
   self.command(Tres, dimensions)
-  self.command(Pws, [uint8 0xAA,])
+  self.command(Pws, [uint8 0xAA])
   sleepMs(100)
-  self.command(Cdi, [uint8 0x37,])
+  self.command(Cdi, [uint8 0x37])
 
 proc setBlocking*(self: var Uc8159; blocking: bool) =
   self.blocking = blocking
@@ -158,7 +159,7 @@ proc data*(self: var Uc8159, len: uint; data: ptr uint8) =
   discard spiWriteBlocking(self.spi, data, len)
   gpioPut(self.csPin, High)
 
-proc update*(self: var Uc8159; graphics: var PicoGraphics) =
+method update*(self: var Uc8159; graphics: var PicoGraphics) =
   if graphics.penType != Pen_3Bit:
     return
 
@@ -166,13 +167,14 @@ proc update*(self: var Uc8159; graphics: var PicoGraphics) =
     self.busyWait()
 
   self.setup()
+
   gpioPut(self.csPin, Low)
   var reg = Dtm1.uint8
-  gpioPut(self.dcPin, Low)
-  ##  command mode
+  gpioPut(self.dcPin, Low)  ##  command mode
   discard spiWriteBlocking(self.spi, reg.addr, 1)
-  gpioPut(self.dcPin, High)
-  ##  data mode
+
+  gpioPut(self.dcPin, High)  ##  data mode
+
   ##  HACK: Output 48 rows of data since our buffer is 400px tall
   ##  but the display has no offset configuration and H/V scan
   ##  are reversed.
@@ -180,10 +182,11 @@ proc update*(self: var Uc8159; graphics: var PicoGraphics) =
   ##  2px per byte, so we need width * 24 bytes
   if self.height == 400 and self.rotation == Rotate_0:
     discard spiWriteBlocking(self.spi, graphics.frameBuffer[0].addr, self.width * 24)
+
   let spiPtr = self.spi
   graphics.frameConvert(Pen_P4, (proc (buf: pointer; length: uint) =
     if length > 0:
-      discard spiWriteBlocking(spiPtr, cast[ptr uint8](buf), length)
+      discard spiWriteBlocking(spiPtr, cast[ptr uint8](buf), length.csize_t)
   ))
   gpioPut(self.csPin, High)
   self.busyWait()
