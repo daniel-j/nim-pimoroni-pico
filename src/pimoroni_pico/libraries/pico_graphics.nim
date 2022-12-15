@@ -720,23 +720,22 @@ const PicoGraphicsPen3BitPalette*: array[8, Rgb] = [
   Rgb(r: 220, g: 180, b: 200), ##  clean / taupe
 ]
 
-const PicoGraphicsPen3BitPaletteSize*: uint16 = 8
+# const PicoGraphicsPen3BitPaletteSize*: uint16 = 8
 
 func bufferSize*(self: PicoGraphicsPen3Bit; w: uint; h: uint): uint =
   return (w * h div 8) * 3
 
-proc constructPicoGraphicsPen3Bit*(width: uint16; height: uint16;
-                                  frameBuffer: pointer): PicoGraphicsPen3Bit {.
-    constructor.} = discard
 
 proc init*(self: var PicoGraphicsPen3Bit; width: uint16; height: uint16; frameBuffer: seq[uint8] = @[]) {.constructor.} =
   init(PicoGraphics(self), width, height, frameBuffer)
-  echo "picographics ", PicoGraphics(self).bounds
   self.penType = Pen_3Bit
   self.palette = PicoGraphicsPen3BitPalette
   if self.frameBuffer.len == 0:
     self.frameBuffer = newSeq[uint8](self.bufferSize(width, height))
   self.cacheBuilt = false
+
+proc constructPicoGraphicsPen3Bit*(width: uint16; height: uint16; frameBuffer: seq[uint8] = @[]): PicoGraphicsPen3Bit {.constructor.} =
+  result.init(width, height, frameBuffer)
 
 method setPen*(self: var PicoGraphicsPen3Bit; c: uint) =
   self.color = uint8 c and 0xf
