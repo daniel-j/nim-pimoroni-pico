@@ -1,13 +1,19 @@
-import pico_graphics, ../drivers/uc8159, ../drivers/pcf85063a
+import std/math
+
+import ../drivers/[
+  uc8159, pcf85063a, fatfs
+]
+
+import pico_graphics
 
 import picostdlib/[
   hardware/gpio, hardware/i2c,
   hardware/pwm, pico/time, pico/platform
 ]
-import std/math
 
 export pico_graphics
 export uc8159.Colour
+export fatfs
 
 const
   PinHoldSysEn = 2.Gpio

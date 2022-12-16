@@ -77,8 +77,10 @@ if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/imports.cmake)
   link_imported_libs(${OUTPUT_NAME}) # call our generated function to import all libs we're using
 endif()
 
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../src/pimoroni_pico/vendor vendor)
+
 # Add additional libraries, such as the wifi package. It's not automatically loaded
-target_link_libraries(${OUTPUT_NAME} pico_cyw43_arch_lwip_threadsafe_background)
+target_link_libraries(${OUTPUT_NAME} pico_cyw43_arch_lwip_threadsafe_background sdcard fatfs)
 
 # enable usb output, disable uart output
 add_compile_definitions(PICO_STDIO_USB_CONNECT_WAIT_TIMEOUT_MS=2000)
