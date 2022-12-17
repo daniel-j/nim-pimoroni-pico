@@ -143,7 +143,7 @@ func rgb565ToRgb*(c: Rgb565): Rgb = constructRgb(c)
 ##
 
 type
-  Pen* = int
+  # Pen* = int
 
   Point* {.bycopy.} = object
     x*: int

@@ -12,7 +12,6 @@ import picostdlib/[
 ]
 
 export pico_graphics
-export uc8159.Colour
 export fatfs
 
 const

@@ -102,11 +102,11 @@ else:
 
   echo "Cleaning..."
 
-  inky.setPen(Colour.Clean)
+  inky.setPen(Pen.Clean)
   inky.clear()
-  #inky.setPen(Colour.Red)
+  #inky.setPen(Pen.Red)
   #inky.rectangle(Rect(x: 0, y: 0, w: 100, h: 100))
-  #inky.setPen(Colour.Green)
+  #inky.setPen(Pen.Green)
   #inky.polygon([P(200, 400), P(300, 100), P(120, 120)])
   inky.update()
 
