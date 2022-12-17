@@ -127,13 +127,13 @@ else:
   inky.rectangle(constructRect((600 div 8) * 7, 0, 600 div 8, 448))
   inky.update()
   ]#
-  #echo "Cleaning..."
-  #inky.clear()
-  #inky.setPen(Pen.Red)
+  echo "Cleaning..."
+  inky.setPen(Pen.Clean)
+  inky.clear()
   #inky.rectangle(Rect(x: 0, y: 0, w: 100, h: 100))
   #inky.setPen(Pen.Green)
   #inky.polygon([P(200, 400), P(300, 100), P(120, 120)])
-  #inky.update()
+  inky.update()
 
   echo "Mounting SD card..."
 
