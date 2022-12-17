@@ -203,7 +203,6 @@ proc sleepUntil*(self: var InkyFrame; second: int; minute: int; hour: int; day: 
 
 proc getWakeUpEvent*(self: InkyFrame): WakeUpEvent = self.wakeUpEvent
 
-#[
 proc image*(self: var InkyFrame; data: openArray[uint8]; stride: int; sx: int; sy: int; dw: int; dh: int; dx: int; dy: int) =
   var y = 0
   while y < dh:
@@ -228,6 +227,6 @@ proc image*(self: var InkyFrame; data: openArray[uint8]; w: int; h: int; x: int;
 proc image*(self: var InkyFrame; data: openArray[uint8]) =
   ##  Display an image that fills the screen
   self.image(data, self.width, 0, 0, self.width, self.height, 0, 0)
-]#
+
 
 proc setPen*(self: var PicoGraphicsPen3Bit; c: Colour) = self.setPen(c.uint)
