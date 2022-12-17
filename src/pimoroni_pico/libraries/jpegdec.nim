@@ -209,7 +209,6 @@ type
     usHuffAC* {.importc: "usHuffAC".}: array[HUFF11SIZE * 2, uint16]
 
 
-
 ##  Due to unaligned memory causing an exception, we have to do these macros the slow way
 template INTELSHORT*(p: untyped): untyped =
   ((p[]) + ((p + 1)[] shl 8))
