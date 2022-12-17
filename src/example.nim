@@ -78,7 +78,7 @@ proc drawJpeg(filename: string; x, y, w, h: int) =
     jpegdec_draw_callback
   )
 
-  jpeg.setPixelType(RGB565_BIG_ENDIAN)
+  jpeg.setPixelType(RGB565_LITTLE_ENDIAN)
 
   echo "- starting jpeg decode.."
   echo jpeg.decode(0, 0, 0)
@@ -100,19 +100,17 @@ else:
 
   inky.init()
 
-  echo inky.palette
+  echo "Cleaning..."
 
-  inky.setPen(Colour.White)
-  #inky.clear()
-  inky.setPen(Colour.Red)
+  inky.setPen(Colour.Clean)
+  inky.clear()
+  #inky.setPen(Colour.Red)
   #inky.rectangle(Rect(x: 0, y: 0, w: 100, h: 100))
-  inky.setPen(Colour.Green)
+  #inky.setPen(Colour.Green)
   #inky.polygon([P(200, 400), P(300, 100), P(120, 120)])
-  #inky.update()
+  inky.update()
 
-  echo "Starts!"
-
-  echo "Mounting SD card"
+  echo "Mounting SD card..."
 
   fr = f_mount(fs.addr, "", 1)
   if fr != FR_OK:

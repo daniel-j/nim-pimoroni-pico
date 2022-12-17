@@ -39,6 +39,11 @@ func constructRgb*(c: Rgb332): Rgb {.constructor.} =
   result.b = ((c.uint8 and 0b00000011) shl 6).int16
 
 func constructRgb*(c: Rgb565): Rgb {.constructor.} =
+  result.r = (((c.uint16) and 0b1111100000000000) shr 8).int16
+  result.g = (((c.uint16) and 0b0000011111100000) shr 3).int16
+  result.b = (((c.uint16) and 0b0000000000011111) shl 3).int16
+
+func constructRgbBe*(c: Rgb565): Rgb {.constructor.} =
   result.r = ((builtinBswap16(c.uint16) and 0b1111100000000000) shr 8).int16
   result.g = ((builtinBswap16(c.uint16) and 0b0000011111100000) shr 3).int16
   result.b = ((builtinBswap16(c.uint16) and 0b0000000000011111) shl 3).int16
@@ -86,7 +91,7 @@ func closest*(self: Rgb; palette: openArray[Rgb]): int =
       d = dc
   return m
 
-func toRgb565*(self: Rgb): Rgb565 =
+func toRgb565Be*(self: Rgb): Rgb565 =
   let p =
     ((self.r and 0b11111000) shl 8).uint16 or
     ((self.g and 0b11111100) shl 3).uint16 or
@@ -110,7 +115,7 @@ func toRgb888*(self: Rgb): Rgb888 =
 func rgbToRgb332*(r: uint8; g: uint8; b: uint8): Rgb332 =
   constructRgb(r.int16, g.int16, b.int16).toRgb332()
 
-func rgb332ToRgb565*(c: Rgb332): Rgb565 =
+func rgb332ToRgb565Be*(c: Rgb332): Rgb565 =
   let p =
     ((c.uint8 and 0b11100000) shl 8).uint16 or
     ((c.uint8 and 0b00011100) shl 6).uint16 or
@@ -126,7 +131,7 @@ func rgb565ToRgb332*(c: Rgb565): Rgb332 =
   ).Rgb332
 
 func rgbToRgb565*(r: uint8; g: uint8; b: uint8): Rgb565 =
-  constructRgb(r.int16, g.int16, b.int16).toRgb565()
+  constructRgb(r.int16, g.int16, b.int16).toRgb565Be()
 
 func rgb332ToRgb*(c: Rgb332): Rgb = constructRgb(c)
 
