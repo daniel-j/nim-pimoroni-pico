@@ -4,7 +4,7 @@
 #   libraries/bitmapFonts/font14OutlineData
 import ../common/pimoroni_common
 
-import std/algorithm
+import std/[algorithm, math]
 
 proc builtinBswap16(a: uint16): uint16 {.importc: "__builtin_bswap16", nodecl, noSideEffect.}
 
@@ -86,16 +86,14 @@ proc dec*(self: var Rgb; i: int) =
 func `-`*(self: Rgb; c: Rgb): Rgb =
   return constructRgb(self.r - c.r, self.g - c.g, self.b - c.b)
 
-func clamp*(c: Rgb): Rgb =
-  result.r = min(max(c.r, 0), 255)
-  result.g = min(max(c.g, 0), 255)
-  result.b = min(max(c.b, 0), 255)
+func clamp*(self: Rgb): Rgb =
+  result.r = min(max(self.r, 0), 255)
+  result.g = min(max(self.g, 0), 255)
+  result.b = min(max(self.b, 0), 255)
 
 func luminance*(self: Rgb): int =
   ##  weights based on https://www.johndcook.com/blog/2009/08/24/algorithms-convert-color-grayscale/
   return self.r * 21 + self.g * 72 + self.b * 7
-
-import std/math
 
 func distance*(self: Rgb; c: Rgb): int =
   let e1 = clamp(self)
@@ -117,6 +115,14 @@ func closest*(self: Rgb; palette: openArray[Rgb]): int =
       m = i
       d = dc
   return m
+
+func toRgb565*(self: Rgb): Rgb565 =
+  let rgb = self.clamp()
+  result = Rgb565(
+    ((rgb.r.uint16 and 0b11111000) shl 8) or
+    ((rgb.g.uint16 and 0b11111100) shl 3) or
+    ((rgb.b.uint16 and 0b11111000) shr 3)
+  )
 
 func toRgb565Be*(self: Rgb): Rgb565 =
   let p =
@@ -742,9 +748,9 @@ type
     # candidates*: array[16, uint8]
 
 const PicoGraphicsPen3BitPalette*: array[8, Rgb] = [
-  Rgb(r:   5, g:   5, b:  10), ##  black
-  Rgb(r: 255, g: 245, b: 225), ##  white
-  Rgb(r:  38, g: 230, b:  45), ##  green
+  Rgb(r:   5, g:   5, b:   5), ##  black
+  Rgb(r: 248, g: 240, b: 224), ##  white
+  Rgb(r:  40, g: 230, b:  45), ##  green
   Rgb(r:  80, g:  30, b: 250), ##  blue
   Rgb(r: 240, g:  20, b:  30), ##  red
   Rgb(r: 240, g: 240, b:   5), ##  yellow
@@ -811,7 +817,9 @@ method setPen*(self: var PicoGraphicsPen3Bit; c: uint) =
   self.color = uint8 c and 0xf
 
 method setPen*(self: var PicoGraphicsPen3Bit; c: Rgb) =
-  self.color = c.closest(self.palette).uint8
+  # self.color = c.closest(self.palette).uint8
+  let cacheKey = (((c.r and 0xE0) shl 1) or ((c.g and 0xE0) shr 2) or ((c.b and 0xE0) shr 5)).uint
+  self.color = closestCachePen3Bit[cacheKey]
 
 method setPixel*(self: var PicoGraphicsPen3Bit; p: Point) =
   if not self.bounds.contains(p) or not self.clip.contains(p):
@@ -832,9 +840,7 @@ method setPixel*(self: var PicoGraphicsPen3Bit; p: Point) =
 method setPixel*(self: var PicoGraphicsPen3Bit; p: Point; c: Rgb) =
   if not self.bounds.contains(p) or not self.clip.contains(p):
     return
-  let cacheKey = (((c.r and 0xE0) shl 1) or ((c.g and 0xE0) shr 2) or ((c.b and 0xE0) shr 5)).uint
-
-  self.color = closestCachePen3Bit[cacheKey]
+  self.setPen(c)
   self.setPixel(p)
 
 proc getPixel*(self: PicoGraphicsPen3Bit; p: Point): uint8 =
