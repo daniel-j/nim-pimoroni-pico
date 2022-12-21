@@ -46,7 +46,7 @@
 #define DCTSIZE 64
 #define MAX_MCU_COUNT 6
 #define MAX_COMPS_IN_SCAN 4
-#define MAX_BUFFERED_PIXELS 2048
+#define MAX_BUFFERED_PIXELS 1024
 
 // Decoder options
 #define JPEG_AUTO_ROTATE 1

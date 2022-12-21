@@ -15,11 +15,54 @@ var inky: InkyFrame
 
 type
   JpegDecodeOptions = object
-    x, y, w, h: int
+    x, y: int
     progress: int
     dither: bool
+    lastY: int
+    chunkHeight: int
 
 var jpegDecodeOptions: JpegDecodeOptions
+
+var errorMatrix: seq[seq[Rgb]]
+
+proc processErrorMatrix(drawY: int) =
+  echo "processing errorMatrix ", drawY
+  let imgW = jpeg.getWidth()
+  let imgH = jpegDecodeOptions.chunkHeight + 1
+
+  let xo = jpegDecodeOptions.x
+  let yo = jpegDecodeOptions.y
+
+  for y in 0 ..< jpegDecodeOptions.chunkHeight:
+    let sy = drawY + y
+    for x in 0 ..< imgW:
+      let sx = x
+      let pos = Point(x: xo + sx, y: yo + sy)
+
+      let oldPixel = errorMatrix[y][x].clamp()
+
+      inky.setPixel(pos, oldPixel)  ##  find closest color using a LUT
+
+      ## inky.setPen(oldPixel.closest(inky.palette).uint8)  ##  find closest color using distance function
+      ## inky.setPixel(pos)
+
+      let newPixel = inky.palette[inky.color.uint8]
+
+      let quantError = oldPixel - newPixel
+
+      if x + 1 < imgW:
+        errorMatrix[y][x + 1] = (errorMatrix[y][x + 1] + quantError * 7 div 16)
+
+      if y + 1 < imgH:
+        if x > 0:
+          errorMatrix[y + 1][x - 1] = (errorMatrix[y + 1][x - 1] + quantError * 3 div 16)
+        errorMatrix[y + 1][x] = (errorMatrix[y + 1][x] + quantError * 5 div 16)
+        if x + 1 < imgW:
+          errorMatrix[y + 1][x + 1] = (errorMatrix[y + 1][x + 1] + quantError * 1 div 16)
+
+      jpegDecodeOptions.progress.inc()
+
+  echo (jpegDecodeOptions.progress * 100) div (jpeg.getWidth() * jpeg.getHeight()), "% "
 
 proc jpegdec_open_callback(filename: cstring, size: ptr int32): pointer {.noconv.} =
   let fil = create(FIL)
@@ -42,42 +85,43 @@ proc jpegdec_seek_callback(jpeg: ptr JPEGFILE, p: int32): int32 {.noconv.} =
 
 proc jpegdec_draw_callback(draw: ptr JPEGDRAW): cint {.noconv.} =
   let p = cast[ptr UncheckedArray[uint16]](draw.pPixels)
-  var i = 0
-  let xo = jpegDecodeOptions.x
-  let yo = jpegDecodeOptions.y
 
-  # echo "drawing at ", draw.x, "x", draw.y, "  size ", draw.iWidth, "x", draw.iHeight
+  if draw.x == 0 and draw.y == 0:
+    echo draw[]
+    jpegDecodeOptions.chunkHeight = draw.iHeight
+
+    errorMatrix.setLen(jpegDecodeOptions.chunkHeight + 1)
+
+    for i in 0 .. jpegDecodeOptions.chunkHeight:
+      errorMatrix[i] = newSeq[Rgb](jpeg.getWidth())
+
+  if jpegDecodeOptions.lastY != draw.y:
+    processErrorMatrix(jpegDecodeOptions.lastY)
+    errorMatrix[0] = seq(errorMatrix[jpegDecodeOptions.chunkHeight])
+    for i in 1 .. jpegDecodeOptions.chunkHeight:
+      errorMatrix[i] = newSeq[Rgb](jpeg.getWidth())
+
+  jpegDecodeOptions.lastY = draw.y
+
+  echo "decoding ", draw.y
+
   for y in 0 ..< draw.iHeight:
     for x in 0 ..< draw.iWidth:
-      let sx = ((draw.x + x + xo) * jpegDecodeOptions.w) div jpeg.getWidth()
-      let sy = ((draw.y + y + yo) * jpegDecodeOptions.h) div jpeg.getHeight()
-
-      if xo + sx >= 0 and xo + sx < inky.bounds.w and yo + sy >= 0 and yo + sy < inky.bounds.h:
-        let pos = Point(x: xo + sx, y: yo + sy)
-        let c = constructRgb(RGB565(p[i]))
-        if jpegDecodeOptions.dither:
-          inky.setPixelDither(pos, c)  ##  use dithering
-        else:
-          inky.setPixel(pos, c)  ##  find closest color for each pixel
-        jpegDecodeOptions.progress.inc()
-
-      inc(i)
-
-  echo (jpegDecodeOptions.progress * 100) div (jpegDecodeOptions.w * jpegDecodeOptions.h), "% "
+      if draw.x + x < jpeg.getWidth():
+        inc(errorMatrix[y][draw.x + x], constructRgb(RGB565(p[x + y * draw.iWidth])))
 
   return 1
 
 
-proc drawJpeg(filename: string; x, y, w, h: int; dither: bool) =
+proc drawJpeg(filename: string; x, y: int; dither: bool): int =
   jpegDecodeOptions.x = x
   jpegDecodeOptions.y = y
-  jpegDecodeOptions.w = w
-  jpegDecodeOptions.h = h
   jpegDecodeOptions.progress = 0
   jpegDecodeOptions.dither = dither
+  jpegDecodeOptions.lastY = 0
 
   echo "- opening jpeg file ", filename
-  echo jpeg.open(
+  var jpegErr = jpeg.open(
     filename,
     jpegdec_open_callback,
     jpegdec_close_callback,
@@ -85,13 +129,32 @@ proc drawJpeg(filename: string; x, y, w, h: int; dither: bool) =
     jpegdec_seek_callback,
     jpegdec_draw_callback
   )
+  if jpegErr == 1:
+    echo "- jpeg dimensions: ", jpeg.getWidth(), "x", jpeg.getHeight()
 
-  jpeg.setPixelType(RGB565_LITTLE_ENDIAN)
+    jpeg.setPixelType(RGB565_LITTLE_ENDIAN)
 
-  echo "- starting jpeg decode.."
-  echo jpeg.decode(0, 0, 0)
+    echo "- starting jpeg decode.."
+    try:
+      jpegErr = jpeg.decode(0, 0, 0)
+    except Exception:
+      echo "error: ", getCurrentException().msg, getCurrentException().getStackTrace()
+      echo jpeg.getLastError()
+      jpegErr = 0
+    if jpegErr != 1:
+      echo "- jpeg decoding error: ", jpegErr
+      return jpegErr
 
-  jpeg.close()
+
+    jpeg.close()
+    processErrorMatrix(jpegDecodeOptions.lastY)
+    errorMatrix.setLen(0)
+
+  else:
+    echo "- couldnt decode jpeg! error: ", jpegErr
+    return jpegErr
+
+  return 1
 
 if cyw43_arch_init() != 0:
   echo "Wifi init failed!"
@@ -130,9 +193,6 @@ else:
   echo "Cleaning..."
   inky.setPen(Pen.Clean)
   inky.clear()
-  #inky.rectangle(Rect(x: 0, y: 0, w: 100, h: 100))
-  #inky.setPen(Pen.Green)
-  #inky.polygon([P(200, 400), P(300, 100), P(120, 120)])
   inky.update()
 
   echo "Mounting SD card..."
@@ -144,16 +204,20 @@ else:
     echo "Listing SD card contents.."
     var file: FILINFO
     var dir: DIR
-    discard f_opendir(dir.addr, "/")
+    discard f_opendir(dir.addr, "/hidden/")
     while f_readdir(dir.addr, file.addr) == FR_OK and file.fname[0].bool:
-      echo "- ", file.getFname(), " ", file.fsize, " ", file.getFname().len
+      echo "- ", file.getFname(), " ", file.fsize
+      if file.fsize == 0:
+        continue
 
-      let filename = file.getFname()
+      let filename = "/hidden/" & file.getFname()
       inky.led(Led.Activity, 50)
-      drawJpeg(filename, 0, 0, 600, 448, dither=true)
+      if drawJpeg(filename, 0, 0, dither=false) == 1:
+        inky.led(Led.Activity, 100)
+        inky.update()
       inky.led(Led.Activity, 0)
-      inky.update()
       sleepMs(30 * 1000)
+
 
     discard f_unmount("")
 

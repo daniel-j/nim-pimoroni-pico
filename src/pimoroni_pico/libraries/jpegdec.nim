@@ -40,7 +40,7 @@ const
   DCTSIZE* = 64
   MAX_MCU_COUNT* = 6
   MAX_COMPS_IN_SCAN* = 4
-  MAX_BUFFERED_PIXELS* = 2048
+  MAX_BUFFERED_PIXELS* = 1024
 
 ##  Decoder options
 
@@ -277,7 +277,7 @@ proc openFLASH*(self: var JPEGDEC; pData: ptr uint8; iDataSize: cint; pfnDraw: J
 ##  File (SD/MMC) based initialization
 ##
 
-proc open*(self: var JPEGDEC; szFilename: cstring; pfnOpen: JPEG_OPEN_CALLBACK; pfnClose: JPEG_CLOSE_CALLBACK; pfnRead: JPEG_READ_CALLBACK; pfnSeek: JPEG_SEEK_CALLBACK; pfnDraw: JPEG_DRAW_CALLBACK): cint =
+proc open*(self: var JPEGDEC; szFilename: string; pfnOpen: JPEG_OPEN_CALLBACK; pfnClose: JPEG_CLOSE_CALLBACK; pfnRead: JPEG_READ_CALLBACK; pfnSeek: JPEG_SEEK_CALLBACK; pfnDraw: JPEG_DRAW_CALLBACK): cint =
   zeroMem(self.jpeg.addr, JPEGIMAGE.sizeof)
   self.jpeg.pfnRead = pfnRead
   self.jpeg.pfnSeek = pfnSeek
