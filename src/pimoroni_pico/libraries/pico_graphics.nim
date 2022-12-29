@@ -880,13 +880,13 @@ method setPixelDither*(self: var PicoGraphicsPen3Bit; p: Point; c: Rgb) =
 method frameConvert*(self: var PicoGraphicsPen3Bit; `type`: PicoGraphicsPenType; callback: PicoGraphicsConversionCallbackFunc) =
   if `type` == Pen_P4:
     var rowBuf = newSeq[uint8](self.bounds.w div 2)
-    var offset = (self.bounds.w * self.bounds.h) div 8
+    var offset = ((self.bounds.w * self.bounds.h) div 8).uint
     for y in 0 ..< self.bounds.h:
       for x in 0 ..< self.bounds.w:
         var bo: uint = 7 - (uint x and 0b111)
         var bufA: ptr uint8 = addr(self.frameBuffer[(x div 8) + (y * self.bounds.w div 8)])
-        var bufB: ptr uint8 = cast[ptr uint8](cast[int](bufA) +% offset)
-        var bufC: ptr uint8 = cast[ptr uint8](cast[int](bufA) +% offset +% offset)
+        var bufB: ptr uint8 = cast[ptr uint8](cast[uint](bufA) + offset)
+        var bufC: ptr uint8 = cast[ptr uint8](cast[uint](bufA) + offset + offset)
         var nibble: uint8 = (bufA[] shr bo) and 1
         nibble = nibble shl 1
         nibble = nibble or (bufB[] shr bo) and 1
