@@ -124,13 +124,13 @@ proc getDatetime*(self: var Pcf85063a): DateTime =
   result.sec = cast[int8](bcdDecode(resultArray[0] and 0x7f))     ##  mask out status bit
 
 proc setDatetime*(self: var Pcf85063a; t: ptr DateTime) =
-  var data: array[7, uint8] = [bcdEncode(cast[uint](t.sec)),
-                           bcdEncode(cast[uint](t.min)),
-                           bcdEncode(cast[uint](t.hour)),
-                           bcdEncode(cast[uint](t.day)),
-                           bcdEncode(cast[uint](t.dotw)),
-                           bcdEncode(cast[uint](t.month)),
-                           bcdEncode(cast[uint](t.year) - 2000)] ##  offset year
+  var data: array[7, uint8] = [bcdEncode(t.sec.uint),
+                               bcdEncode(t.min.uint),
+                               bcdEncode(t.hour.uint),
+                               bcdEncode(t.day.uint),
+                               bcdEncode(t.dotw.uint),
+                               bcdEncode(t.month.uint),
+                               bcdEncode(t.year.uint - 2000)] ##  offset year
   discard self.i2c.writeBytes(self.address, Registers.SECONDS.uint8, data[0].addr, data.len.cuint)
 
 proc setAlarm*(self: var Pcf85063a; second: int; minute: int; hour: int; day: int) =

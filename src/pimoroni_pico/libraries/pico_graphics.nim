@@ -318,7 +318,7 @@ type
   PicoGraphicsPenType* {.pure.} = enum
     Pen_1Bit, Pen_3Bit, Pen_P2, Pen_P4, Pen_P8, Pen_RGB332, Pen_RGB565, Pen_RGB888
 
-  PicoGraphicsConversionCallbackFunc* = proc (data: pointer; length: uint) {.closure, locks: 0.}
+  PicoGraphicsConversionCallbackFunc* = proc (data: pointer; length: uint) {.closure.}
   PicoGraphicsNextPixelFunc* = proc (): Rgb565
 
 proc setDimensions*(self: var PicoGraphics; width: uint16; height: uint16) =
@@ -885,8 +885,8 @@ method frameConvert*(self: var PicoGraphicsPen3Bit; `type`: PicoGraphicsPenType;
       for x in 0 ..< self.bounds.w:
         var bo: uint = 7 - (uint x and 0b111)
         var bufA: ptr uint8 = addr(self.frameBuffer[(x div 8) + (y * self.bounds.w div 8)])
-        var bufB: ptr uint8 = cast[ptr uint8](cast[ByteAddress](bufA) +% offset)
-        var bufC: ptr uint8 = cast[ptr uint8](cast[ByteAddress](bufA) +% offset +% offset)
+        var bufB: ptr uint8 = cast[ptr uint8](cast[int](bufA) +% offset)
+        var bufC: ptr uint8 = cast[ptr uint8](cast[int](bufA) +% offset +% offset)
         var nibble: uint8 = (bufA[] shr bo) and 1
         nibble = nibble shl 1
         nibble = nibble or (bufB[] shr bo) and 1

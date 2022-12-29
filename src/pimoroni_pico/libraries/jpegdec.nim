@@ -21,7 +21,8 @@
 ##  using less than 22K of RAM
 ##
 
-import std/os, std/strutils
+from std/os import parentDir, `/`
+import std/strutils
 
 const currentDir = currentSourcePath.parentDir
 
@@ -327,10 +328,10 @@ proc decodeDither*(self: var JPEGDEC; pDither: ptr uint8; iOptions: cint): cint 
   self.jpeg.pDitherBuffer = pDither
   return DecodeJPEG(self.jpeg.addr)
 
-proc getOrientation*(self: var JPEGDEC): cint {.inline.} = cast[cint](self.jpeg.ucOrientation)
+proc getOrientation*(self: var JPEGDEC): cint {.inline.} = self.jpeg.ucOrientation.cint
 proc getWidth*(self: var JPEGDEC): cint {.inline.} = self.jpeg.iWidth
 proc getHeight*(self: var JPEGDEC): cint {.inline.} = self.jpeg.iHeight
-proc getBpp*(self: var JPEGDEC): cint {.inline.} = cast[cint](self.jpeg.ucBpp)
+proc getBpp*(self: var JPEGDEC): cint {.inline.} = self.jpeg.ucBpp.cint
 
 ##
 ##  set draw callback user pointer variable
@@ -339,8 +340,8 @@ proc getBpp*(self: var JPEGDEC): cint {.inline.} = cast[cint](self.jpeg.ucBpp)
 proc setUserPointer*(self: var JPEGDEC; p: pointer) =
   self.jpeg.pUser = p
 
-proc getSubSample*(self: var JPEGDEC): cint {.inline.} = cast[cint](self.jpeg.ucSubSample)
-proc hasThumb*(self: var JPEGDEC): cint = cast[cint](self.jpeg.ucHasThumb)
+proc getSubSample*(self: var JPEGDEC): cint {.inline.} = self.jpeg.ucSubSample.cint
+proc hasThumb*(self: var JPEGDEC): cint = self.jpeg.ucHasThumb.cint
 proc getThumbWidth*(self: var JPEGDEC): cint {.inline.} = self.jpeg.iThumbWidth
 proc getThumbHeight*(self: var JPEGDEC): cint {.inline.} = self.jpeg.iThumbHeight
 proc getLastError*(self: var JPEGDEC): cint {.inline.} = self.jpeg.iError

@@ -1,4 +1,4 @@
-import std/os
+from std/os import `/`, parentDir
 
 const currentDir = currentSourcePath.parentDir
 
@@ -422,7 +422,7 @@ const
   FA_OPEN_APPEND* = 0x30
 
   ##  Fast seek controls (2nd argument of f_lseek)
-  CREATE_LINKMAP* = (cast[FSIZE_t](0) - typeof(cast[FSIZE_t](0))(1))
+  CREATE_LINKMAP* = ((0.FSIZE_t) - typeof((0.FSIZE_t))(1))
 
   ##  Format options (2nd argument of f_mkfs)
   FM_FAT*   = 0x01
