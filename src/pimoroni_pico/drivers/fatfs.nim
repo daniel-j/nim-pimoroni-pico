@@ -5,8 +5,8 @@ const currentDir = currentSourcePath.parentDir
 {.push header: currentDir / "../vendor/fatfs/ff.h".}
 
 type
-  HANDLE = void
-  FF_SYNC_t = HANDLE
+  HANDLE = pointer
+  FF_SYNC_t* = HANDLE
 
 ## FatFs Functional Configurations
 
@@ -231,7 +231,7 @@ type
     au_size*: DWORD  ##  Cluster size (byte)
 
 type
-  FRESULT* {.pure #[, importc: "enum FRESULT"]#.} = enum
+  FRESULT* {.pure.} = enum
     FR_OK = 0               ## (0) Succeeded
     FR_DISK_ERR             ## (1) A hard error occurred in the low level disk I/O layer
     FR_INT_ERR              ## (2) Assertion failed
