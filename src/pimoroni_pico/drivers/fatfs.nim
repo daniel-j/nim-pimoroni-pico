@@ -2,6 +2,31 @@ from std/os import `/`, parentDir
 
 const currentDir = currentSourcePath.parentDir
 
+
+type
+  FRESULT* {.pure, size: sizeof(cuint).} = enum
+    FR_OK = 0               ## (0) Succeeded
+    FR_DISK_ERR             ## (1) A hard error occurred in the low level disk I/O layer
+    FR_INT_ERR              ## (2) Assertion failed
+    FR_NOT_READY            ## (3) The physical drive cannot work
+    FR_NO_FILE              ## (4) Could not find the file
+    FR_NO_PATH              ## (5) Could not find the path
+    FR_INVALID_NAME         ## (6) The path name format is invalid
+    FR_DENIED               ## (7) Access denied due to prohibited access or directory full
+    FR_EXIST                ## (8) Access denied due to prohibited access
+    FR_INVALID_OBJECT       ## (9) The file/directory object is invalid
+    FR_WRITE_PROTECTED      ## (10) The physical drive is write protected
+    FR_INVALID_DRIVE        ## (11) The logical drive number is invalid
+    FR_NOT_ENABLED          ## (12) The volume has no work area
+    FR_NO_FILESYSTEM        ## (13) There is no valid FAT volume
+    FR_MKFS_ABORTED         ## (14) The f_mkfs() aborted due to any problem
+    FR_TIMEOUT              ## (15) Could not get a grant to access the volume within defined period
+    FR_LOCKED               ## (16) The operation is rejected according to the file sharing policy
+    FR_NOT_ENOUGH_CORE      ## (17) LFN working buffer could not be allocated
+    FR_TOO_MANY_OPEN_FILES  ## (18) Number of open files > FF_FS_LOCK
+    FR_INVALID_PARAMETER    ## (19) Given parameter is invalid
+
+
 {.push header: currentDir / "../vendor/fatfs/ff.h".}
 
 type
@@ -230,132 +255,109 @@ type
     n_root*: UINT    ##  Number of root directory entries
     au_size*: DWORD  ##  Cluster size (byte)
 
-type
-  FRESULT* {.pure.} = enum
-    FR_OK = 0               ## (0) Succeeded
-    FR_DISK_ERR             ## (1) A hard error occurred in the low level disk I/O layer
-    FR_INT_ERR              ## (2) Assertion failed
-    FR_NOT_READY            ## (3) The physical drive cannot work
-    FR_NO_FILE              ## (4) Could not find the file
-    FR_NO_PATH              ## (5) Could not find the path
-    FR_INVALID_NAME         ## (6) The path name format is invalid
-    FR_DENIED               ## (7) Access denied due to prohibited access or directory full
-    FR_EXIST                ## (8) Access denied due to prohibited access
-    FR_INVALID_OBJECT       ## (9) The file/directory object is invalid
-    FR_WRITE_PROTECTED      ## (10) The physical drive is write protected
-    FR_INVALID_DRIVE        ## (11) The logical drive number is invalid
-    FR_NOT_ENABLED          ## (12) The volume has no work area
-    FR_NO_FILESYSTEM        ## (13) There is no valid FAT volume
-    FR_MKFS_ABORTED         ## (14) The f_mkfs() aborted due to any problem
-    FR_TIMEOUT              ## (15) Could not get a grant to access the volume within defined period
-    FR_LOCKED               ## (16) The operation is rejected according to the file sharing policy
-    FR_NOT_ENOUGH_CORE      ## (17) LFN working buffer could not be allocated
-    FR_TOO_MANY_OPEN_FILES  ## (18) Number of open files > FF_FS_LOCK
-    FR_INVALID_PARAMETER    ## (19) Given parameter is invalid
-
 
 ## FatFs module application interface
 
-proc f_open*(fp: ptr FIL; path: cstring; mode: BYTE): FRESULT {.importc, cdecl.}
+proc f_open*(fp: ptr FIL; path: cstring; mode: BYTE): FRESULT {.importc: "f_open", cdecl.}
   ##   Open or create a file
 
-proc f_close*(fp: ptr FIL): FRESULT {.importc, cdecl.}
+proc f_close*(fp: ptr FIL): FRESULT {.importc: "f_close", cdecl.}
   ##   Close an open file object
 
-proc f_read*(fp: ptr FIL; buff: pointer; btr: UINT; br: ptr UINT): FRESULT {.importc, cdecl.}
+proc f_read*(fp: ptr FIL; buff: pointer; btr: UINT; br: ptr UINT): FRESULT {.importc: "f_read", cdecl.}
   ##   Read data from the file
 
-proc f_write*(fp: ptr FIL; buff: pointer; btw: UINT; bw: ptr UINT): FRESULT {.importc, cdecl.}
+proc f_write*(fp: ptr FIL; buff: pointer; btw: UINT; bw: ptr UINT): FRESULT {.importc: "f_write", cdecl.}
   ##   Write data to the file
 
-proc f_lseek*(fp: ptr FIL; ofs: FSIZE_t): FRESULT {.importc, cdecl.}
+proc f_lseek*(fp: ptr FIL; ofs: FSIZE_t): FRESULT {.importc: "f_lseek", cdecl.}
   ##   Move file pointer of the file object
 
-proc f_truncate*(fp: ptr FIL): FRESULT {.importc, cdecl.}
+proc f_truncate*(fp: ptr FIL): FRESULT {.importc: "f_truncate", cdecl.}
   ##   Truncate the file
 
-proc f_sync*(fp: ptr FIL): FRESULT {.importc, cdecl.}
+proc f_sync*(fp: ptr FIL): FRESULT {.importc: "f_sync", cdecl.}
   ##   Flush cached data of the writing file
 
-proc f_opendir*(dp: ptr DIR; path: cstring): FRESULT {.importc, cdecl.}
+proc f_opendir*(dp: ptr DIR; path: cstring): FRESULT {.importc: "f_opendir", cdecl.}
   ##   Open a directory
 
-proc f_closedir*(dp: ptr DIR): FRESULT {.importc, cdecl.}
+proc f_closedir*(dp: ptr DIR): FRESULT {.importc: "f_closedir", cdecl.}
   ##   Close an open directory
 
-proc f_readdir*(dp: ptr DIR; fno: ptr FILINFO): FRESULT {.importc, cdecl.}
+proc f_readdir*(dp: ptr DIR; fno: ptr FILINFO): FRESULT {.importc: "f_readdir", cdecl.}
   ##   Read a directory item
 
-proc f_findfirst*(dp: ptr DIR; fno: ptr FILINFO; path: cstring; pattern: cstring): FRESULT {.importc, cdecl.}
+proc f_findfirst*(dp: ptr DIR; fno: ptr FILINFO; path: cstring; pattern: cstring): FRESULT {.importc: "f_findfirst", cdecl.}
   ##   Find first file
 
-proc f_findnext*(dp: ptr DIR; fno: ptr FILINFO): FRESULT {.importc, cdecl.}
+proc f_findnext*(dp: ptr DIR; fno: ptr FILINFO): FRESULT {.importc: "f_findnext", cdecl.}
   ##   Find next file
 
-proc f_mkdir*(path: cstring): FRESULT {.importc, cdecl.}
+proc f_mkdir*(path: cstring): FRESULT {.importc: "f_mkdir", cdecl.}
   ##   Create a sub directory
 
-proc f_unlink*(path: cstring): FRESULT {.importc, cdecl.}
+proc f_unlink*(path: cstring): FRESULT {.importc: "f_unlink", cdecl.}
   ##   Delete an existing file or directory
 
-proc f_rename*(path_old: cstring; path_new: cstring): FRESULT {.importc, cdecl.}
+proc f_rename*(path_old: cstring; path_new: cstring): FRESULT {.importc: "f_rename", cdecl.}
   ##   Rename/Move a file or directory
 
-proc f_stat*(path: cstring; fno: ptr FILINFO): FRESULT {.importc, cdecl.}
+proc f_stat*(path: cstring; fno: ptr FILINFO): FRESULT {.importc: "f_stat", cdecl.}
   ##   Get file status
 
-proc f_chmod*(path: cstring; attr: BYTE; mask: BYTE): FRESULT {.importc, cdecl.}
+proc f_chmod*(path: cstring; attr: BYTE; mask: BYTE): FRESULT {.importc: "f_chmod", cdecl.}
   ##   Change attribute of a file/dir
 
-proc f_utime*(path: cstring; fno: ptr FILINFO): FRESULT {.importc, cdecl.}
+proc f_utime*(path: cstring; fno: ptr FILINFO): FRESULT {.importc: "f_utime", cdecl.}
   ##   Change timestamp of a file/dir
 
-proc f_chdir*(path: cstring): FRESULT {.importc, cdecl.}
+proc f_chdir*(path: cstring): FRESULT {.importc: "f_chdir", cdecl.}
   ##   Change current directory
 
-proc f_chdrive*(path: cstring): FRESULT {.importc, cdecl.}
+proc f_chdrive*(path: cstring): FRESULT {.importc: "f_chdrive", cdecl.}
   ##   Change current drive
 
-proc f_getcwd*(buff: cstring; len: UINT): FRESULT {.importc, cdecl.}
+proc f_getcwd*(buff: cstring; len: UINT): FRESULT {.importc: "f_getcwd", cdecl.}
   ##   Get current directory
 
-proc f_getfree*(path: cstring; nclst: ptr DWORD; fatfs: ptr ptr FATFS): FRESULT {.importc, cdecl.}
+proc f_getfree*(path: cstring; nclst: ptr DWORD; fatfs: ptr ptr FATFS): FRESULT {.importc: "f_getfree", cdecl.}
   ##   Get number of free clusters on the drive
 
-proc f_getlabel*(path: cstring; label: var cstring; vsn: ptr DWORD): FRESULT {.importc, cdecl.}
+proc f_getlabel*(path: cstring; label: var cstring; vsn: ptr DWORD): FRESULT {.importc: "f_getlabel", cdecl.}
   ##   Get volume label
 
-proc f_setlabel*(label: cstring): FRESULT {.importc, cdecl.}
+proc f_setlabel*(label: cstring): FRESULT {.importc: "f_setlabel", cdecl.}
   ##   Set volume label
 
-proc f_forward*(fp: ptr FIL; `func`: proc (a1: ptr BYTE; a2: UINT): UINT {.cdecl.}; btf: UINT; bf: ptr UINT): FRESULT {.importc, cdecl.}
+proc f_forward*(fp: ptr FIL; `func`: proc (a1: ptr BYTE; a2: UINT): UINT {.cdecl.}; btf: UINT; bf: ptr UINT): FRESULT {.importc: "f_forward", cdecl.}
   ##   Forward data to the stream
 
-proc f_expand*(fp: ptr FIL; fsz: FSIZE_t; opt: BYTE): FRESULT {.importc, cdecl.}
+proc f_expand*(fp: ptr FIL; fsz: FSIZE_t; opt: BYTE): FRESULT {.importc: "f_expand", cdecl.}
   ##   Allocate a contiguous block to the file
 
-proc f_mount*(fs: ptr FATFS; path: cstring; opt: BYTE): FRESULT {.importc, cdecl.}
+proc f_mount*(fs: ptr FATFS; path: cstring; opt: BYTE): FRESULT {.importc: "f_mount", cdecl.}
   ##   Mount/Unmount a logical drive
 
-proc f_mkfs*(path: cstring; opt: ptr MKFS_PARM; work: pointer; len: UINT): FRESULT {.importc, cdecl.}
+proc f_mkfs*(path: cstring; opt: ptr MKFS_PARM; work: pointer; len: UINT): FRESULT {.importc: "f_mkfs", cdecl.}
   ##   Create a FAT volume
 
-proc f_fdisk*(pdrv: BYTE; ptbl: UncheckedArray[LBA_t]; work: pointer): FRESULT {.importc, cdecl.}
+proc f_fdisk*(pdrv: BYTE; ptbl: UncheckedArray[LBA_t]; work: pointer): FRESULT {.importc: "f_fdisk", cdecl.}
   ##   Divide a physical drive into some partitions
 
-proc f_setcp*(cp: WORD): FRESULT {.importc, cdecl.}
+proc f_setcp*(cp: WORD): FRESULT {.importc: "f_setcp", cdecl.}
   ##   Set current code page
 
-proc f_putc*(c: TCHAR; fp: ptr FIL): cint {.importc, cdecl.}
+proc f_putc*(c: TCHAR; fp: ptr FIL): cint {.importc: "f_putc", cdecl.}
   ##   Put a character to the file
 
-proc f_puts*(str: cstring; cp: ptr FIL): cint {.importc, cdecl.}
+proc f_puts*(str: cstring; cp: ptr FIL): cint {.importc: "f_puts", cdecl.}
   ##   Put a string to the file
 
-proc f_printf*(fp: ptr FIL; str: cstring): cint {.importc, cdecl, varargs.}
+proc f_printf*(fp: ptr FIL; str: cstring): cint {.importc: "f_printf", cdecl, varargs.}
   ##   Put a formatted string to the file
 
-proc f_gets*(buff: cstring; len: cint; fp: ptr FIL): cstring {.importc, cdecl.}
+proc f_gets*(buff: cstring; len: cint; fp: ptr FIL): cstring {.importc: "f_gets", cdecl.}
   ##   Get a string from the file
 
 

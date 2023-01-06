@@ -109,11 +109,11 @@ type
 ##  Callback function prototypes
 
 type
-  JPEG_READ_CALLBACK* = proc (pFile: ptr JPEGFILE; pBuf: ptr uint8; iLen: int32): int32 {.noconv.}
-  JPEG_SEEK_CALLBACK* = proc (pFile: ptr JPEGFILE; iPosition: int32): int32 {.noconv.}
-  JPEG_DRAW_CALLBACK* = proc (pDraw: ptr JPEGDRAW): cint {.noconv.}
-  JPEG_OPEN_CALLBACK* = proc (szFilename: cstring; pFileSize: ptr int32): pointer {.noconv.}
-  JPEG_CLOSE_CALLBACK* = proc (pHandle: pointer): void {.noconv.}
+  JPEG_READ_CALLBACK* = proc (pFile: ptr JPEGFILE; pBuf: ptr uint8; iLen: int32): int32 {.cdecl.}
+  JPEG_SEEK_CALLBACK* = proc (pFile: ptr JPEGFILE; iPosition: int32): int32 {.cdecl.}
+  JPEG_DRAW_CALLBACK* = proc (pDraw: ptr JPEGDRAW): cint {.cdecl.}
+  JPEG_OPEN_CALLBACK* = proc (szFilename: cstring; pFileSize: ptr int32): pointer {.cdecl.}
+  JPEG_CLOSE_CALLBACK* = proc (pHandle: pointer): void {.cdecl.}
 
 ##  JPEG color component info
 
