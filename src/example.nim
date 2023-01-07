@@ -26,7 +26,7 @@ var jpegDecodeOptions: JpegDecodeOptions
 var errorMatrix: seq[seq[Rgb]]
 
 proc processErrorMatrix(drawY: int) =
-  echo "processing errorMatrix ", drawY
+  # echo "processing errorMatrix ", drawY
   let imgW = jpeg.getWidth()
   let imgH = jpegDecodeOptions.chunkHeight + 1
 
@@ -64,26 +64,26 @@ proc processErrorMatrix(drawY: int) =
 
   echo (jpegDecodeOptions.progress * 100) div (jpeg.getWidth() * jpeg.getHeight()), "% "
 
-proc jpegdec_open_callback(filename: cstring, size: ptr int32): pointer {.noconv.} =
+proc jpegdec_open_callback(filename: cstring, size: ptr int32): pointer {.cdecl.} =
   let fil = create(FIL)
   if f_open(fil, filename, FA_READ).bool:
     return nil
   size[] = f_size(fil).int32
   return fil
 
-proc jpegdec_close_callback(handle: pointer) {.noconv.} =
+proc jpegdec_close_callback(handle: pointer) {.cdecl.} =
   discard f_close(cast[ptr FIL](handle))
   dealloc(cast[ptr FIL](handle))
 
-proc jpegdec_read_callback(jpeg: ptr JPEGFILE; p: ptr uint8, c: int32): int32 {.noconv.} =
+proc jpegdec_read_callback(jpeg: ptr JPEGFILE; p: ptr uint8, c: int32): int32 {.cdecl.} =
   var br: cuint
   discard f_read(cast[ptr FIL](jpeg.fHandle), cast[pointer](p), c.cuint, br.addr)
   return br.int32
 
-proc jpegdec_seek_callback(jpeg: ptr JPEGFILE, p: int32): int32 {.noconv.} =
+proc jpegdec_seek_callback(jpeg: ptr JPEGFILE, p: int32): int32 {.cdecl.} =
   (f_lseek(cast[ptr FIL](jpeg.fHandle), p.FSIZE_t) == FR_OK).int32
 
-proc jpegdec_draw_callback(draw: ptr JPEGDRAW): cint {.noconv.} =
+proc jpegdec_draw_callback(draw: ptr JPEGDRAW): cint {.cdecl.} =
   let p = cast[ptr UncheckedArray[uint16]](draw.pPixels)
 
   if draw.x == 0 and draw.y == 0:
@@ -103,7 +103,7 @@ proc jpegdec_draw_callback(draw: ptr JPEGDRAW): cint {.noconv.} =
 
   jpegDecodeOptions.lastY = draw.y
 
-  echo "decoding ", draw.y
+  # echo "decoding ", draw.y
 
   for y in 0 ..< draw.iHeight:
     for x in 0 ..< draw.iWidth:
@@ -137,8 +137,8 @@ proc drawJpeg(filename: string; x, y: int; dither: bool): int =
     echo "- starting jpeg decode.."
     try:
       jpegErr = jpeg.decode(0, 0, 0)
-    except Exception:
-      echo "error: ", getCurrentException().msg, getCurrentException().getStackTrace()
+    except CatchableError:
+      echo "error: ", system.getCurrentException().msg, system.getCurrentException().getStackTrace()
       echo jpeg.getLastError()
       jpegErr = 0
     if jpegErr != 1:
