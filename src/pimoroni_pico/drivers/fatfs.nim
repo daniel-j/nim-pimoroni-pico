@@ -1,4 +1,5 @@
 from std/os import `/`, parentDir
+import std/strutils
 
 const currentDir = currentSourcePath.parentDir
 
@@ -449,3 +450,20 @@ const
 {.pop.}
 
 func getFname*(self: FILINFO): string = $(cast[cstring](self.fname[0].unsafeAddr))
+
+func getFileDate*(self: FILINFO): tuple[year: int, month: int, day: int] =
+  result.year = 1980 + (self.fdate.int shr 9)
+  result.month = (self.fdate.int shr 5) and 0b1111
+  result.day = self.fdate.int and 0b11111
+
+func getFileTime*(self: FILINFO): tuple[hour: int, min: int, sec: int] =
+  result.hour = self.ftime.int shr 11
+  result.min = (self.ftime.int shr 5) and 0b111111
+  result.sec = (self.ftime.int and 0b11111) * 2
+
+func `$`*(fileTime: tuple[year: int, month: int, day: int]): string =
+  return intToStr(fileTime.year, 4) & "-" & intToStr(fileTime.month, 2) & "-" & intToStr(fileTime.day, 2)
+
+func `$`*(fileTime: tuple[hour: int, min: int, sec: int]): string =
+  return intToStr(fileTime.hour, 2) & ":" & intToStr(fileTime.min, 2) & ":" & intToStr(fileTime.sec, 2)
+
