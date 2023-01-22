@@ -77,12 +77,13 @@ const
 
 ##  Error codes returned by getLastError()
 
-const
-  JPEG_SUCCESS* = 0
-  JPEG_INVALID_PARAMETER* = 1
-  JPEG_DECODE_ERROR* = 2
-  JPEG_UNSUPPORTED_FEATURE* = 3
-  JPEG_INVALID_FILE* = 4
+type
+  JpegError* = enum
+    JPEG_SUCCESS = 0
+    JPEG_INVALID_PARAMETER = 1
+    JPEG_DECODE_ERROR = 2
+    JPEG_UNSUPPORTED_FEATURE = 3
+    JPEG_INVALID_FILE = 4
 
 type
   BUFFERED_BITS* {.importc: "BUFFERED_BITS", bycopy.} = object
@@ -344,12 +345,12 @@ proc getSubSample*(self: var JPEGDEC): cint {.inline.} = self.jpeg.ucSubSample.c
 proc hasThumb*(self: var JPEGDEC): cint = self.jpeg.ucHasThumb.cint
 proc getThumbWidth*(self: var JPEGDEC): cint {.inline.} = self.jpeg.iThumbWidth
 proc getThumbHeight*(self: var JPEGDEC): cint {.inline.} = self.jpeg.iThumbHeight
-proc getLastError*(self: var JPEGDEC): cint {.inline.} = self.jpeg.iError
-proc setPixelType*(self: var JPEGDEC; iType: cint) =
+proc getLastError*(self: var JPEGDEC): JpegError {.inline.} = self.jpeg.iError.JpegError
+proc setPixelType*(self: var JPEGDEC; iType: int) =
   if iType >= 0 and iType < INVALID_PIXEL_TYPE:
-    self.jpeg.ucPixelType = cast[uint8](iType)
+    self.jpeg.ucPixelType = iType.uint8
   else:
-    self.jpeg.iError = JPEG_INVALID_PARAMETER
+    self.jpeg.iError = JPEG_INVALID_PARAMETER.ord
 proc setMaxOutputSize*(self: var JPEGDEC; iMaxMCUs: cint) =
   if iMaxMCUs < 1:
     self.jpeg.iMaxMCUs = 1
