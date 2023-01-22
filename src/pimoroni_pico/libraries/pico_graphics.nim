@@ -116,6 +116,60 @@ func closest*(self: Rgb; palette: openArray[Rgb]): int =
       d = dc
   return m
 
+func saturate*(self: Rgb; factor: float): Rgb =
+  # const luR = 0.3086
+  # const luG = 0.6094
+  # const luB = 0.0820
+  const luR = 0.15
+  const luG = 0.60
+  const luB = 0.25
+
+  let nfactor = (1 - factor)
+
+  let dz = nfactor * luR
+  let bz = nfactor * luG
+  let cz = nfactor * luB
+  let az = dz + factor
+  let ez = bz + factor
+  let iz = cz + factor
+  let fz = cz
+  let gz = dz
+  let hz = bz
+
+  let red = self.r / 255
+  let green = self.g / 255
+  let blue = self.b / 255
+
+  result.r = ((az*red + bz*green + cz*blue) * 255).int16
+  result.g = ((dz*red + ez*green + fz*blue) * 255).int16
+  result.b = ((gz*red + hz*green + iz*blue) * 255).int16
+
+  result = result.clamp()
+
+func level*(self: Rgb; black: float = 0; white: float = 1; gamma: float = 1): Rgb =
+  var r = self.r / 255
+  var g = self.g / 255
+  var b = self.b / 255
+
+  if black > 0 or white < 1:
+    let wb = white - black
+    r = (r - black) / wb
+    g = (g - black) / wb
+    b = (b - black) / wb
+    r = min(max(r, 0), 1)
+    g = min(max(g, 0), 1)
+    b = min(max(b, 0), 1)
+
+  if gamma != 1:
+    let ngamma = 1 / gamma
+    r = pow(r, ngamma)
+    g = pow(g, ngamma)
+    b = pow(b, ngamma)
+
+  result.r = (r * 255).int16
+  result.g = (g * 255).int16
+  result.b = (b * 255).int16
+
 func toRgb565*(self: Rgb): Rgb565 =
   let rgb = self.clamp()
   result = Rgb565(
