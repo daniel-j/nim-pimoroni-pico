@@ -273,11 +273,11 @@ proc inkyProc() =
   # inky.rectangle(constructRect((600 div 8) * 7, 0, 600 div 8, 448))
   # inky.update()
 
-  # echo "Cleaning..."
-  # inky.setPen(Pen.Clean)
-  # inky.clear()
-  # inky.update()
-
+  echo "Cleaning..."
+  inky.setPen(Pen.Clean)
+  inky.setBorder(Pen.Red)
+  inky.clear()
+  inky.update()
 
   echo "Mounting SD card..."
 
@@ -300,6 +300,7 @@ proc inkyProc() =
 
       inky.led(Led.Activity, 50)
       inky.setPen(Pen.White)
+      inky.setBorder(Pen.White)
       inky.clear()
       if drawJpeg(filename, 0, 0, 600, 448, dither=false, gravity=(0.5, 0.5)) == 1:
         inky.led(Led.Activity, 100)
