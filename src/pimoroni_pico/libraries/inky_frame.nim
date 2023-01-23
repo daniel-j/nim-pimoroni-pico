@@ -13,6 +13,7 @@ import picostdlib/[
 
 export pico_graphics
 export fatfs
+export Colour
 
 const
   PinHoldSysEn = 2.Gpio
@@ -192,7 +193,6 @@ proc sleep*(self: var InkyFrame; wakeInMinutes: int) =
   while true:
     discard
 
-
 proc sleepUntil*(self: var InkyFrame; second: int; minute: int; hour: int; day: int) =
   if second != -1 or minute != -1 or hour != -1 or day != -1:
     ##  set an alarm to wake inky up at the specified time and day
@@ -201,6 +201,8 @@ proc sleepUntil*(self: var InkyFrame; second: int; minute: int; hour: int; day: 
   gpioPut(PinHoldSysEn, Low)
 
 proc getWakeUpEvent*(self: InkyFrame): WakeUpEvent = self.wakeUpEvent
+
+proc setBorder*(self: var InkyFrame; colour: Colour) = self.uc8159.setBorder(colour)
 
 proc image*(self: var InkyFrame; data: openArray[uint8]; stride: int; sx: int; sy: int; dw: int; dh: int; dx: int; dy: int) =
   var y = 0

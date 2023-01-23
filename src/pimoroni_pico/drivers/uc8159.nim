@@ -14,6 +14,7 @@ type
     resetPin: Gpio
     timeout: AbsoluteTime
     blocking: bool
+    borderColour: Colour
 
   Reg {.pure, size: sizeof(uint8).} = enum
     PSR   = 0x00'u8
@@ -66,6 +67,7 @@ proc init*(self: var Uc8159; width: uint16; height: uint16) =
   self.busyPin = PinUnused
   self.resetPin = 27.Gpio
   self.blocking = false
+  self.borderColour = White
 
   ##  configure spi interface and pins
   discard spiInit(self.spi, 3_000_000.cuint)
@@ -132,16 +134,17 @@ proc setup*(self: var Uc8159) =
     else:
       self.command(Psr, [uint8 0xAF, 0x08])
   self.command(Pwr, [uint8 0x37, 0x00, 0x23, 0x23])
-  self.command(Pfs, [uint8 0x00])
   self.command(Btst, [uint8 0xC7, 0xC7, 0x1D])
   self.command(Pll, [uint8 0x3C])
-  self.command(Tsc, [uint8 0x00])
-  self.command(Cdi, [uint8 0x37])
+  # self.command(Tsc, [uint8 0x00])
+  let cdi = (self.borderColour.uint8 shl 5) or 0x17
+  self.command(Cdi, [cdi])
   self.command(Tcon, [uint8 0x22])
   self.command(Tres, dimensions)
   self.command(Pws, [uint8 0xAA])
+  self.command(Pfs, [uint8 0x00])
   sleepMs(100)
-  self.command(Cdi, [uint8 0x37])
+  # self.command(Cdi, [uint8 0x37])
 
 proc setBlocking*(self: var Uc8159; blocking: bool) =
   self.blocking = blocking
@@ -158,6 +161,9 @@ proc data*(self: var Uc8159, len: uint; data: ptr uint8) =
   ##  data mode
   discard spiWriteBlocking(self.spi, data, len)
   gpioPut(self.csPin, High)
+
+proc setBorder*(self: var Uc8159; colour: Colour) =
+  self.borderColour = colour
 
 method update*(self: var Uc8159; graphics: var PicoGraphics) =
   if graphics.penType != Pen_3Bit:
