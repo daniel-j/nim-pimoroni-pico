@@ -121,8 +121,8 @@ func saturate*(self: Rgb; factor: float): Rgb =
   # const luG = 0.6094
   # const luB = 0.0820
   const luR = 0.15
-  const luG = 0.65
-  const luB = 0.20
+  const luG = 0.70
+  const luB = 0.15
 
   let nfactor = (1 - factor)
 
@@ -804,7 +804,7 @@ type
 const PicoGraphicsPen3BitPalette*: array[8, Rgb] = [
   Rgb(r:   5, g:   5, b:   5), ##  black
   Rgb(r: 248, g: 240, b: 224), ##  white
-  Rgb(r:  60, g: 160, b:  90), ##  green
+  Rgb(r:  60, g: 160, b:  88), ##  green
   Rgb(r:  50, g:  90, b: 190), ##  blue
   Rgb(r: 240, g:  20, b:  30), ##  red
   Rgb(r: 240, g: 240, b:   5), ##  yellow
