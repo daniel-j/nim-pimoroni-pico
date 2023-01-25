@@ -16,37 +16,7 @@ type
     blocking: bool
     borderColour: Colour
 
-  Reg {.pure, size: sizeof(uint8).} = enum
-    PSR   = 0x00'u8
-    PWR   = 0x01'u8
-    POF   = 0x02'u8
-    PFS   = 0x03'u8
-    PON   = 0x04'u8
-    BTST  = 0x06'u8
-    DSLP  = 0x07'u8
-    DTM1  = 0x10'u8
-    DSP   = 0x11'u8
-    DRF   = 0x12'u8
-    IPC   = 0x13'u8
-    PLL   = 0x30'u8
-    TSC   = 0x40'u8
-    TSE   = 0x41'u8
-    TSW   = 0x42'u8
-    TSR   = 0x43'u8
-    CDI   = 0x50'u8
-    LPD   = 0x51'u8
-    TCON  = 0x60'u8
-    TRES  = 0x61'u8
-    DAM   = 0x65'u8
-    REV   = 0x70'u8
-    FLG   = 0x71'u8
-    AMV   = 0x80'u8
-    VV    = 0x81'u8
-    VDCS  = 0x82'u8
-    PWS   = 0xE3'u8
-    TSSET = 0xE5'u8
-  
-  Colour* {.pure.} = enum
+  Colour* = enum
     Black
     White
     Green
@@ -56,9 +26,49 @@ type
     Orange
     Clean
 
+  Reg = enum
+    Psr   = 0x00
+    Pwr   = 0x01
+    Pof   = 0x02
+    Pfs   = 0x03
+    Pon   = 0x04
+    Btst  = 0x06
+    Dslp  = 0x07
+    Dtm1  = 0x10
+    Dsp   = 0x11
+    Drf   = 0x12
+    Ipc   = 0x13
+    # LutC  = 0x20
+    # LutB  = 0x21
+    # LutW  = 0x22
+    # LutG1 = 0x23
+    # LutG2 = 0x24
+    # LutR0 = 0x25
+    # LutR1 = 0x26
+    # LutR2 = 0x27
+    # LutR3 = 0x28
+    # LutXon = 0x29
+    Pll   = 0x30
+    Tsc   = 0x40
+    Tse   = 0x41
+    Tsw   = 0x42
+    Tsr   = 0x43
+    Cdi   = 0x50
+    Lpd   = 0x51
+    Tcon  = 0x60
+    Tres  = 0x61
+    Dam   = 0x65
+    Rev   = 0x70
+    Flg   = 0x71
+    Amv   = 0x80
+    Vv    = 0x81
+    Vdcs  = 0x82
+    Pws   = 0xE3
+
 
 proc init*(self: var Uc8159; width: uint16; height: uint16) =
-  init(DisplayDriver(self), width, height)
+  DisplayDriver(self).init(width, height)
+
   self.spi = spi0
   self.csPin = SpiBgFrontCs
   self.dcPin = 28.Gpio
@@ -106,64 +116,102 @@ proc reset*(self: var Uc8159) =
   sleepMs(10)
   self.busyWait()
 
-proc command*(self: var Uc8159; reg: Reg; data: openArray[uint8] = []) =
+proc data*(self: var Uc8159, len: uint; data: varargs[uint8]) =
   gpioPut(self.csPin, Low)
-  gpioPut(self.dcPin, Low)
-  var regNum = reg.uint8
+  ##  data mode
+  gpioPut(self.dcPin, High)
+
+  discard spiWriteBlocking(self.spi, data)
+  gpioPut(self.csPin, High)
+
+proc command*(self: var Uc8159; reg: Reg; data: varargs[uint8]) =
+  gpioPut(self.csPin, Low)
   ##  command mode
-  discard spiWriteBlocking(self.spi, regNum.addr, 1)
+  gpioPut(self.dcPin, Low)
+  discard spiWriteBlocking(self.spi, reg.uint8)
   if data.len > 0:
-    gpioPut(self.dcPin, High)
     ##  data mode
-    discard spiWriteBlocking(self.spi, cast[ptr uint8](data[0].unsafeAddr), data.len.csize_t)
+    gpioPut(self.dcPin, High)
+    discard spiWriteBlocking(self.spi, data)
   gpioPut(self.csPin, High)
 
 proc setup*(self: var Uc8159) =
   self.reset()
   self.busyWait()
-  var dimensions = [uint8(self.width shr 8),  uint8(self.width),
-                    uint8(self.height shr 8), uint8(self.height)]
+
+  var psr = [uint8 0, 0x08]
   if self.width == 600:
     if self.rotation == Rotate_0:
-      self.command(Psr, [uint8 0xE3, 0x08])
+      psr[0] = 0xE3
     else:
-      self.command(Psr, [uint8 0xEF, 0x08])
+      psr[0] = 0xEF
   else:
     if self.rotation == Rotate_0:
-      self.command(Psr, [uint8 0xA3, 0x08])
+      psr[0] = 0xA3
     else:
-      self.command(Psr, [uint8 0xAF, 0x08])
-  self.command(Pwr, [uint8 0x37, 0x00, 0x23, 0x23])
-  self.command(Btst, [uint8 0xC7, 0xC7, 0x1D])
-  self.command(Pll, [uint8 0x3C])
-  # self.command(Tsc, [uint8 0x00])
-  let cdi = (self.borderColour.uint8 shl 5) or 0x17
-  self.command(Cdi, [cdi])
-  self.command(Tcon, [uint8 0x22])
-  self.command(Tres, dimensions)
-  self.command(Pws, [uint8 0xAA])
-  self.command(Pfs, [uint8 0x00])
-  sleepMs(100)
-  # self.command(Cdi, [uint8 0x37])
+      psr[0] = 0xAF
+
+  let tres = [
+    uint8((self.width shr 8) and 0b11),
+    uint8(self.width and 0b11111111),
+    uint8((self.height shr 8) and 0b1),
+    uint8(self.height and 0b11111111)
+  ]
+
+  let cdi = (self.borderColour.uint8 shl 5) or 0b1_0111 # DDX = 1, CDI = 10 (default)
+
+  # Power Setting
+  self.command(Pwr,
+    0b1_1_0_1_1_1, # VCM_HZ = 0
+    0b00, # VG_LVL = VGH=20V, VGL= -20V
+    35, # VSHC_LVL = 10V
+    35  # VSLC_LVL = -10V
+  )
+
+  # Booster Soft Start
+  self.command(Btst,
+    0b11_000_111, # Soft Start Phase Period = 40 ms, Driving Strength = (reserved), Minimum OFF Time = 6.77 us
+    0b11_000_111, # Soft Start Phase Period = 40 ms, Driving Strength = (reserved), Minimum OFF Time = 6.77 us
+    0b011_101 # Driving strength = 2, Minimum OFF Time = 1.61 us
+  )
+
+  # Panel Setting
+  self.command(Psr, psr)
+
+  # TCON resolution
+  self.command(Tres, tres)
+
+  # Vcom and data interval setting
+  self.command(Cdi, cdi)
+
+  # Power OFF Sequence Setting
+  # self.command(Pfs, 0x00)
+
+
+  # PLL control
+  # self.command(Pll, 0b111_100) # Frame Rate = 50 Hz
+
+  # TCON setting
+  # self.command(Tcon, 0b0010_0010)
+
+  # Temperature Sensor Command
+  # self.command(Tsc, 0x00, 0x00)
+
+  # Power Saving
+  # self.command(Pws, 0b1010_1010)
+
+  # sleepMs(100)
 
 proc setBlocking*(self: var Uc8159; blocking: bool) =
   self.blocking = blocking
+
+proc setBorder*(self: var Uc8159; colour: Colour) =
+  self.borderColour = colour
 
 proc powerOff*(self: var Uc8159) =
   self.busyWait()
   self.command(Pof)
   ##  turn off
-
-proc data*(self: var Uc8159, len: uint; data: ptr uint8) =
-  gpioPut(self.csPin, Low)
-  gpioPut(self.dcPin, High)
-
-  ##  data mode
-  discard spiWriteBlocking(self.spi, data, len)
-  gpioPut(self.csPin, High)
-
-proc setBorder*(self: var Uc8159; colour: Colour) =
-  self.borderColour = colour
 
 method update*(self: var Uc8159; graphics: var PicoGraphics) =
   if graphics.penType != Pen_3Bit:
@@ -175,11 +223,12 @@ method update*(self: var Uc8159; graphics: var PicoGraphics) =
   self.setup()
 
   gpioPut(self.csPin, Low)
-  var reg = Dtm1.uint8
-  gpioPut(self.dcPin, Low)  ##  command mode
-  discard spiWriteBlocking(self.spi, reg.addr, 1)
+  ##  command mode
+  gpioPut(self.dcPin, Low)
+  discard spiWriteBlocking(self.spi, Dtm1.uint8)
 
-  gpioPut(self.dcPin, High)  ##  data mode
+  ##  data mode
+  gpioPut(self.dcPin, High)
 
   ##  HACK: Output 48 rows of data since our buffer is 400px tall
   ##  but the display has no offset configuration and H/V scan

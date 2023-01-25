@@ -26,8 +26,11 @@ import std/strutils
 
 const currentDir = currentSourcePath.parentDir
 
-{.push header: currentDir / "../vendor/JPEGDEC/JPEGDEC.h" }
+{.passC: "-DPICO_BUILD".}
+
 {.emit: staticRead(currentDir / "../vendor/JPEGDEC/jpeg.inl").replace("JPEGDEC.h", currentDir / "../vendor/JPEGDEC/JPEGDEC.h").}
+
+{.push header: currentDir / "../vendor/JPEGDEC/JPEGDEC.h" }
 
 
 ##  Defines and variables

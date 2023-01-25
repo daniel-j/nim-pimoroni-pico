@@ -13,7 +13,7 @@ import std/math
 
 
 discard stdioUsbInit()
-blockUntilUsbConnected()
+# blockUntilUsbConnected()
 
 echo "USB connected"
 
@@ -52,12 +52,9 @@ proc processErrorMatrix(drawY: int) =
 
       let oldPixel = errorMatrix[y][x].clamp()
 
-      inky.setPixel(pos, oldPixel)  ##  find closest color using a LUT
-
-      # echo pos, " ", oldPixel
-
-      ## inky.setPen(oldPixel.closest(inky.palette).uint8)  ##  find closest color using distance function
-      ## inky.setPixel(pos)
+      inky.setPen(oldPixel)  #  find closest color using a LUT
+      # inky.setPenClosest(oldPixel)  # find closest color using distance function
+      inky.setPixel(pos)
 
       let newPixel = inky.palette[inky.color.uint8]
 
@@ -158,7 +155,7 @@ proc jpegdec_draw_callback(draw: ptr JPEGDRAW): cint {.cdecl.} =
         inc(color, constructRgb(RGB565(p[sxmax + symax * draw.iWidth])))
         color = color div 4
 
-      color = color.saturate(1.2).level(black=0.00, white=0.92, gamma=0.92)
+      # color = color.saturate(1.20).level(black=0.00, white=1.0, gamma=1.1)
 
       # inky.setPixel(Point(x: jpegDecodeOptions.x + dx + x, y: jpegDecodeOptions.y + dy + y), color)
       inc(errorMatrix[y][dx + x], color)
@@ -275,8 +272,10 @@ proc inkyProc() =
 
   echo "Cleaning..."
   inky.setPen(Pen.Clean)
-  inky.setBorder(Pen.Red)
+  inky.setBorder(Pen.Orange)
   inky.clear()
+  inky.update()
+  inky.setBorder(Pen.White)
   inky.update()
 
   echo "Mounting SD card..."
@@ -302,7 +301,7 @@ proc inkyProc() =
       inky.setPen(Pen.White)
       inky.setBorder(Pen.White)
       inky.clear()
-      if drawJpeg(filename, 0, 0, 600, 448, dither=false, gravity=(0.5, 0.5)) == 1:
+      if drawJpeg(filename, 0, -1, 600, 450, dither=false, gravity=(0.5, 0.5)) == 1:
         inky.led(Led.Activity, 100)
         inky.update()
         inky.led(Led.Activity, 0)

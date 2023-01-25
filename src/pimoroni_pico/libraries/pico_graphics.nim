@@ -2,9 +2,12 @@
 #   libraries/hersheyFonts/hersheyFonts, libraries/bitmapFonts/bitmapFonts,
 #   libraries/bitmapFonts/font6Data, libraries/bitmapFonts/font8Data,
 #   libraries/bitmapFonts/font14OutlineData
-import ../common/pimoroni_common
 
 import std/[algorithm, math]
+
+type
+  Rotation* {.pure.} = enum
+    Rotate_0 = 0, Rotate_90 = 90, Rotate_180 = 180, Rotate_270 = 270
 
 proc builtinBswap16(a: uint16): uint16 {.importc: "__builtin_bswap16", nodecl, noSideEffect.}
 
@@ -105,10 +108,12 @@ func distance*(self: Rgb; c: Rgb): int =
   let bx: int = e1.b - e2.b
   return sqrt(float((((512 + rmean) * rx * rx) shr 8) + 4 * gx * gx + (((767 - rmean) * bx * bx) shr 8))).int
 
-func closest*(self: Rgb; palette: openArray[Rgb]): int =
+func closest*(self: Rgb; palette: openArray[Rgb]; fallback: int = 0): int =
+  assert(palette.len > 0)
+  assert(fallback >= 0 and fallback < palette.len)
   var
     d = int.high
-    m = -1
+    m = fallback
   for i in 0 ..< palette.len:
     let dc = self.distance(palette[i])
     if dc < d:
@@ -117,12 +122,12 @@ func closest*(self: Rgb; palette: openArray[Rgb]): int =
   return m
 
 func saturate*(self: Rgb; factor: float): Rgb =
-  # const luR = 0.3086
-  # const luG = 0.6094
-  # const luB = 0.0820
-  const luR = 0.15
-  const luG = 0.70
-  const luB = 0.15
+  const luR = 0.3086
+  const luG = 0.6094
+  const luB = 0.0820
+  # const luR = 0.15
+  # const luG = 0.70
+  # const luB = 0.15
 
   let nfactor = (1 - factor)
 
@@ -169,6 +174,54 @@ func level*(self: Rgb; black: float = 0; white: float = 1; gamma: float = 1): Rg
   result.r = (r * 255).int16
   result.g = (g * 255).int16
   result.b = (b * 255).int16
+
+func srgbToLinear*(self: Rgb): Rgb =
+  # untested
+  var R = self.r / 255
+  var G = self.g / 255
+  var B = self.b / 255
+  let Y = 2.4
+
+  if R <= 0.04045:
+    R = R / 12.92
+  else:
+    R = pow((R + 0.055) / 1.055, Y)
+  if G <= 0.04045:
+    G = G / 12.92
+  else:
+    G = pow((G + 0.055) / 1.055, Y)
+  if B <= 0.04045:
+    B = B / 12.92
+  else:
+    B = pow((B + 0.055) / 1.055, Y)
+
+  result.r = (R * 255.0).int16
+  result.g = (G * 255.0).int16
+  result.b = (B * 255.0).int16
+
+func linearToSrgb*(self: Rgb): Rgb =
+  # untested
+  var R = self.r / 255
+  var G = self.g / 255
+  var B = self.b / 255
+  let Y = 2.4
+
+  if R <= 0.0031308:
+    R = R * 12.92
+  else:
+    R = 1.055 * pow(R, 1/Y) - 0.055
+  if G <= 0.0031308:
+    G = G * 12.92
+  else:
+    G = 1.055 * pow(G, 1/Y) - 0.055
+  if B <= 0.0031308:
+    B = B * 12.92
+  else:
+    B = 1.055 * pow(B, 1/Y) - 0.055
+
+  result.r = (R * 255.0).int16
+  result.g = (G * 255.0).int16
+  result.b = (B * 255.0).int16
 
 func toRgb565*(self: Rgb): Rgb565 =
   let rgb = self.clamp()
@@ -717,11 +770,11 @@ proc init*(self: var PicoGraphicsPen1Bit; width: uint16; height: uint16; frameBu
   if self.frameBuffer.len == 0:
     self.frameBuffer = newSeq[uint8](self.bufferSize(width, height))
 
-proc setPen*(self: var PicoGraphicsPen1Bit; c: uint) =
+method setPen*(self: var PicoGraphicsPen1Bit; c: uint) =
   self.color = c.uint8
 
-proc setPen*(self: var PicoGraphicsPen1Bit; r: uint8; g: uint8; b: uint8) =
-  self.color = max(r, max(g, b)) shr 4
+method setPen*(self: var PicoGraphicsPen1Bit; c: Rgb) =
+  self.color = (max(c.r, max(c.g, c.b)) shr 4).uint8
 
 method setPixel*(self: var PicoGraphicsPen1Bit; p: Point) =
   ##  pointer to byte in framebuffer that contains this pixel
@@ -758,8 +811,8 @@ method setPixelSpan*(self: var PicoGraphicsPen1Bit; p: Point; l: uint) =
 type
   PicoGraphicsPen1BitY* {.bycopy.} = object of PicoGraphicsPen1Bit
 
-proc setPen*(self: var PicoGraphicsPen1BitY; r: uint8; g: uint8; b: uint8) =
-  self.color = max(r, max(g, b))
+method setPen*(self: var PicoGraphicsPen1BitY; c: Rgb) =
+  self.color = (max(c.r, max(c.g, c.b)) shr 4).uint8
 
 method setPixel*(self: var PicoGraphicsPen1BitY; p: Point) =
   ##  pointer to byte in framebuffer that contains this pixel
@@ -802,14 +855,14 @@ type
     # candidates*: array[16, uint8]
 
 const PicoGraphicsPen3BitPalette*: array[8, Rgb] = [
-  Rgb(r:   5, g:   5, b:   5), ##  black
-  Rgb(r: 248, g: 240, b: 224), ##  white
-  Rgb(r:  60, g: 160, b:  88), ##  green
-  Rgb(r:  50, g:  90, b: 190), ##  blue
-  Rgb(r: 240, g:  20, b:  30), ##  red
-  Rgb(r: 240, g: 240, b:   5), ##  yellow
-  Rgb(r: 230, g:  88, b:   5), ##  orange
-  Rgb(r: 255, g: 220, b: 120), ##  clean / taupe?!
+  Rgb(r:   0, g:   0, b:   0), ##  black
+  Rgb(r: 255, g: 255, b: 255), ##  white
+  Rgb(r:  50, g: 120, b:  50), ##  green
+  Rgb(r:  70, g:  65, b: 210), ##  blue
+  Rgb(r: 220, g:  30, b:  50), ##  red
+  Rgb(r: 255, g: 248, b:  10), ##  yellow
+  Rgb(r: 232, g: 130, b:  45), ##  orange
+  Rgb(r: 255, g: 230, b: 200), ##  clean / taupe?!
 ]
 
 func bufferSize*(self: PicoGraphicsPen3Bit; w: uint; h: uint): uint =
@@ -868,12 +921,14 @@ const ditherCachePen3Bit = getDitherCache(PicoGraphicsPen3BitPalette)
 const closestCachePen3Bit = getNearestCache(PicoGraphicsPen3BitPalette)
 
 method setPen*(self: var PicoGraphicsPen3Bit; c: uint) =
-  self.color = uint8 c and 0xf
+  self.color = uint8(c and 0xf)
 
 method setPen*(self: var PicoGraphicsPen3Bit; c: Rgb) =
-  # self.color = c.closest(self.palette).uint8
-  let cacheKey = (((c.r and 0xE0) shl 1) or ((c.g and 0xE0) shr 2) or ((c.b and 0xE0) shr 5)).uint
+  let cacheKey = (((c.r and 0xE0) shl 1) or ((c.g and 0xE0) shr 2) or ((c.b and 0xE0) shr 5))
   self.color = closestCachePen3Bit[cacheKey]
+
+proc setPenClosest*(self: var PicoGraphicsPen3Bit; c: Rgb) =
+  self.color = c.closest(self.palette, self.color.int).uint8
 
 method setPixel*(self: var PicoGraphicsPen3Bit; p: Point) =
   if not self.bounds.contains(p) or not self.clip.contains(p):
