@@ -51,9 +51,8 @@ proc processErrorMatrix(drawY: int) =
       let pos = Point(x: ox + dx + x, y: oy + dy + y)
 
       let oldPixel = errorMatrix[y][x].clamp()
-
-      inky.setPen(oldPixel)  #  find closest color using a LUT
-      # inky.setPenClosest(oldPixel)  # find closest color using distance function
+      #inky.setPen(oldPixel)  #  find closest color using a LUT
+      inky.setPenClosest(oldPixel)  # find closest color using distance function
       inky.setPixel(pos)
 
       let newPixel = inky.palette[inky.color.uint8]
