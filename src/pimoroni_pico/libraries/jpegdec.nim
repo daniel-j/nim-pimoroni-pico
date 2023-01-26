@@ -104,7 +104,8 @@ type
     x* {.importc: "x".}: cint
     y* {.importc: "y".}: cint    ##  upper left corner of current MCU
     iWidth* {.importc: "iWidth".}: cint
-    iHeight* {.importc: "iHeight".}: cint ##  size of this MCU
+    iHeight* {.importc: "iHeight".}: cint ##  size of this pixel block
+    iWidthUsed* {.importc: "iWidthUsed".}: cint ## clipped size for odd/edges
     iBpp* {.importc: "iBpp".}: cint ##  bit depth of the pixels (8 or 16)
     pPixels* {.importc: "pPixels".}: ptr uint16 ##  16-bit pixels
     pUser* {.importc: "pUser".}: pointer

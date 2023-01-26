@@ -88,31 +88,33 @@ proc dec*(self: var Rgb; i: int) =
 
 func `-`*(self: Rgb; c: Rgb): Rgb =
   return constructRgb(self.r - c.r, self.g - c.g, self.b - c.b)
+func `-`*(self: Rgb; i: int16): Rgb =
+  return constructRgb(self.r - i, self.g - i, self.b - i)
 
 func clamp*(self: Rgb): Rgb =
-  result.r = min(max(self.r, 0), 255)
-  result.g = min(max(self.g, 0), 255)
-  result.b = min(max(self.b, 0), 255)
+  result.r = clamp(self.r, 0, 255)
+  result.g = clamp(self.g, 0, 255)
+  result.b = clamp(self.b, 0, 255)
 
 func luminance*(self: Rgb): int =
   ##  weights based on https://www.johndcook.com/blog/2009/08/24/algorithms-convert-color-grayscale/
   return self.r * 21 + self.g * 72 + self.b * 7
 
-func distance*(self: Rgb; c: Rgb): int =
+func distance*(self: Rgb; c: Rgb): float =
   let e1 = clamp(self)
   let e2 = clamp(c)
   ##  algorithm from https://www.compuphase.com/cmetric.htm
-  let rmean: int = (e1.r + e2.r) div 2
-  let rx: int = e1.r - e2.r
-  let gx: int = e1.g - e2.g
-  let bx: int = e1.b - e2.b
-  return sqrt(float((((512 + rmean) * rx * rx) shr 8) + 4 * gx * gx + (((767 - rmean) * bx * bx) shr 8))).int
+  let rmean = (e1.r.int32 + e2.r.int32) div 2
+  let rx = e1.r.int32 - e2.r.int32
+  let gx = e1.g.int32 - e2.g.int32
+  let bx = e1.b.int32 - e2.b.int32
+  return float((((512 + rmean) * rx * rx) shr 8) + 4 * gx * gx + (((767 - rmean) * bx * bx) shr 8)).sqrt()
 
 func closest*(self: Rgb; palette: openArray[Rgb]; fallback: int = 0): int =
   assert(palette.len > 0)
   assert(fallback >= 0 and fallback < palette.len)
   var
-    d = int.high
+    d = float.high
     m = fallback
   for i in 0 ..< palette.len:
     let dc = self.distance(palette[i])
@@ -161,9 +163,9 @@ func level*(self: Rgb; black: float = 0; white: float = 1; gamma: float = 1): Rg
     r = (r - black) / wb
     g = (g - black) / wb
     b = (b - black) / wb
-    r = min(max(r, 0), 1)
-    g = min(max(g, 0), 1)
-    b = min(max(b, 0), 1)
+    r = clamp(r, 0, 1)
+    g = clamp(g, 0, 1)
+    b = clamp(b, 0, 1)
 
   if gamma != 1:
     let ngamma = 1 / gamma
@@ -174,54 +176,6 @@ func level*(self: Rgb; black: float = 0; white: float = 1; gamma: float = 1): Rg
   result.r = (r * 255).int16
   result.g = (g * 255).int16
   result.b = (b * 255).int16
-
-func srgbToLinear*(self: Rgb): Rgb =
-  # untested
-  var R = self.r / 255
-  var G = self.g / 255
-  var B = self.b / 255
-  let Y = 2.4
-
-  if R <= 0.04045:
-    R = R / 12.92
-  else:
-    R = pow((R + 0.055) / 1.055, Y)
-  if G <= 0.04045:
-    G = G / 12.92
-  else:
-    G = pow((G + 0.055) / 1.055, Y)
-  if B <= 0.04045:
-    B = B / 12.92
-  else:
-    B = pow((B + 0.055) / 1.055, Y)
-
-  result.r = (R * 255.0).int16
-  result.g = (G * 255.0).int16
-  result.b = (B * 255.0).int16
-
-func linearToSrgb*(self: Rgb): Rgb =
-  # untested
-  var R = self.r / 255
-  var G = self.g / 255
-  var B = self.b / 255
-  let Y = 2.4
-
-  if R <= 0.0031308:
-    R = R * 12.92
-  else:
-    R = 1.055 * pow(R, 1/Y) - 0.055
-  if G <= 0.0031308:
-    G = G * 12.92
-  else:
-    G = 1.055 * pow(G, 1/Y) - 0.055
-  if B <= 0.0031308:
-    B = B * 12.92
-  else:
-    B = 1.055 * pow(B, 1/Y) - 0.055
-
-  result.r = (R * 255.0).int16
-  result.g = (G * 255.0).int16
-  result.b = (B * 255.0).int16
 
 func toRgb565*(self: Rgb): Rgb565 =
   let rgb = self.clamp()
