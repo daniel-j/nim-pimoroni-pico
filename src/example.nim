@@ -102,6 +102,7 @@ proc processErrorMatrix(drawY: int) =
 
   for y in 0 ..< imgH - 1:
     for x in 0 ..< imgW:
+
       let pos = case jpeg.getOrientation():
       of 3: Point(x: ox + jpegDecodeOptions.w - (dx + x), y: oy + jpegDecodeOptions.h - (dy + y))
       of 8: Point(x: ox + (dy + y), y: oy + jpegDecodeOptions.w - (dx + x))
@@ -207,16 +208,14 @@ proc jpegdec_draw_callback(draw: ptr JPEGDRAW): cint {.cdecl.} =
       var color = Rgb()
 
       # linear interpolation
-      var samples = 0
       var colorv = Vec3()
-      var divider = 0.0
+      var divider = 0
       for sx in sxmin..<sxmax:
         for sy in symin..<symax:
           colorv += constructRgb(RGB565(p[sx + sy * draw.iWidth])).rgbToVec3().srgbToLinear()
-          divider += 1.0
-          inc(samples)
+          inc(divider)
       if divider > 0:
-        color = (colorv / divider).linearToSRGB().vec3ToRgb()
+        color = (colorv / divider.float).linearToSRGB().vec3ToRgb()
       else:
         # fallback
         color = constructRgb(RGB565(p[sxmin + symin * draw.iWidth]))
