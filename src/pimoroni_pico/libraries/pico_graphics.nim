@@ -100,24 +100,24 @@ func luminance*(self: Rgb): int =
   ##  weights based on https://www.johndcook.com/blog/2009/08/24/algorithms-convert-color-grayscale/
   return self.r * 21 + self.g * 72 + self.b * 7
 
-func distance*(self: Rgb; c: Rgb): float =
+func distance*(self: Rgb; c: Rgb; whitepoint: Rgb = Rgb(r: 255, g: 255, b: 255)): float =
   let e1 = clamp(self)
   let e2 = clamp(c)
   ##  algorithm from https://www.compuphase.com/cmetric.htm
-  let rmean = (e1.r.int32 + e2.r.int32) div 2
-  let rx = e1.r.int32 - e2.r.int32
-  let gx = e1.g.int32 - e2.g.int32
-  let bx = e1.b.int32 - e2.b.int32
-  return float((((512 + rmean) * rx * rx) shr 8) + 4 * gx * gx + (((767 - rmean) * bx * bx) shr 8)).sqrt()
+  let rmean = ((e1.r.float + e2.r.float) / 2) * (whitepoint.r.float / 255)
+  let rx = (e1.r.float - e2.r.float) * (whitepoint.r.float / 255)
+  let gx = (e1.g.float - e2.g.float) * (whitepoint.g.float / 255)
+  let bx = (e1.b.float - e2.b.float) * (whitepoint.b.float / 255)
+  return float((((512 + rmean) * rx * rx).int64 shr 8).float + 4.0 * gx * gx + (((767 - rmean) * bx * bx).int64 shr 8).float).sqrt().abs()
 
-func closest*(self: Rgb; palette: openArray[Rgb]; fallback: int = 0): int =
+func closest*(self: Rgb; palette: openArray[Rgb]; fallback: int = 0; whitepoint: Rgb = Rgb(r: 255, g: 255, b: 255)): int =
   assert(palette.len > 0)
   assert(fallback >= 0 and fallback < palette.len)
   var
     d = float.high
     m = fallback
   for i in 0 ..< palette.len:
-    let dc = self.distance(palette[i])
+    let dc = self.distance(palette[i], whitepoint)
     if dc < d:
       m = i
       d = dc
@@ -813,10 +813,10 @@ const PicoGraphicsPen3BitPalette*: array[8, Rgb] = [
   Rgb(r: 255, g: 255, b: 255), ##  white
   Rgb(r:  24, g: 165, b:  33), ##  green
   Rgb(r:  33, g:  42, b: 222), ##  blue
-  Rgb(r: 242, g:  48, b:  48), ##  red
-  Rgb(r: 242, g: 242, b:  19), ##  yellow
+  Rgb(r: 234, g:  46, b:  46), ##  red
+  Rgb(r: 252, g: 252, b:  19), ##  yellow
   Rgb(r: 255, g: 106, b:   0), ##  orange
-  Rgb(r: 249, g: 202, b: 137), ##  clean / taupe?!
+  Rgb(r: 255, g: 226, b: 191), ##  clean / taupe?!
 ]
 
 func bufferSize*(self: PicoGraphicsPen3Bit; w: uint; h: uint): uint =
@@ -881,8 +881,8 @@ method setPen*(self: var PicoGraphicsPen3Bit; c: Rgb) =
   let cacheKey = (((c.r and 0xE0) shl 1) or ((c.g and 0xE0) shr 2) or ((c.b and 0xE0) shr 5))
   self.color = closestCachePen3Bit[cacheKey]
 
-proc setPenClosest*(self: var PicoGraphicsPen3Bit; c: Rgb) =
-  self.color = c.closest(self.palette, self.color.int).uint8
+proc setPenClosest*(self: var PicoGraphicsPen3Bit; c: Rgb; whitepoint: Rgb = Rgb(r: 255, g: 255, b: 255)) =
+  self.color = c.closest(self.palette, self.color.int, whitepoint).uint8
 
 method setPixel*(self: var PicoGraphicsPen3Bit; p: Point) =
   if not self.bounds.contains(p) or not self.clip.contains(p):

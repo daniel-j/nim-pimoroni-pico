@@ -8,6 +8,8 @@ import picostdlib/[
 
 import pimoroni_pico/libraries/jpegdec
 import pimoroni_pico/libraries/inky_frame
+import std/random
+import vmath
 
 import std/math
 
@@ -18,7 +20,6 @@ discard stdioUsbInit()
 echo "USB connected"
 
 
-import vmath
 
 var fs: FATFS
 var fr: FRESULT
@@ -108,8 +109,8 @@ proc processErrorMatrix(drawY: int) =
 
       let oldPixel = errorMatrix[y][x].rgbToVec3().clamp(0.0, 1.0)
 
-      inky.setPen(oldPixel.linearToSRGB().vec3ToRgb())  #  find closest color using a LUT
-      #inky.setPenClosest(oldPixel.linearToSRGB().vec3ToRgb())  # find closest color using distance function
+      #inky.setPen(oldPixel.linearToSRGB().vec3ToRgb())  #  find closest color using a LUT
+      inky.setPenClosest(oldPixel.linearToSRGB().vec3ToRgb().saturate(1.0), constructRgb(240, 220, 230))  # find closest color using distance function
       inky.setPixel(pos)
 
       let newPixel = inky.palette[inky.color.uint8].rgbToVec3().srgbToLinear()
@@ -213,6 +214,7 @@ proc jpegdec_draw_callback(draw: ptr JPEGDRAW): cint {.cdecl.} =
 
       # color = color.saturate(1.20).level(black=0.00, white=1.0, gamma=1.1)
       color = color.saturate(1.4).level(black=0.00, white=0.98, gamma=1.30)
+      #color = color.level(white=0.96)
 
       # let pos = case jpeg.getOrientation():
       # of 3: Point(x: jpegDecodeOptions.x + jpegDecodeOptions.w - (dx + x), y: jpegDecodeOptions.y + jpegDecodeOptions.h - (dy + y))
@@ -316,6 +318,50 @@ proc drawJpeg(filename: string; x, y: int = 0; w, h: int; dither: bool = false; 
 
   return 1
 
+proc drawFile(filename: string) =
+  inky.led(Led.Activity, 50)
+  inky.setPen(Pen.White)
+  inky.setBorder(Pen.White)
+  #inky.clear()
+
+  inky.setPen(Pen.Black)
+  inky.rectangle(constructRect(0, 0, 600 div 8, 448))
+  inky.setPen(Pen.White)
+  inky.rectangle(constructRect((600 div 8) * 1, 0, 600 div 8, 448))
+  inky.setPen(Pen.Green)
+  inky.rectangle(constructRect((600 div 8) * 2, 0, 600 div 8, 448))
+  inky.setPen(Pen.Blue)
+  inky.rectangle(constructRect((600 div 8) * 3, 0, 600 div 8, 448))
+  inky.setPen(Pen.Red)
+  inky.rectangle(constructRect((600 div 8) * 4, 0, 600 div 8, 448))
+  inky.setPen(Pen.Yellow)
+  inky.rectangle(constructRect((600 div 8) * 5, 0, 600 div 8, 448))
+  inky.setPen(Pen.Orange)
+  inky.rectangle(constructRect((600 div 8) * 6, 0, 600 div 8, 448))
+  inky.setPen(Pen.Clean)
+  inky.rectangle(constructRect((600 div 8) * 7, 0, 600 div 8, 448))
+
+  if drawJpeg(filename, 0, -1, 600, 450, dither=false, gravity=(0.5, 0.5)) == 1:
+    inky.led(Led.Activity, 100)
+    inky.update()
+    inky.led(Led.Activity, 0)
+    sleepMs(1 * 60 * 1000)
+  else:
+    inky.led(Led.Activity, 0)
+
+iterator walkDir(directory: string): FILINFO =
+  var file: FILINFO
+  var dir: DIR
+  discard f_opendir(dir.addr, directory.cstring)
+  while f_readdir(dir.addr, file.addr) == FR_OK and file.fname[0].bool:
+    yield file
+
+proc getFileN(directory: string; n: Natural): FILINFO =
+  var i = 0
+  for file in walkDir(directory):
+    if i == n:
+      return file
+    inc(i)
 
 proc inkyProc() =
   echo "Starting..."
@@ -359,10 +405,17 @@ proc inkyProc() =
   else:
     echo "Listing SD card contents.."
     let directory = "/images"
-    var file: FILINFO
-    var dir: DIR
-    discard f_opendir(dir.addr, directory.cstring)
-    while f_readdir(dir.addr, file.addr) == FR_OK and file.fname[0].bool:
+    var fileCount = 0
+    for i in walkDir(directory):
+      inc(fileCount)
+    echo "number of files: ", fileCount
+    var fileOrder = newSeq[int](fileCount)
+    for i in 0..<fileCount:
+      fileOrder[i] = i
+    randomize(1)
+    fileOrder.shuffle()
+    for i in fileOrder:
+      let file = getFileN(directory, i)
       echo "- ", file.getFname(), " ", file.fsize
       if file.fsize == 0:
         continue
@@ -371,17 +424,7 @@ proc inkyProc() =
 
       let filename = directory & "/" & file.getFname()
 
-      inky.led(Led.Activity, 50)
-      inky.setPen(Pen.White)
-      inky.setBorder(Pen.White)
-      inky.clear()
-      if drawJpeg(filename, 0, -1, 600, 450, dither=false, gravity=(0.5, 0.5)) == 1:
-        inky.led(Led.Activity, 100)
-        inky.update()
-        inky.led(Led.Activity, 0)
-        sleepMs(1 * 60 * 1000)
-      else:
-        inky.led(Led.Activity, 0)
+      drawFile(filename)
 
     discard f_unmount("")
 
