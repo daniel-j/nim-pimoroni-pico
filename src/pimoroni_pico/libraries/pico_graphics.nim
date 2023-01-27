@@ -815,7 +815,7 @@ const PicoGraphicsPen3BitPalette*: array[8, Rgb] = [
   Rgb(r:  33, g:  42, b: 222), ##  blue
   Rgb(r: 234, g:  46, b:  46), ##  red
   Rgb(r: 252, g: 252, b:  19), ##  yellow
-  Rgb(r: 255, g: 106, b:   0), ##  orange
+  Rgb(r: 255, g: 109, b:   5), ##  orange
   Rgb(r: 255, g: 226, b: 191), ##  clean / taupe?!
 ]
 
