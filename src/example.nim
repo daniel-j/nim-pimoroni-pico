@@ -212,7 +212,7 @@ proc jpegdec_draw_callback(draw: ptr JPEGDRAW): cint {.cdecl.} =
         color = color div 4
 
       # color = color.saturate(1.20).level(black=0.00, white=1.0, gamma=1.1)
-      color = color.saturate(1.5).level(black=0.00, white=0.98, gamma=1.30)
+      color = color.saturate(1.4).level(black=0.00, white=0.98, gamma=1.30)
 
       # let pos = case jpeg.getOrientation():
       # of 3: Point(x: jpegDecodeOptions.x + jpegDecodeOptions.w - (dx + x), y: jpegDecodeOptions.y + jpegDecodeOptions.h - (dy + y))

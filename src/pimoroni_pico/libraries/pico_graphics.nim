@@ -811,12 +811,12 @@ type
 const PicoGraphicsPen3BitPalette*: array[8, Rgb] = [
   Rgb(r:   0, g:   0, b:   0), ##  black
   Rgb(r: 255, g: 255, b: 255), ##  white
-  Rgb(r:  55, g: 162, b:  60), ##  green
-  Rgb(r:  65, g:  70, b: 220), ##  blue
-  Rgb(r: 225, g:  30, b:  50), ##  red
-  Rgb(r: 255, g: 248, b:  10), ##  yellow
-  Rgb(r: 232, g: 120, b:  45), ##  orange
-  Rgb(r: 255, g: 230, b: 200), ##  clean / taupe?!
+  Rgb(r:  24, g: 165, b:  33), ##  green
+  Rgb(r:  33, g:  42, b: 222), ##  blue
+  Rgb(r: 242, g:  48, b:  48), ##  red
+  Rgb(r: 242, g: 242, b:  19), ##  yellow
+  Rgb(r: 255, g: 106, b:   0), ##  orange
+  Rgb(r: 249, g: 202, b: 137), ##  clean / taupe?!
 ]
 
 func bufferSize*(self: PicoGraphicsPen3Bit; w: uint; h: uint): uint =
