@@ -3,7 +3,7 @@ import picostdlib/[
   pico/stdio,
   pico/time,
   pico/platform,
-  pico/cyw43_arch
+  # pico/cyw43_arch
 ]
 
 import pimoroni_pico/libraries/jpegdec
@@ -17,6 +17,8 @@ discard stdioUsbInit()
 
 echo "USB connected"
 
+
+import vmath
 
 var fs: FATFS
 var fr: FRESULT
@@ -36,6 +38,57 @@ var jpegDecodeOptions: JpegDecodeOptions
 
 var errorMatrix: seq[seq[Rgb]]
 
+proc clamp(v: Vec3; min, max: float): Vec3 =
+  return vec3(
+    clamp(v.x, min, max),
+    clamp(v.y, min, max),
+    clamp(v.z, min, max)
+  )
+
+proc `<=`(f: Vec3, value: float): Vec3 =
+  return vec3(
+    if f.x <= value: 1.0 else: 0.0,
+    if f.y <= value: 1.0 else: 0.0,
+    if f.z <= value: 1.0 else: 0.0
+  )
+
+proc pow(v: Vec3; f: float): Vec3 =
+  return vec3(
+    pow(v.x, f),
+    pow(v.y, f),
+    pow(v.z, f)
+  )
+
+proc rgbToVec3(self: Rgb): Vec3 =
+  return vec3(
+    self.r / 255,
+    self.g / 255,
+    self.b / 255
+  )
+
+proc vec3ToRgb(v: Vec3): Rgb =
+  return Rgb(
+    r: int16 v.x * 255,
+    g: int16 v.y * 255,
+    b: int16 v.z * 255
+  )
+
+proc linearToSRGB(rgb: Vec3; gamma: float = 2.4): Vec3 =
+  let rgbClamped = clamp(rgb, 0.0, 1.0)
+  return mix(
+    pow(rgbClamped * 1.055, 1 / gamma) - 0.055,
+    rgbClamped * 12.92,
+    rgbClamped <= 0.0031308
+  )
+
+proc srgbToLinear(rgb: Vec3; gamma: float = 2.4): Vec3 =
+  let rgbClamped = clamp(rgb, 0.0, 1.0)
+  return mix(
+    pow((rgbClamped + 0.055) / 1.055, gamma),
+    rgbClamped / 12.92,
+    rgbClamped <= 0.04045
+  )
+
 proc processErrorMatrix(drawY: int) =
   # echo "processing errorMatrix ", drawY
   let imgW = jpegDecodeOptions.w
@@ -48,26 +101,30 @@ proc processErrorMatrix(drawY: int) =
 
   for y in 0 ..< imgH - 1:
     for x in 0 ..< imgW:
-      let pos = Point(x: ox + dx + x, y: oy + dy + y)
+      let pos = case jpeg.getOrientation():
+      of 3: Point(x: ox + jpegDecodeOptions.w - (dx + x), y: oy + jpegDecodeOptions.h - (dy + y))
+      of 8: Point(x: ox + (dy + y), y: oy + jpegDecodeOptions.w - (dx + x))
+      else: Point(x: ox + dx + x, y: oy + dy + y)
 
-      let oldPixel = errorMatrix[y][x].clamp()
-      #inky.setPen(oldPixel)  #  find closest color using a LUT
-      inky.setPenClosest(oldPixel)  # find closest color using distance function
+      let oldPixel = errorMatrix[y][x].rgbToVec3().clamp(0.0, 1.0)
+
+      inky.setPen(oldPixel.linearToSRGB().vec3ToRgb())  #  find closest color using a LUT
+      #inky.setPenClosest(oldPixel.linearToSRGB().vec3ToRgb())  # find closest color using distance function
       inky.setPixel(pos)
 
-      let newPixel = inky.palette[inky.color.uint8]
+      let newPixel = inky.palette[inky.color.uint8].rgbToVec3().srgbToLinear()
 
       let quantError = oldPixel - newPixel
 
       if x + 1 < imgW:
-        errorMatrix[y][x + 1] = (errorMatrix[y][x + 1] + quantError * 7 div 16)
+        errorMatrix[y][x + 1] = (errorMatrix[y][x + 1].rgbToVec3() + quantError * 7 / 16).vec3ToRgb()
 
       if y + 1 < imgH:
         if x > 0:
-          errorMatrix[y + 1][x - 1] = (errorMatrix[y + 1][x - 1] + quantError * 3 div 16)
-        errorMatrix[y + 1][x] = (errorMatrix[y + 1][x] + quantError * 5 div 16)
+          errorMatrix[y + 1][x - 1] = (errorMatrix[y + 1][x - 1].rgbToVec3() + quantError * 3 / 16).vec3ToRgb()
+        errorMatrix[y + 1][x] = (errorMatrix[y + 1][x].rgbToVec3() + quantError * 5 / 16).vec3ToRgb()
         if x + 1 < imgW:
-          errorMatrix[y + 1][x + 1] = (errorMatrix[y + 1][x + 1] + quantError * 1 div 16)
+          errorMatrix[y + 1][x + 1] = (errorMatrix[y + 1][x + 1].rgbToVec3() + quantError * 1 / 16).vec3ToRgb()
 
   echo (jpegDecodeOptions.progress * 100) div (jpegDecodeOptions.w * jpegDecodeOptions.h), "%"
 
@@ -155,9 +212,15 @@ proc jpegdec_draw_callback(draw: ptr JPEGDRAW): cint {.cdecl.} =
         color = color div 4
 
       # color = color.saturate(1.20).level(black=0.00, white=1.0, gamma=1.1)
+      color = color.saturate(1.5).level(black=0.00, white=0.98, gamma=1.30)
 
-      # inky.setPixel(Point(x: jpegDecodeOptions.x + dx + x, y: jpegDecodeOptions.y + dy + y), color)
-      inc(errorMatrix[y][dx + x], color)
+      # let pos = case jpeg.getOrientation():
+      # of 3: Point(x: jpegDecodeOptions.x + jpegDecodeOptions.w - (dx + x), y: jpegDecodeOptions.y + jpegDecodeOptions.h - (dy + y))
+      # of 8: Point(x: jpegDecodeOptions.x + (dy + y), y: jpegDecodeOptions.y + jpegDecodeOptions.w - (dx + x))
+      # else: Point(x: jpegDecodeOptions.x + dx + x, y: jpegDecodeOptions.y + dy + y)
+      # inky.setPixel(pos, color)
+
+      inc(errorMatrix[y][dx + x], color.rgbToVec3().srgbToLinear().vec3ToRgb())
       jpegDecodeOptions.progress.inc()
 
   return 1
@@ -183,36 +246,47 @@ proc drawJpeg(filename: string; x, y: int = 0; w, h: int; dither: bool = false; 
   )
   if jpegErr == 1:
     echo "- jpeg dimensions: ", jpeg.getWidth(), "x", jpeg.getHeight()
-
-    # https://stackoverflow.com/questions/21961839/simulation-background-size-cover-in-canvas/45894506#45894506
-    let contains = true
-    let boxRatio = w / h
-    let imgRatio = jpeg.getWidth() / jpeg.getHeight()
-
-    if (if contains: imgRatio > boxRatio else: imgRatio < boxRatio):
-      jpegDecodeOptions.h = (w.float / imgRatio).int
-    else:
-      jpegDecodeOptions.w = (h.float * imgRatio).int
-
-    jpegDecodeOptions.x = ((w - jpegDecodeOptions.w).float * gravity.x).int + x
-    jpegDecodeOptions.y = ((h - jpegDecodeOptions.h).float * gravity.y).int + y
+    echo "- jpeg orientation: ", jpeg.getOrientation()
 
     jpegDecodeOptions.jpegW = jpeg.getWidth()
     jpegDecodeOptions.jpegH = jpeg.getHeight()
 
+    case jpeg.getOrientation():
+      of 6, 8: # vertical
+        jpegDecodeOptions.w = h
+        jpegDecodeOptions.h = w
+      else: discard # horizontal
+
+    # https://stackoverflow.com/questions/21961839/simulation-background-size-cover-in-canvas/45894506#45894506
+    let contains = true
+    let boxRatio = w / h
+    let imgRatio = jpegDecodeOptions.jpegW / jpegDecodeOptions.jpegH
+    if (if contains: imgRatio > boxRatio else: imgRatio < boxRatio):
+      jpegDecodeOptions.h = (jpegDecodeOptions.w.float / imgRatio).int
+    else:
+      jpegDecodeOptions.w = (jpegDecodeOptions.h.float * imgRatio).int
+
+    case jpeg.getOrientation():
+      of 6, 8: # vertical
+        jpegDecodeOptions.x = ((w - jpegDecodeOptions.h).float * gravity.x).int + x
+        jpegDecodeOptions.y = ((h - jpegDecodeOptions.w).float * gravity.y).int + y
+      else: # horizontal
+        jpegDecodeOptions.x = ((w - jpegDecodeOptions.w).float * gravity.x).int + x
+        jpegDecodeOptions.y = ((h - jpegDecodeOptions.h).float * gravity.y).int + y
+
     var jpegScaleFactor = 0
-    if jpeg.getWidth() > jpegDecodeOptions.w * 8 and jpeg.getHeight() > jpegDecodeOptions.h * 8:
+    if jpegDecodeOptions.jpegW > jpegDecodeOptions.w * 8 and jpegDecodeOptions.jpegH > jpegDecodeOptions.h * 8:
       jpegScaleFactor = JPEG_SCALE_EIGHTH
-      jpegDecodeOptions.jpegW = jpeg.getWidth() div 8
-      jpegDecodeOptions.jpegH = jpeg.getHeight() div 8
-    elif jpeg.getWidth() > jpegDecodeOptions.w * 4 and jpeg.getHeight() > jpegDecodeOptions.h * 4:
+      jpegDecodeOptions.jpegW = jpegDecodeOptions.jpegW div 8
+      jpegDecodeOptions.jpegH = jpegDecodeOptions.jpegH div 8
+    elif jpegDecodeOptions.jpegW > jpegDecodeOptions.w * 4 and jpegDecodeOptions.jpegH > jpegDecodeOptions.h * 4:
       jpegScaleFactor = JPEG_SCALE_QUARTER
-      jpegDecodeOptions.jpegW = jpeg.getWidth() div 4
-      jpegDecodeOptions.jpegH = jpeg.getHeight() div 4
-    elif jpeg.getWidth() > jpegDecodeOptions.w * 2 and jpeg.getHeight() > jpegDecodeOptions.h * 2:
+      jpegDecodeOptions.jpegW = jpegDecodeOptions.jpegW div 4
+      jpegDecodeOptions.jpegH = jpegDecodeOptions.jpegH div 4
+    elif jpegDecodeOptions.jpegW > jpegDecodeOptions.w * 2 and jpegDecodeOptions.jpegH > jpegDecodeOptions.h * 2:
       jpegScaleFactor = JPEG_SCALE_HALF
-      jpegDecodeOptions.jpegW = jpeg.getWidth() div 2
-      jpegDecodeOptions.jpegH = jpeg.getHeight() div 2
+      jpegDecodeOptions.jpegW = jpegDecodeOptions.jpegW div 2
+      jpegDecodeOptions.jpegH = jpegDecodeOptions.jpegH div 2
 
     echo "- jpeg scale factor: ", jpegScaleFactor
     echo "- jpeg scaled dimensions: ", jpegDecodeOptions.jpegW, "x", jpegDecodeOptions.jpegH
@@ -284,9 +358,10 @@ proc inkyProc() =
     echo "Failed to mount SD card, error: ", fr
   else:
     echo "Listing SD card contents.."
+    let directory = "/images"
     var file: FILINFO
     var dir: DIR
-    discard f_opendir(dir.addr, "/hidden/")
+    discard f_opendir(dir.addr, directory.cstring)
     while f_readdir(dir.addr, file.addr) == FR_OK and file.fname[0].bool:
       echo "- ", file.getFname(), " ", file.fsize
       if file.fsize == 0:
@@ -294,7 +369,7 @@ proc inkyProc() =
 
       echo "- file timestamp: ", $file.getFileDate(), " ", $file.getFileTime()
 
-      let filename = "/hidden/" & file.getFname()
+      let filename = directory & "/" & file.getFname()
 
       inky.led(Led.Activity, 50)
       inky.setPen(Pen.White)

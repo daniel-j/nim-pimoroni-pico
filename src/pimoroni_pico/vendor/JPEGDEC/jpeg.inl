@@ -1415,19 +1415,20 @@ static int JPEGParseInfo(JPEGIMAGE *pPage, int bExtractThumb)
                     IFD = TIFFLONG(&s[iOffset+12], bMotorola);
                     iTagCount = TIFFSHORT(&s[iOffset+16], bMotorola);
                     GetTIFFInfo(pPage, bMotorola, IFD+iOffset+8);
+                    // TODO: Fix this code, seems to access data outside of buffer
                     // The second IFD defines the thumbnail (if present)
-                    if (iTagCount >= 1 && iTagCount < 32) // valid number of tags for EXIF data 'page'
-                    {
-                       // point to next IFD
-                        IFD += (12 * iTagCount) + 2;
-                        IFD = TIFFLONG(&s[IFD + iOffset + 8], bMotorola);
-                        if (IFD != 0) // Thumbnail present?
-                        {
-                            pPage->ucHasThumb = 1;
-                            GetTIFFInfo(pPage, bMotorola, IFD+iOffset+8); // info for second 'page' of TIFF
-                            pPage->iThumbData += iOffset + 8; // absolute offset in the file
-                        }
-                    }
+                    // if (iTagCount >= 1 && iTagCount < 32) // valid number of tags for EXIF data 'page'
+                    // {
+                    //    // point to next IFD
+                    //     IFD += (12 * iTagCount) + 2;
+                    //     IFD = TIFFLONG(&s[IFD + iOffset + 8], bMotorola);
+                    //     if (IFD != 0) // Thumbnail present?
+                    //     {
+                    //         pPage->ucHasThumb = 1;
+                    //         GetTIFFInfo(pPage, bMotorola, IFD+iOffset+8); // info for second 'page' of TIFF
+                    //         pPage->iThumbData += iOffset + 8; // absolute offset in the file
+                    //     }
+                    // }
                 }
                 break;
             case 0xffc0: // SOFx - start of frame

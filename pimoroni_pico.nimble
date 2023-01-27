@@ -12,5 +12,6 @@ backend       = "c"
 
 requires "nim >= 1.6.0"
 requires "picostdlib >= 0.3.2"
+requires "pixie >= 5.0.4"
 
 include picostdlib/build_utils/tasks
