@@ -191,29 +191,38 @@ proc jpegdec_draw_callback(draw: ptr JPEGDRAW): cint {.cdecl.} =
   #       inc(errorMatrix[dy][dx], constructRgb(RGB565(p[x + y * draw.iWidth])))
   #       # echo "set pixel ", Point(x: dx + jpegDecodeOptions.x, y: dy + draw.y + jpegDecodeOptions.y)
   #       #inky.setPixel(Point(x: dx + jpegDecodeOptions.x, y: dy + jpegDecodeOptions.y), constructRgb(RGB565(p[x + y * draw.iWidth])))  ##  find closest color using a LUT
-
-  # echo "dest: ", (dx, dy), " size: ", (dw, dh)
+  #     let color = constructRgb(RGB565(p[x + y * draw.iWidth]))
 
   for y in 0 ..< dh:
     if dy + y < 0 or dy + y >= jpegDecodeOptions.h: continue
     let symin = floor(y * jpegDecodeOptions.jpegH / jpegDecodeOptions.h).int
     if symin >= draw.iHeight: continue
-    let symax = ceil(y * jpegDecodeOptions.jpegH / jpegDecodeOptions.h).int
+    let symax = floor((y + 1) * jpegDecodeOptions.jpegH / jpegDecodeOptions.h).int
     for x in 0 ..< dw:
       if dx + x < 0 or dx + x >= jpegDecodeOptions.w: continue
       let sxmin = floor(x * jpegDecodeOptions.jpegW / jpegDecodeOptions.w).int
       if sxmin >= draw.iWidth: continue
-      let sxmax = ceil(x * jpegDecodeOptions.jpegW / jpegDecodeOptions.w).int
-      # echo "pixel", (dx + x, dy + y), " from ", (sx, sy)
-      var color = constructRgb(RGB565(p[sxmin + symin * draw.iWidth]))
-      if sxmax < draw.iWidth and symax < draw.iHeight and sxmin != sxmax and symin != sxmax:
-        inc(color, constructRgb(RGB565(p[sxmin + symax * draw.iWidth])))
-        inc(color, constructRgb(RGB565(p[sxmax + symin * draw.iWidth])))
-        inc(color, constructRgb(RGB565(p[sxmax + symax * draw.iWidth])))
-        color = color div 4
+      let sxmax = floor((x + 1) * jpegDecodeOptions.jpegW / jpegDecodeOptions.w).int
+
+      var color = Rgb()
+
+      # linear interpolation
+      var samples = 0
+      var colorv = Vec3()
+      var divider = 0.0
+      for sx in sxmin..<sxmax:
+        for sy in symin..<symax:
+          colorv += constructRgb(RGB565(p[sx + sy * draw.iWidth])).rgbToVec3().srgbToLinear()
+          divider += 1.0
+          inc(samples)
+      if divider > 0:
+        color = (colorv / divider).linearToSRGB().vec3ToRgb()
+      else:
+        # fallback
+        color = constructRgb(RGB565(p[sxmin + symin * draw.iWidth]))
 
       # color = color.saturate(1.20).level(black=0.00, white=1.0, gamma=1.1)
-      color = color.saturate(1.3).level(black=0.00, white=0.98, gamma=1.30)
+      color = color.saturate(1.35).level(black=0.00, white=0.98, gamma=1.30)
       #color = color.level(white=0.96)
 
       # let pos = case jpeg.getOrientation():
