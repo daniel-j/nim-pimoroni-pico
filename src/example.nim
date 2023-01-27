@@ -91,6 +91,9 @@ proc srgbToLinear(rgb: Vec3; gamma: float = 2.4): Vec3 =
     rgbClamped <= 0.04045
   )
 
+# multiply the rgb values this many times when storing them in the error matrix (int16 per channel)
+const errorMultiplier = 8.0
+
 proc processErrorMatrix(drawY: int) =
   # echo "processing errorMatrix ", drawY
   let imgW = jpegDecodeOptions.w
@@ -109,7 +112,7 @@ proc processErrorMatrix(drawY: int) =
       of 8: Point(x: ox + (dy + y), y: oy + jpegDecodeOptions.w - (dx + x))
       else: Point(x: ox + dx + x, y: oy + dy + y)
 
-      let oldPixel = errorMatrix[y][x].rgbToVec3().clamp(0.0, 1.0)
+      let oldPixel = (errorMatrix[y][x].rgbToVec3() / errorMultiplier).clamp(0.0, 1.0)
 
       #inky.setPen(oldPixel.linearToSRGB().vec3ToRgb())  #  find closest color using a LUT
       inky.setPenClosest(oldPixel.linearToSRGB().vec3ToRgb().saturate(1.0), constructRgb(240, 220, 230))  # find closest color using distance function
@@ -120,14 +123,14 @@ proc processErrorMatrix(drawY: int) =
       let quantError = oldPixel - newPixel
 
       if x + 1 < imgW:
-        errorMatrix[y][x + 1] = (errorMatrix[y][x + 1].rgbToVec3() + quantError * 7 / 16).vec3ToRgb()
+        errorMatrix[y][x + 1] = (((errorMatrix[y][x + 1].rgbToVec3() / errorMultiplier) + quantError * 7 / 16) * errorMultiplier).vec3ToRgb()
 
       if y + 1 < imgH:
         if x > 0:
-          errorMatrix[y + 1][x - 1] = (errorMatrix[y + 1][x - 1].rgbToVec3() + quantError * 3 / 16).vec3ToRgb()
-        errorMatrix[y + 1][x] = (errorMatrix[y + 1][x].rgbToVec3() + quantError * 5 / 16).vec3ToRgb()
+          errorMatrix[y + 1][x - 1] = (((errorMatrix[y + 1][x - 1].rgbToVec3() / errorMultiplier) + quantError * 3 / 16) * errorMultiplier).vec3ToRgb()
+        errorMatrix[y + 1][x] = (((errorMatrix[y + 1][x].rgbToVec3() / errorMultiplier) + quantError * 5 / 16) * errorMultiplier).vec3ToRgb()
         if x + 1 < imgW:
-          errorMatrix[y + 1][x + 1] = (errorMatrix[y + 1][x + 1].rgbToVec3() + quantError * 1 / 16).vec3ToRgb()
+          errorMatrix[y + 1][x + 1] = (((errorMatrix[y + 1][x + 1].rgbToVec3() / errorMultiplier) + quantError * 1 / 16) * errorMultiplier).vec3ToRgb()
 
   echo (jpegDecodeOptions.progress * 100) div (jpegDecodeOptions.w * jpegDecodeOptions.h), "%"
 
@@ -221,8 +224,7 @@ proc jpegdec_draw_callback(draw: ptr JPEGDRAW): cint {.cdecl.} =
         # fallback
         color = constructRgb(RGB565(p[sxmin + symin * draw.iWidth]))
 
-      # color = color.saturate(1.20).level(black=0.00, white=1.0, gamma=1.1)
-      color = color.saturate(1.35).level(white=1.0, gamma=1.25)
+      color = color.level(white=1.0, gamma=1.3).saturate(1.30)
       #color = color.level(white=0.96)
 
       # let pos = case jpeg.getOrientation():
@@ -231,7 +233,7 @@ proc jpegdec_draw_callback(draw: ptr JPEGDRAW): cint {.cdecl.} =
       # else: Point(x: jpegDecodeOptions.x + dx + x, y: jpegDecodeOptions.y + dy + y)
       # inky.setPixel(pos, color)
 
-      inc(errorMatrix[y][dx + x], color.rgbToVec3().srgbToLinear().vec3ToRgb())
+      inc(errorMatrix[y][dx + x], (color.rgbToVec3().srgbToLinear() * errorMultiplier).vec3ToRgb())
       jpegDecodeOptions.progress.inc()
 
   return 1
