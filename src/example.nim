@@ -213,7 +213,7 @@ proc jpegdec_draw_callback(draw: ptr JPEGDRAW): cint {.cdecl.} =
         color = color div 4
 
       # color = color.saturate(1.20).level(black=0.00, white=1.0, gamma=1.1)
-      color = color.saturate(1.4).level(black=0.00, white=0.98, gamma=1.30)
+      color = color.saturate(1.3).level(black=0.00, white=0.98, gamma=1.30)
       #color = color.level(white=0.96)
 
       # let pos = case jpeg.getOrientation():
@@ -414,6 +414,13 @@ proc inkyProc() =
       fileOrder[i] = i
     randomize(1)
     fileOrder.shuffle()
+    echo "shuffled file order:"
+    for i in fileOrder:
+      let file = getFileN(directory, i)
+      echo "- ", file.getFname()
+
+    echo "starting main image loop"
+
     for i in fileOrder:
       let file = getFileN(directory, i)
       echo "- ", file.getFname(), " ", file.fsize
