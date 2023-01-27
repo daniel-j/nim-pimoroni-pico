@@ -3,6 +3,7 @@ import picostdlib/[
   pico/stdio,
   pico/time,
   pico/platform,
+  pico/rand,
   # pico/cyw43_arch
 ]
 
@@ -221,7 +222,7 @@ proc jpegdec_draw_callback(draw: ptr JPEGDRAW): cint {.cdecl.} =
         color = constructRgb(RGB565(p[sxmin + symin * draw.iWidth]))
 
       # color = color.saturate(1.20).level(black=0.00, white=1.0, gamma=1.1)
-      color = color.saturate(1.35).level(black=0.00, white=0.98, gamma=1.30)
+      color = color.saturate(1.35).level(white=1.0, gamma=1.25)
       #color = color.level(white=0.96)
 
       # let pos = case jpeg.getOrientation():
@@ -420,7 +421,9 @@ proc inkyProc() =
     var fileOrder = newSeq[int](fileCount)
     for i in 0..<fileCount:
       fileOrder[i] = i
-    randomize(1)
+    let seed = cast[int64](getRand64())
+    echo "rand seed: ", seed
+    randomize(seed)
     fileOrder.shuffle()
     echo "shuffled file order:"
     for i in fileOrder:
