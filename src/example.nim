@@ -199,12 +199,12 @@ proc jpegdec_draw_callback(draw: ptr JPEGDRAW): cint {.cdecl.} =
     if dy + y < 0 or dy + y >= jpegDecodeOptions.h: continue
     let symin = floor(y * jpegDecodeOptions.jpegH / jpegDecodeOptions.h).int
     if symin >= draw.iHeight: continue
-    let symax = floor((y + 1) * jpegDecodeOptions.jpegH / jpegDecodeOptions.h).int
+    let symax = min(floor((y + 1) * jpegDecodeOptions.jpegH / jpegDecodeOptions.h).int, draw.iHeight)
     for x in 0 ..< dw:
       if dx + x < 0 or dx + x >= jpegDecodeOptions.w: continue
       let sxmin = floor(x * jpegDecodeOptions.jpegW / jpegDecodeOptions.w).int
       if sxmin >= draw.iWidth: continue
-      let sxmax = floor((x + 1) * jpegDecodeOptions.jpegW / jpegDecodeOptions.w).int
+      let sxmax = min(floor((x + 1) * jpegDecodeOptions.jpegW / jpegDecodeOptions.w).int, draw.iWidth)
 
       var color = Rgb()
 
