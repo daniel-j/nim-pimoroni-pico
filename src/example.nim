@@ -92,7 +92,8 @@ proc srgbToLinear(rgb: Vec3; gamma: float = 2.4): Vec3 =
   )
 
 # multiply the rgb values this many times when storing them in the error matrix (int16 per channel)
-const errorMultiplier = 8.0
+const errorMultiplier = 10.0
+const whitePoint = constructRgb(255, 225, 231)
 
 proc processErrorMatrix(drawY: int) =
   # echo "processing errorMatrix ", drawY
@@ -115,7 +116,7 @@ proc processErrorMatrix(drawY: int) =
       let oldPixel = (errorMatrix[y][x].rgbToVec3() / errorMultiplier).clamp(0.0, 1.0)
 
       #inky.setPen(oldPixel.linearToSRGB().vec3ToRgb())  #  find closest color using a LUT
-      inky.setPenClosest(oldPixel.linearToSRGB().vec3ToRgb().saturate(1.0), constructRgb(240, 220, 230))  # find closest color using distance function
+      inky.setPenClosest(oldPixel.linearToSRGB().vec3ToRgb(), whitePoint)  # find closest color using distance function
       inky.setPixel(pos)
 
       let newPixel = inky.palette[inky.color.uint8].rgbToVec3().srgbToLinear()
@@ -224,14 +225,13 @@ proc jpegdec_draw_callback(draw: ptr JPEGDRAW): cint {.cdecl.} =
         # fallback
         color = constructRgb(RGB565(p[sxmin + symin * draw.iWidth]))
 
-      color = color.level(white=1.0, gamma=1.3).saturate(1.30)
+      color = color.level(white=0.94, gamma=1.3).saturate(1.2)
       #color = color.level(white=0.96)
 
-      # let pos = case jpeg.getOrientation():
-      # of 3: Point(x: jpegDecodeOptions.x + jpegDecodeOptions.w - (dx + x), y: jpegDecodeOptions.y + jpegDecodeOptions.h - (dy + y))
-      # of 8: Point(x: jpegDecodeOptions.x + (dy + y), y: jpegDecodeOptions.y + jpegDecodeOptions.w - (dx + x))
-      # else: Point(x: jpegDecodeOptions.x + dx + x, y: jpegDecodeOptions.y + dy + y)
-      # inky.setPixel(pos, color)
+      let pos = case jpeg.getOrientation():
+      of 3: Point(x: jpegDecodeOptions.x + jpegDecodeOptions.w - (dx + x), y: jpegDecodeOptions.y + jpegDecodeOptions.h - (dy + y))
+      of 8: Point(x: jpegDecodeOptions.x + (dy + y), y: jpegDecodeOptions.y + jpegDecodeOptions.w - (dx + x))
+      else: Point(x: jpegDecodeOptions.x + dx + x, y: jpegDecodeOptions.y + dy + y)
 
       inc(errorMatrix[y][dx + x], (color.rgbToVec3().srgbToLinear() * errorMultiplier).vec3ToRgb())
       jpegDecodeOptions.progress.inc()
