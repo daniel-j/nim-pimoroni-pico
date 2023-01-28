@@ -92,8 +92,9 @@ proc srgbToLinear(rgb: Vec3; gamma: float = 2.4): Vec3 =
   )
 
 # multiply the rgb values this many times when storing them in the error matrix (int16 per channel)
-const errorMultiplier = 10.0
-const whitePoint = constructRgb(255, 225, 231)
+const errorMultiplier = 8.0
+#const whitePoint = constructRgb(255, 227, 227)
+const whitePoint = constructRgb(255, 255, 255)
 
 proc processErrorMatrix(drawY: int) =
   # echo "processing errorMatrix ", drawY
@@ -116,7 +117,7 @@ proc processErrorMatrix(drawY: int) =
       let oldPixel = (errorMatrix[y][x].rgbToVec3() / errorMultiplier).clamp(0.0, 1.0)
 
       #inky.setPen(oldPixel.linearToSRGB().vec3ToRgb())  #  find closest color using a LUT
-      inky.setPenClosest(oldPixel.linearToSRGB().vec3ToRgb(), whitePoint)  # find closest color using distance function
+      inky.setPenClosest(oldPixel.linearToSRGB(gamma=2.9).vec3ToRgb(), whitePoint)  # find closest color using distance function
       inky.setPixel(pos)
 
       let newPixel = inky.palette[inky.color.uint8].rgbToVec3().srgbToLinear()
@@ -225,7 +226,7 @@ proc jpegdec_draw_callback(draw: ptr JPEGDRAW): cint {.cdecl.} =
         # fallback
         color = constructRgb(RGB565(p[sxmin + symin * draw.iWidth]))
 
-      color = color.level(white=0.94, gamma=1.3).saturate(1.2)
+      color = color.level(white=0.97).saturate(1.30)
       #color = color.level(white=0.96)
 
       let pos = case jpeg.getOrientation():
@@ -333,24 +334,24 @@ proc drawFile(filename: string) =
   inky.led(Led.Activity, 50)
   inky.setPen(Pen.White)
   inky.setBorder(Pen.White)
-  #inky.clear()
+  inky.clear()
 
-  inky.setPen(Pen.Black)
-  inky.rectangle(constructRect(0, 0, 600 div 8, 448))
-  inky.setPen(Pen.White)
-  inky.rectangle(constructRect((600 div 8) * 1, 0, 600 div 8, 448))
-  inky.setPen(Pen.Green)
-  inky.rectangle(constructRect((600 div 8) * 2, 0, 600 div 8, 448))
-  inky.setPen(Pen.Blue)
-  inky.rectangle(constructRect((600 div 8) * 3, 0, 600 div 8, 448))
-  inky.setPen(Pen.Red)
-  inky.rectangle(constructRect((600 div 8) * 4, 0, 600 div 8, 448))
-  inky.setPen(Pen.Yellow)
-  inky.rectangle(constructRect((600 div 8) * 5, 0, 600 div 8, 448))
-  inky.setPen(Pen.Orange)
-  inky.rectangle(constructRect((600 div 8) * 6, 0, 600 div 8, 448))
-  inky.setPen(Pen.Clean)
-  inky.rectangle(constructRect((600 div 8) * 7, 0, 600 div 8, 448))
+  # inky.setPen(Pen.Black)
+  # inky.rectangle(constructRect(0, 0, 600 div 8, 448))
+  # inky.setPen(Pen.White)
+  # inky.rectangle(constructRect((600 div 8) * 1, 0, 600 div 8, 448))
+  # inky.setPen(Pen.Green)
+  # inky.rectangle(constructRect((600 div 8) * 2, 0, 600 div 8, 448))
+  # inky.setPen(Pen.Blue)
+  # inky.rectangle(constructRect((600 div 8) * 3, 0, 600 div 8, 448))
+  # inky.setPen(Pen.Red)
+  # inky.rectangle(constructRect((600 div 8) * 4, 0, 600 div 8, 448))
+  # inky.setPen(Pen.Yellow)
+  # inky.rectangle(constructRect((600 div 8) * 5, 0, 600 div 8, 448))
+  # inky.setPen(Pen.Orange)
+  # inky.rectangle(constructRect((600 div 8) * 6, 0, 600 div 8, 448))
+  # inky.setPen(Pen.Clean)
+  # inky.rectangle(constructRect((600 div 8) * 7, 0, 600 div 8, 448))
 
   if drawJpeg(filename, 0, -1, 600, 450, dither=false, gravity=(0.5, 0.5)) == 1:
     inky.led(Led.Activity, 100)

@@ -108,7 +108,8 @@ func distance*(self: Rgb; c: Rgb; whitepoint: Rgb = Rgb(r: 255, g: 255, b: 255))
   let rx = (e1.r.float - e2.r.float) * (whitepoint.r.float / 255)
   let gx = (e1.g.float - e2.g.float) * (whitepoint.g.float / 255)
   let bx = (e1.b.float - e2.b.float) * (whitepoint.b.float / 255)
-  return float((((512 + rmean) * rx * rx).int64 shr 8).float + 4.0 * gx * gx + (((767 - rmean) * bx * bx).int64 shr 8).float).sqrt().abs()
+  return ((((512 + rmean) * rx * rx).int64 shr 8).float + 4.0 * gx * gx + (((767 - rmean) * bx * bx).int64 shr 8).float).abs()
+  #return ((2 + (rmean / 256)) * rx * rx + 4 * gx * gx + (2 + (255 - rmean) / 256) * bx * bx).abs()
 
 func closest*(self: Rgb; palette: openArray[Rgb]; fallback: int = 0; whitepoint: Rgb = Rgb(r: 255, g: 255, b: 255)): int =
   assert(palette.len > 0)
@@ -124,12 +125,12 @@ func closest*(self: Rgb; palette: openArray[Rgb]; fallback: int = 0; whitepoint:
   return m
 
 func saturate*(self: Rgb; factor: float): Rgb =
-  const luR = 0.3086
-  const luG = 0.6094
-  const luB = 0.0820
-  # const luR = 0.15
-  # const luG = 0.70
-  # const luB = 0.15
+  # const luR = 0.3086
+  # const luG = 0.6094
+  # const luB = 0.0820
+  const luR = 0.20
+  const luG = 0.60
+  const luB = 0.20
 
   let nfactor = (1 - factor)
 
@@ -808,15 +809,15 @@ type
     # cacheBuilt*: bool
     # candidates*: array[16, uint8]
 
-const PicoGraphicsPen3BitPalette*: array[8, Rgb] = [
+const PicoGraphicsPen3BitPalette* = [
   Rgb(r:   0, g:   0, b:   0), ##  black
   Rgb(r: 255, g: 255, b: 255), ##  white
-  Rgb(r:  23, g: 168, b:  30), ##  green
-  Rgb(r:  33, g:  42, b: 222), ##  blue
-  Rgb(r: 234, g:  46, b:  46), ##  red
+  Rgb(r:  16, g: 135, b:  26), ##  green
+  Rgb(r:  37, g:  40, b: 217), ##  blue
+  Rgb(r: 235, g:  58, b:  35), ##  red
   Rgb(r: 252, g: 252, b:  19), ##  yellow
-  Rgb(r: 255, g: 109, b:   5), ##  orange
-  Rgb(r: 255, g: 226, b: 191), ##  clean / taupe?!
+  Rgb(r: 242, g: 104, b:   5), ##  orange
+  Rgb(r: 237, g: 196, b: 165), ##  clean / taupe?!
 ]
 
 func bufferSize*(self: PicoGraphicsPen3Bit; w: uint; h: uint): uint =
