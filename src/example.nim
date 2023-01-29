@@ -227,7 +227,7 @@ proc jpegdec_draw_callback(draw: ptr JPEGDRAW): cint {.cdecl.} =
         # fallback
         color = constructRgb(RGB565(p[sxmin + symin * draw.iWidth]))
 
-      color = color.level(black= -0.02, white=0.98).saturate(1.2)
+      color = color.level(black= -0.02, white=0.98).saturate(1.3)
       #color = color.level(white=0.96)
 
       let pos = case jpeg.getOrientation():
