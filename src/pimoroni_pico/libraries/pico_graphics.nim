@@ -101,8 +101,8 @@ func luminance*(self: Rgb): int =
   return self.r * 21 + self.g * 72 + self.b * 7
 
 func distance*(self: Rgb; c: Rgb; whitepoint: Rgb = Rgb(r: 255, g: 255, b: 255)): float =
-  let e1 = clamp(self)
-  let e2 = clamp(c)
+  let e1 = (self)
+  let e2 = (c)
   ##  algorithm from https://www.compuphase.com/cmetric.htm
   let rmean = ((e1.r.float + e2.r.float) / 2) * (whitepoint.r.float / 255)
   let rx = (e1.r.float - e2.r.float) * (whitepoint.r.float / 255)
@@ -125,12 +125,12 @@ func closest*(self: Rgb; palette: openArray[Rgb]; fallback: int = 0; whitepoint:
   return m
 
 func saturate*(self: Rgb; factor: float): Rgb =
-  # const luR = 0.3086
-  # const luG = 0.6094
-  # const luB = 0.0820
-  const luR = 0.20
-  const luG = 0.60
-  const luB = 0.20
+  const luR = 0.3086
+  const luG = 0.6094
+  const luB = 0.0820
+  #const luR = 0.25
+  #const luG = 0.7
+  #const luB = 0.10
 
   let nfactor = (1 - factor)
 
@@ -810,14 +810,14 @@ type
     # candidates*: array[16, uint8]
 
 const PicoGraphicsPen3BitPalette* = [
-  Rgb(r:   0, g:   0, b:   0), ##  black
-  Rgb(r: 255, g: 255, b: 255), ##  white
-  Rgb(r:  16, g: 135, b:  26), ##  green
-  Rgb(r:  37, g:  40, b: 217), ##  blue
-  Rgb(r: 235, g:  58, b:  35), ##  red
-  Rgb(r: 252, g: 252, b:  19), ##  yellow
-  Rgb(r: 242, g: 104, b:   5), ##  orange
-  Rgb(r: 237, g: 196, b: 165), ##  clean / taupe?!
+  Rgb(r:   0, g:  12, b:   0), ##  black
+  Rgb(r: 246, g: 255, b: 240), ##  white
+  Rgb(r:   0, g: 150, b:  28), ##  green
+  Rgb(r:  57, g:  37, b: 182), ##  blue
+  Rgb(r: 229, g:  30, b:  25), ##  red
+  Rgb(r: 238, g: 223, b:  19), ##  yellow
+  Rgb(r: 254, g: 128, b:  30), ##  orange
+  Rgb(r: 255, g: 210, b: 160), ##  clean / taupe?!
 ]
 
 func bufferSize*(self: PicoGraphicsPen3Bit; w: uint; h: uint): uint =

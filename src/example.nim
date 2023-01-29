@@ -111,18 +111,19 @@ proc processErrorMatrix(drawY: int) =
 
       let pos = case jpeg.getOrientation():
       of 3: Point(x: ox + jpegDecodeOptions.w - (dx + x), y: oy + jpegDecodeOptions.h - (dy + y))
+      of 6: Point(x: ox + jpegDecodeOptions.h - (dy + y), y: oy + (dx + x))
       of 8: Point(x: ox + (dy + y), y: oy + jpegDecodeOptions.w - (dx + x))
       else: Point(x: ox + dx + x, y: oy + dy + y)
 
-      let oldPixel = (errorMatrix[y][x].rgbToVec3() / errorMultiplier).clamp(0.0, 1.0)
+      let oldPixel = (errorMatrix[y][x].rgbToVec3() / errorMultiplier)
 
       #inky.setPen(oldPixel.linearToSRGB().vec3ToRgb())  #  find closest color using a LUT
-      inky.setPenClosest(oldPixel.linearToSRGB(gamma=2.9).vec3ToRgb(), whitePoint)  # find closest color using distance function
+      inky.setPenClosest(oldPixel.clamp(-0.2, 1.2).linearToSRGB(gamma=3.0).vec3ToRgb(), whitePoint)  # find closest color using distance function
       inky.setPixel(pos)
 
       let newPixel = inky.palette[inky.color.uint8].rgbToVec3().srgbToLinear()
 
-      let quantError = oldPixel - newPixel
+      let quantError = oldPixel.clamp(0, 1) - newPixel
 
       if x + 1 < imgW:
         errorMatrix[y][x + 1] = (((errorMatrix[y][x + 1].rgbToVec3() / errorMultiplier) + quantError * 7 / 16) * errorMultiplier).vec3ToRgb()
@@ -226,11 +227,12 @@ proc jpegdec_draw_callback(draw: ptr JPEGDRAW): cint {.cdecl.} =
         # fallback
         color = constructRgb(RGB565(p[sxmin + symin * draw.iWidth]))
 
-      color = color.level(white=0.97).saturate(1.30)
+      color = color.level(black= -0.02, white=0.98).saturate(1.2)
       #color = color.level(white=0.96)
 
       let pos = case jpeg.getOrientation():
       of 3: Point(x: jpegDecodeOptions.x + jpegDecodeOptions.w - (dx + x), y: jpegDecodeOptions.y + jpegDecodeOptions.h - (dy + y))
+      of 6: Point(x: jpegDecodeOptions.x + jpegDecodeOptions.h - (dy + y), y: jpegDecodeOptions.y + (dx + x))
       of 8: Point(x: jpegDecodeOptions.x + (dy + y), y: jpegDecodeOptions.y + jpegDecodeOptions.w - (dx + x))
       else: Point(x: jpegDecodeOptions.x + dx + x, y: jpegDecodeOptions.y + dy + y)
 
