@@ -810,7 +810,7 @@ type
     # candidates*: array[16, uint8]
 
 const PicoGraphicsPen3BitPalette* = [
-  Rgb(r:   0, g:  12, b:   0), ##  black
+  Rgb(r:   0, g:  15, b:   0), ##  black
   Rgb(r: 246, g: 255, b: 240), ##  white
   Rgb(r:   0, g: 150, b:  28), ##  green
   Rgb(r:  57, g:  37, b: 182), ##  blue
