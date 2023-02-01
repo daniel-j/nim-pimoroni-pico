@@ -26,7 +26,7 @@ type
   Rgb332* = distinct uint8
   Rgb565* = distinct uint16
   Rgb888* = distinct uint32
-  Rgb* {.bycopy.} = object
+  Rgb* {.bycopy, packed.} = object
     r*: int16
     g*: int16
     b*: int16
@@ -61,6 +61,8 @@ func `+`*(self: Rgb; c: Rgb): Rgb =
 
 func `*`*(self: Rgb; i: int16): Rgb =
   return constructRgb(self.r * i, self.g * i, self.b * i)
+func `*`*(self: Rgb; i: float): Rgb =
+  return constructRgb((self.r.float * i).int16, (self.g.float * i).int16, (self.b.float * i).int16)
 
 func `div`*(self: Rgb; i: int16): Rgb =
   return constructRgb(self.r div i, self.g div i, self.b div i)
@@ -810,14 +812,14 @@ type
     # candidates*: array[16, uint8]
 
 const PicoGraphicsPen3BitPalette* = [
-  Rgb(r:   0, g:  15, b:   0), ##  black
-  Rgb(r: 246, g: 255, b: 240), ##  white
-  Rgb(r:   0, g: 150, b:  28), ##  green
-  Rgb(r:  57, g:  37, b: 182), ##  blue
-  Rgb(r: 229, g:  30, b:  25), ##  red
-  Rgb(r: 238, g: 223, b:  19), ##  yellow
-  Rgb(r: 254, g: 128, b:  30), ##  orange
-  Rgb(r: 255, g: 210, b: 160), ##  clean / taupe?!
+  Rgb(r:   1, g:  16, b:   2), ##  black
+  Rgb(r: 238, g: 255, b: 246), ##  white
+  Rgb(r:   0, g: 153, b:  28), ##  green
+  Rgb(r:  57, g:  41, b: 185), ##  blue
+  Rgb(r: 223, g:  14, b:  19), ##  red
+  Rgb(r: 238, g: 220, b:  16), ##  yellow
+  Rgb(r: 255, g: 130, b:  35), ##  orange
+  Rgb(r: 245, g: 215, b: 191), ##  clean / taupe?!
 ]
 
 func bufferSize*(self: PicoGraphicsPen3Bit; w: uint; h: uint): uint =
