@@ -23,7 +23,6 @@ echo "USB connected"
 
 
 var fs: FATFS
-var fr: FRESULT
 var jpeg: JPEGDEC
 var inky: InkyFrame
 
@@ -117,7 +116,7 @@ proc processErrorMatrix(drawY: int) =
 
       let oldPixel = (errorMatrix[y][x].rgbToVec3() / errorMultiplier)
 
-      #inky.setPen(oldPixel.linearToSRGB().vec3ToRgb())  #  find closest color using a LUT
+      #inky.setPen(oldPixel.clamp(-0.2, 1.2).linearToSRGB(gamma=2.2).vec3ToRgb())  #  find closest color using a LUT
       inky.setPenClosest(oldPixel.clamp(-0.2, 1.2).linearToSRGB(gamma=2.2).vec3ToRgb(), whitePoint)  # find closest color using distance function
       inky.setPixel(pos)
 
@@ -139,7 +138,7 @@ proc processErrorMatrix(drawY: int) =
 
 proc jpegdec_open_callback(filename: cstring, size: ptr int32): pointer {.cdecl.} =
   let fil = create(FIL)
-  if f_open(fil, filename, FA_READ).bool:
+  if f_open(fil, filename, FA_READ) != FR_OK:
     return nil
   size[] = f_size(fil).int32
   return fil
@@ -227,7 +226,7 @@ proc jpegdec_draw_callback(draw: ptr JPEGDRAW): cint {.cdecl.} =
         # fallback
         color = constructRgb(RGB565(p[sxmin + symin * draw.iWidth]))
 
-      color = color.level(black= 0.0, white=0.97).saturate(1.30)
+      color = color.level(black=0.0, white=0.975).saturate(1.30)
       #color = color.level(white=0.96)
 
       let pos = case jpeg.getOrientation():
@@ -237,6 +236,7 @@ proc jpegdec_draw_callback(draw: ptr JPEGDRAW): cint {.cdecl.} =
       else: Point(x: jpegDecodeOptions.x + dx + x, y: jpegDecodeOptions.y + dy + y)
 
       inc(errorMatrix[y][dx + x], (color.rgbToVec3().srgbToLinear(gamma=2.1) * errorMultiplier).vec3ToRgb())
+      # errorMatrix[y][dx + x] = (((errorMatrix[y][dx + x].rgbToVec3() / errorMultiplier) + color.rgbToVec3().srgbToLinear(gamma=2.1)) * errorMultiplier).vec3ToRgb()
       jpegDecodeOptions.progress.inc()
 
   return 1
@@ -413,7 +413,7 @@ proc inkyProc() =
 
   echo "Mounting SD card..."
 
-  fr = f_mount(fs.addr, "", 1)
+  let fr = f_mount(fs.addr, "", 1)
   if fr != FR_OK:
     echo "Failed to mount SD card, error: ", fr
   else:
