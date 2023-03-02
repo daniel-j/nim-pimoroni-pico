@@ -30,14 +30,14 @@ project(${OUTPUT_NAME})
 # initialize the Raspberry Pi Pico SDK
 pico_sdk_init()
 
-set(NIMCACHE_DIR "${CMAKE_CURRENT_BINARY_DIR}/../nimcache")
+set(NIMCACHE_DIR "${CMAKE_CURRENT_BINARY_DIR}/nimcache")
 set(NIMCACHE_JSON_FILE "${NIMCACHE_DIR}/${OUTPUT_NAME}.cached.json")
 
 # add_custom_target(nimble DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/imports.cmake)
 
 # Get the Nim include path to get nimbase.h
 execute_process(
-  COMMAND nim "--verbosity:0" "--eval:import std/os; echo getCurrentCompilerExe().parentDir.parentDir / \"lib\""
+  COMMAND sh "-c" "nim dump --dump.format:json --hints:off - | jq -r .lib_paths[-1]"
   OUTPUT_VARIABLE NIM_INCLUDE_PATH
   OUTPUT_STRIP_TRAILING_WHITESPACE
 )
@@ -73,15 +73,39 @@ else()
   target_link_libraries(${OUTPUT_NAME} pico_stdlib)
 endif()
 
+# Add directory containing this CMakeLists file to include search path.
+# This is required so that the lwipopts.h file is found. Other headers
+# required for a project can also be placed here.
+target_include_directories(${OUTPUT_NAME} PUBLIC
+  ${CMAKE_CURRENT_LIST_DIR}
+  ${NIM_INCLUDE_PATH}
+  ${PICO_LWIP_PATH}/src/include/compat/posix
+  #${FREERTOS_KERNEL_PATH}/include
+  #${FREERTOS_KERNEL_PATH}/portable/ThirdParty/GCC/RP2040/include
+)
+
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../src/pimoroni_pico/vendor vendor)
 
 # Add additional libraries, such as the wifi package. It's not automatically loaded
-target_link_libraries(${OUTPUT_NAME} pico_cyw43_arch_lwip_threadsafe_background sdcard fatfs)
+target_link_libraries(${OUTPUT_NAME}
+  pico_cyw43_arch_lwip_threadsafe_background
+  pico_lwip_mbedtls pico_mbedtls
+  sdcard
+  fatfs
+  # ${CMAKE_CURRENT_SOURCE_DIR}/../example
+)
+# pico_cyw43_arch_lwip_sys_freertos FreeRTOS-Kernel-Heap3
+
+target_compile_definitions(${OUTPUT_NAME} PRIVATE
+  # CYW43_HOST_NAME="PicoW"
+  PICO_STDIO_USB_CONNECT_WAIT_TIMEOUT_MS=2000
+  _POSIX_MONOTONIC_CLOCK=1
+  # PING_USE_SOCKETS=1
+)
 
 target_compile_options(${OUTPUT_NAME} PRIVATE "-fshort-enums")
 
 # enable usb output, disable uart output
-add_compile_definitions(PICO_STDIO_USB_CONNECT_WAIT_TIMEOUT_MS=2000)
 pico_enable_stdio_usb(${OUTPUT_NAME} 1)
 pico_enable_stdio_uart(${OUTPUT_NAME} 0)
 

@@ -5,6 +5,7 @@ switch("path", "$projectDir/../src")
 
 switch("mm", "orc") # use "arc", "orc" or "none"
 switch("deepcopy", "on")
+switch("threads", "off")
 
 switch("define", "checkAbi")
 switch("define", "useMalloc")
@@ -17,5 +18,3 @@ switch("d", "nimEmulateOverflowChecks")
 
 # for futhark to work
 switch("maxLoopIterationsVM", "1000000000")
-
-switch("threads", "off")

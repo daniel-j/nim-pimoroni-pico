@@ -8,7 +8,7 @@ switch("mm", "orc") # use "arc", "orc" or "none"
 switch("deepcopy", "on")
 
 switch("compileOnly", "on")
-switch("nimcache", "build/nimcache")
+switch("nimcache", "build/" & projectName() & "/nimcache")
 
 switch("define", "checkAbi")
 switch("define", "useMalloc")
@@ -20,9 +20,9 @@ switch("define", "lwip")
 # when using cpp backend
 # see for similar issue: https://github.com/nim-lang/Nim/issues/17040
 switch("d", "nimEmulateOverflowChecks")
-switch("d", "CMAKE_BINARY_DIR:../build/example")
-switch("d", "CMAKE_SOURCE_DIR:../csource")
 
+switch("d", "CMAKE_BINARY_DIR:" & getCurrentDir() & "/build/" & projectName())
+switch("d", "CMAKE_SOURCE_DIR:" & getCurrentDir() & "/csource")
 # for futhark to work
 switch("maxLoopIterationsVM", "1000000000")
 
