@@ -30,6 +30,12 @@ project(${OUTPUT_NAME})
 # initialize the Raspberry Pi Pico SDK
 pico_sdk_init()
 
+# hide a warning in lwip
+set_source_files_properties(
+  "${PICO_LWIP_PATH}/src/apps/altcp_tls/altcp_tls_mbedtls.c"
+  PROPERTIES COMPILE_OPTIONS "-Wno-unused-result"
+)
+
 set(NIMCACHE_DIR "${CMAKE_CURRENT_BINARY_DIR}/nimcache")
 set(NIMCACHE_JSON_FILE "${NIMCACHE_DIR}/${OUTPUT_NAME}.cached.json")
 
@@ -37,10 +43,11 @@ set(NIMCACHE_JSON_FILE "${NIMCACHE_DIR}/${OUTPUT_NAME}.cached.json")
 
 # Get the Nim include path to get nimbase.h
 execute_process(
-  COMMAND sh "-c" "nim dump --dump.format:json --hints:off - | jq -r .lib_paths[-1]"
-  OUTPUT_VARIABLE NIM_INCLUDE_PATH
+  COMMAND nim dump --dump.format:json --hints:off -
+  OUTPUT_VARIABLE NIM_DUMP_JSON
   OUTPUT_STRIP_TRAILING_WHITESPACE
 )
+string(JSON NIM_LIB_PATH GET "${NIM_DUMP_JSON}" libpath)
 
 set_directory_properties(PROPERTIES CMAKE_CONFIGURE_DEPENDS ${NIMCACHE_JSON_FILE})
 
@@ -53,6 +60,7 @@ if(EXISTS ${NIMCACHE_JSON_FILE})
     math(EXPR cfilelength "${cfilelength} - 1")
     foreach(IDX RANGE ${cfilelength})
         string(JSON CUR_FILE GET "${NIMCACHE_JSON_DATA}" compile ${IDX} 0)
+        string(REPLACE "\\" "/" CUR_FILE "${CUR_FILE}")
         list(APPEND NimSources ${CUR_FILE})
     endforeach()
   endif()
@@ -78,7 +86,7 @@ endif()
 # required for a project can also be placed here.
 target_include_directories(${OUTPUT_NAME} PUBLIC
   ${CMAKE_CURRENT_LIST_DIR}
-  ${NIM_INCLUDE_PATH}
+  ${NIM_LIB_PATH}
   ${PICO_LWIP_PATH}/src/include/compat/posix
   #${FREERTOS_KERNEL_PATH}/include
   #${FREERTOS_KERNEL_PATH}/portable/ThirdParty/GCC/RP2040/include

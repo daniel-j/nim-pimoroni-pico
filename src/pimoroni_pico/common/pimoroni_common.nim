@@ -100,8 +100,8 @@ type
   Polarity* {.pure.} = enum
     ActiveLow = 0, ActiveHigh = 1
 
-  Direction* {.pure.} = enum
-    NormalDir = 0, ReversedDir = 1
+  # Direction* {.pure.} = enum
+  #   NormalDir = 0, ReversedDir = 1
 
 ##  Template to return a value clamped between a minimum and maximum
 template clamp*(a, mn, mx: untyped): untyped =

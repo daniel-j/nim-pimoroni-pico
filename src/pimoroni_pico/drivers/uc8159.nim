@@ -1,7 +1,8 @@
-import picostdlib/[pico/types, pico/platform]
+import picostdlib
 import ../common/pimoroni_common, ../libraries/pico_graphics
+import ../common/pimoroni_bus
 
-export pico_graphics
+export pico_graphics, pimoroni_bus
 
 type
   Uc8159* = object of DisplayDriver
@@ -66,16 +67,18 @@ type
     Pws   = 0xE3
 
 
-proc init*(self: var Uc8159; width: uint16; height: uint16) =
+proc init*(self: var Uc8159; width: uint16; height: uint16; pins: SPIPins) =
   DisplayDriver(self).init(width, height)
 
-  self.spi = spi0
-  self.csPin = SpiBgFrontCs
-  self.dcPin = 28.Gpio
-  self.sckPin = SpiDefaultSck
-  self.mosiPin = SpiDefaultMosi
+  self.spi = pins.spi
+  self.csPin = pins.cs
+  self.sckPin = pins.sck
+  self.dcPin = pins.dc
+  self.mosiPin = pins.mosi
+
   self.busyPin = PinUnused
   self.resetPin = 27.Gpio
+
   self.blocking = false
   self.borderColour = White
 

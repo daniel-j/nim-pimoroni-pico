@@ -2,6 +2,7 @@ import picostdlib/[
   hardware/i2c, hardware/rtc
 ]
 import ../common/[pimoroni_common, pimoroni_i2c]
+export pimoroni_i2c
 
 const
   ## Constants
@@ -61,7 +62,7 @@ type
     TIMER_VALUE       = 0x10
     TIMER_MODE        = 0x11
 
-const OSCILLATOR_STATUS = Registers.SECONDS
+const OSCILLATOR_STATUS = 0x04.Registers
 
 
 ##  binary coded decimal conversion helper functions
@@ -77,14 +78,14 @@ proc bcdDecode*(v: uint): int8 =
     v1: uint = v and 0x0f
   return (v1 + (v10 * 10)).int8
 
-proc init*(self: var Pcf85063a; interrupt: int8 = PinUnused) =
+proc init*(self: var Pcf85063a; i2c: I2c; interrupt: int8 = PinUnused) =
   self.address = DefaultI2cAddress
+  self.i2c = i2c
   self.interrupt = interrupt
   if self.interrupt != PinUnused:
     gpioSetFunction(self.interrupt.Gpio, GpioFunction.Sio)
     gpioSetDir(self.interrupt.Gpio, In)
     gpioSetPulls(self.interrupt.Gpio, up=false, down=true)
-  self.i2c.init()
 
 proc reset*(self: var Pcf85063a) =
   ##  magic soft reset command
@@ -112,7 +113,7 @@ proc getScl*(self: var Pcf85063a): Gpio {.noSideEffect.} =
 proc getInt*(self: var Pcf85063a): Gpio {.noSideEffect.} =
   return self.interrupt.Gpio
 
-proc getDatetime*(self: var Pcf85063a): DateTime =
+proc getDatetime*(self: var Pcf85063a): Datetime =
   var resultArray: array[7, uint8]
   discard self.i2c.readBytes(self.address, Registers.SECONDS.uint8, resultArray[0].addr, 7)
   result.year = (int16)(bcdDecode(resultArray[6]) + 2000)
@@ -123,7 +124,7 @@ proc getDatetime*(self: var Pcf85063a): DateTime =
   result.min = cast[int8](bcdDecode(resultArray[1]))
   result.sec = cast[int8](bcdDecode(resultArray[0] and 0x7f))     ##  mask out status bit
 
-proc setDatetime*(self: var Pcf85063a; t: ptr DateTime) =
+proc setDatetime*(self: var Pcf85063a; t: ptr Datetime) =
   var data: array[7, uint8] = [bcdEncode(t.sec.uint),
                                bcdEncode(t.min.uint),
                                bcdEncode(t.hour.uint),

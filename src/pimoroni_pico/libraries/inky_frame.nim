@@ -1,15 +1,13 @@
 import std/math
 
 import ../drivers/[
-  uc8159, pcf85063a, fatfs
+  uc8159, pcf85063a, fatfs, psram_display
 ]
 
 import pico_graphics
 
-import picostdlib/[
-  hardware/gpio, hardware/i2c,
-  hardware/pwm, pico/time, pico/platform
-]
+import picostdlib
+import picostdlib/[hardware/i2c, hardware/pwm]
 
 export pico_graphics
 export fatfs
@@ -18,15 +16,22 @@ export Colour
 const
   PinHoldSysEn = 2.Gpio
   #PinI2cInt = 3.Gpio
-  #PinI2cSda = 4.Gpio
-  #PinI2CScl = 5.Gpio
+  PinI2cSda = 4.Gpio
+  PinI2CScl = 5.Gpio
+  LedActivity* = 6.Gpio
+  LedConnection* = 7.Gpio
   PinSrClock = 8.Gpio
   PinSrLatch = 9.Gpio
   PinSrOut = 10.Gpio
+  LedA* = 11.Gpio
+  LedB* = 12.Gpio
+  LedC* = 13.Gpio
+  LedD* = 14.Gpio
+  LedE* = 15.Gpio
   #PinMiso = 16.Gpio
-  #PinEinkCs = 17.Gpio
-  #PinClk = 18.Gpio
-  #PinMosi = 19.Gpio
+  PinEinkCs = 17.Gpio
+  PinClk = 18.Gpio
+  PinMosi = 19.Gpio
   #PinSdDat0 = 19.Gpio
   #PinSdDat1 = 20.Gpio
   #PinSdDat2 = 21.Gpio
@@ -34,7 +39,7 @@ const
   #PinSdCs = 22.Gpio
   #PinAdc0 = 26.Gpio
   #PinEinkReset = 27.Gpio
-  #PinEinkDc = 28.Gpio
+  PinEinkDc = 28.Gpio
 
 type
   Button* {.pure.} = enum
@@ -45,14 +50,14 @@ type
     E = 4
 
   Led* {.pure.} = enum
-    Activity = 6.Gpio
-    Connection = 7.Gpio
-    A = 11.Gpio
-    B = 12.Gpio
-    C = 13.Gpio
-    D = 14.Gpio
-    E = 15.Gpio
-  
+    Activity = LedActivity
+    Connection = LedConnection
+    A = LedA
+    B = LedB
+    C = LedC
+    D = LedD
+    E = LedE
+
   Flags* {.pure.} = enum
     RtcAlarm = 5
     ExternalTrigger = 6
@@ -72,22 +77,24 @@ type
 
   InkyFrame* = object of PicoGraphicsPen3Bit
     uc8159*: Uc8159
-    i2c*: I2cInst
     rtc*: Pcf85063a
     width*, height*: int
     wakeUpEvent: WakeUpEvent
 
+  InkyFramePsRam* = object of InkyFrame
+    ramDisplay*: PsRamDisplay
 
-proc gpioConfigure*(gpio: Gpio; dir: bool; value: Value = Low) =
-  gpioSetFunction(gpio, GpioFunction.Sio)
+
+proc gpioConfigure*(gpio: Gpio; dir: Direction; value: Value = Low) =
+  gpioSetFunction(gpio, Sio)
   gpioSetDir(gpio, dir)
   gpioPut(gpio, value)
 
 proc gpioConfigurePwm*(gpio: Gpio) =
-  var cfg: PwmConfig = pwmGetDefaultConfig()
+  var cfg = pwmGetDefaultConfig()
   pwmSetWrap(pwmGpioToSliceNum(gpio), 65535)
-  pwmInit(pwmGpioToSliceNum(gpio), addr(cfg), true)
-  gpioSetFunction(gpio, GpioFunction.Pwm)
+  pwmInit(pwmGpioToSliceNum(gpio), cfg.addr, true)
+  gpioSetFunction(gpio, Pwm)
 
 proc readShiftRegister*(): uint8 =
   gpioPut(PinSrLatch, Low)
@@ -105,18 +112,16 @@ proc readShiftRegister*(): uint8 =
     dec(bits)
 
 proc readShiftRegisterBit*(index: uint8): bool =
-  (readShiftRegister() and (1'u shl index).uint8).bool
+  (readShiftRegister() and (1 shl index).uint8).bool
 
 proc init*(self: var InkyFrame; width: int = 600; height: int = 448) =
-  init(PicoGraphicsPen3Bit(self), width.uint16, height.uint16)
+  PicoGraphicsPen3Bit(self).init(width.uint16, height.uint16)
   self.width = width
   self.height = height
-  self.uc8159.init(width.uint16, height.uint16)
+  self.uc8159.init(width.uint16, height.uint16, SPIPins(spi: spi0, cs: PinEinkCs, sck: PinClk, mosi: PinMosi, dc: PinEinkDc))
 
-  gpioSetFunction(PinHoldSysEn, GpioFunction.Sio)
-  gpioSetDir(PinHoldSysEn, Out)
-  gpioPut(PinHoldSysEn, High)
   # keep the pico awake by holding vsys_en high
+  gpioConfigure(PinHoldSysEn, Out, High)
 
   # setup the shift register
   gpioConfigure(PinSrClock, Out, High)
@@ -146,17 +151,24 @@ proc init*(self: var InkyFrame; width: int = 600; height: int = 448) =
   ## Disable display update busy wait, we'll handle it ourselves
   self.uc8159.setBlocking(false)
 
-  self.rtc.init()
+  var i2c: I2c
+  i2c.init(PinI2cSda, PinI2cScl)
 
-  gpioConfigurePwm(Led.A.Gpio)
-  gpioConfigurePwm(Led.B.Gpio)
-  gpioConfigurePwm(Led.C.Gpio)
-  gpioConfigurePwm(Led.D.Gpio)
-  gpioConfigurePwm(Led.E.Gpio)
-  gpioConfigurePwm(Led.Activity.Gpio)
-  gpioConfigurePwm(Led.Connection.Gpio)
   # initialise the rtc
+  self.rtc.init(move i2c)
+
   # setup led pwm
+  gpioConfigurePwm(LedA)
+  gpioConfigurePwm(LedB)
+  gpioConfigurePwm(LedC)
+  gpioConfigurePwm(LedD)
+  gpioConfigurePwm(LedE)
+  gpioConfigurePwm(LedActivity)
+  gpioConfigurePwm(LedConnection)
+
+proc init*(self: var InkyFramePsRam; width: int = 800; height: int = 480) =
+  InkyFrame(self).init(width, height)
+  self.ramDisplay.init(width.uint16, height.uint16)
 
 proc isBusy*(): bool =
   # check busy flag on shift register
@@ -179,7 +191,7 @@ proc pressed*(button: Button): bool =
 proc led*(self: InkyFrame; led: Led; brightness: range[0.uint8..100.uint8]) =
   pwmSetGpioLevel(led.Gpio, (pow(brightness.float / 100, 2.8) * 65535.0f + 0.5f).uint16)
 
-proc sleep*(self: var InkyFrame; wakeInMinutes: int) =
+proc sleep*(self: var InkyFrame; wakeInMinutes: int = -1) =
   if wakeInMinutes != -1:
     # set an alarm to wake inky up in wake_in_minutes - the maximum sleep
     # is 255 minutes or around 4.5 hours which is the longest timer the RTC
@@ -193,7 +205,7 @@ proc sleep*(self: var InkyFrame; wakeInMinutes: int) =
   while true:
     discard
 
-proc sleepUntil*(self: var InkyFrame; second: int; minute: int; hour: int; day: int) =
+proc sleepUntil*(self: var InkyFrame; second, minute, hour, day: int = -1) =
   if second != -1 or minute != -1 or hour != -1 or day != -1:
     # set an alarm to wake inky up at the specified time and day
     self.rtc.setAlarm(second, minute, hour, day)
