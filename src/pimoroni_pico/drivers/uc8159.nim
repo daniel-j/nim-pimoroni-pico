@@ -230,10 +230,10 @@ method update*(self: var Uc8159; graphics: var PicoGraphics) =
   ##  data mode
   gpioPut(self.dcPin, High)
 
-  ##  HACK: Output 48 rows of data since our buffer is 400px tall
+  ## HACK: Output 48 rows of data since our buffer is 400px tall
   ##  but the display has no offset configuration and H/V scan
   ##  are reversed.
-  ##  Any garbage data will do.
+  ## Any garbage data will do.
   ##  2px per byte, so we need width * 24 bytes
   if self.height == 400 and self.rotation == Rotate_0:
     discard spiWriteBlocking(self.spi, graphics.frameBuffer[0].addr, self.width * 24)

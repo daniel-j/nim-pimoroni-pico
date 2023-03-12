@@ -57,7 +57,7 @@ type
     RtcAlarm = 5
     ExternalTrigger = 6
     EinkBusy = 7
-  
+
   WakeUpEvent* {.pure.} = enum
     Unknown = 0
     ButtonA = 1
@@ -67,7 +67,7 @@ type
     ButtonE = 5
     RtcAlarm = 6
     ExternalTrigger = 7
-  
+
   Pen* = uc8159.Colour
 
   InkyFrame* = object of PicoGraphicsPen3Bit
@@ -113,18 +113,18 @@ proc init*(self: var InkyFrame; width: int = 600; height: int = 448) =
   self.height = height
   self.uc8159.init(width.uint16, height.uint16)
 
-  ##  keep the pico awake by holding vsys_en high
   gpioSetFunction(PinHoldSysEn, GpioFunction.Sio)
   gpioSetDir(PinHoldSysEn, Out)
   gpioPut(PinHoldSysEn, High)
+  # keep the pico awake by holding vsys_en high
 
-  ##  setup the shift register
+  # setup the shift register
   gpioConfigure(PinSrClock, Out, High)
   gpioConfigure(PinSrLatch, Out, High)
   gpioConfigure(PinSrOut, In)
   self.wakeUpEvent = Unknown
 
-  ##  determine wake up event
+  # determine wake up event
   if readShiftRegisterBit(Button.A.uint8):
     self.wakeUpEvent = WakeUpEvent.ButtonA
   if readShiftRegisterBit(Button.B.uint8):
@@ -139,17 +139,15 @@ proc init*(self: var InkyFrame; width: int = 600; height: int = 448) =
     self.wakeUpEvent = WakeUpEvent.RtcAlarm
   if readShiftRegisterBit(Flags.ExternalTrigger.uint8):
     self.wakeUpEvent = WakeUpEvent.ExternalTrigger
-  ##  there are other reasons a wake event can occur: connect power via usb,
-  ##  connect a battery, or press the reset button. these cannot be
-  ##  disambiguated so we don't attempt to report them
+  # there are other reasons a wake event can occur: connect power via usb,
+  # connect a battery, or press the reset button. these cannot be
+  # disambiguated so we don't attempt to report them
 
-  ##  Disable display update busy wait, we'll handle it ourselves
+  ## Disable display update busy wait, we'll handle it ourselves
   self.uc8159.setBlocking(false)
 
-  ##  initialise the rtc
   self.rtc.init()
 
-  ##  setup led pwm
   gpioConfigurePwm(Led.A.Gpio)
   gpioConfigurePwm(Led.B.Gpio)
   gpioConfigurePwm(Led.C.Gpio)
@@ -157,9 +155,11 @@ proc init*(self: var InkyFrame; width: int = 600; height: int = 448) =
   gpioConfigurePwm(Led.E.Gpio)
   gpioConfigurePwm(Led.Activity.Gpio)
   gpioConfigurePwm(Led.Connection.Gpio)
+  # initialise the rtc
+  # setup led pwm
 
 proc isBusy*(): bool =
-  ##  check busy flag on shift register
+  # check busy flag on shift register
   not readShiftRegisterBit(Flags.EinkBusy.uint8)
 
 proc update*(self: var InkyFrame; blocking: bool = false) =
@@ -173,29 +173,29 @@ proc update*(self: var InkyFrame; blocking: bool = false) =
 proc pressed*(button: Button): bool =
   readShiftRegisterBit(button.uint8)
 
-##  set the LED brightness by generating a gamma corrected target value for
-##  the 16-bit pwm channel. brightness values are from 0 to 100.
+# set the LED brightness by generating a gamma corrected target value for
+# the 16-bit pwm channel. brightness values are from 0 to 100.
 
 proc led*(self: InkyFrame; led: Led; brightness: range[0.uint8..100.uint8]) =
   pwmSetGpioLevel(led.Gpio, (pow(brightness.float / 100, 2.8) * 65535.0f + 0.5f).uint16)
 
 proc sleep*(self: var InkyFrame; wakeInMinutes: int) =
   if wakeInMinutes != -1:
-    ##  set an alarm to wake inky up in wake_in_minutes - the maximum sleep
-    ##  is 255 minutes or around 4.5 hours which is the longest timer the RTC
-    ##  supports, to sleep any longer we need to specify a date and time to
-    ##  wake up
+    # set an alarm to wake inky up in wake_in_minutes - the maximum sleep
+    # is 255 minutes or around 4.5 hours which is the longest timer the RTC
+    # supports, to sleep any longer we need to specify a date and time to
+    # wake up
     self.rtc.setTimer(wakeInMinutes.uint8, tt1Over60Hz)
     self.rtc.enableTimerInterrupt(true, false)
   
-  ## release the vsys hold pin so that inky can go to sleep
+  # release the vsys hold pin so that inky can go to sleep
   gpioPut(PinHoldSysEn, Low)
   while true:
     discard
 
 proc sleepUntil*(self: var InkyFrame; second: int; minute: int; hour: int; day: int) =
   if second != -1 or minute != -1 or hour != -1 or day != -1:
-    ##  set an alarm to wake inky up at the specified time and day
+    # set an alarm to wake inky up at the specified time and day
     self.rtc.setAlarm(second, minute, hour, day)
     self.rtc.enableAlarmInterrupt(true)
   gpioPut(PinHoldSysEn, Low)
@@ -211,22 +211,22 @@ proc image*(self: var InkyFrame; data: openArray[uint8]; stride: int; sx: int; s
     while x < dw:
       let o = ((y + sy) * (stride div 2)) + ((x + sx) div 2)
       let d: uint8 = if ((x + sx) and 0b1) != 0: data[o] shr 4 else: data[o] and 0xf
-      ##  draw the pixel
+      # draw the pixel
       self.setPen(d)
       self.pixel(Point(x: dx + x, y: dy + y))
       inc(x)
     inc(y)
 
 proc icon*(self: var InkyFrame; data: openArray[uint8]; sheetWidth: int; iconSize: int; index: int; dx: int; dy: int) =
-  ##  Display a portion of an image (icon sheet) at dx, dy
+  ## Display a portion of an image (icon sheet) at dx, dy
   self.image(data, sheetWidth, iconSize * index, 0, iconSize, iconSize, dx, dy)
 
 proc image*(self: var InkyFrame; data: openArray[uint8]; w: int; h: int; x: int; y: int) =
-  ##  Display an image smaller than the screen (sw*sh) at dx, dy
+  ## Display an image smaller than the screen (sw*sh) at dx, dy
   self.image(data, w, 0, 0, w, h, x, y)
 
 proc image*(self: var InkyFrame; data: openArray[uint8]) =
-  ##  Display an image that fills the screen
+  ## Display an image that fills the screen
   self.image(data, self.width, 0, 0, self.width, self.height, 0, 0)
 
 

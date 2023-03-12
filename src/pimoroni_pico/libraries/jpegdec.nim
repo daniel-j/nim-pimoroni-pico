@@ -124,7 +124,7 @@ type
 
 type
   JPEGCOMPINFO* {.importc: "JPEGCOMPINFO", bycopy.} = object ##  These values are fixed over the whole image
-                                                                            ##  For compression, they must be supplied by the user interface
+                                                                            ## For compression, they must be supplied by the user interface
                                                                             ##  for decompression, they are read from the SOF marker.
     component_needed* {.importc: "component_needed".}: uint8 ##   do we need the value of this component?
     component_id* {.importc: "component_id".}: uint8 ##  identifier for this component (0..255)
@@ -132,16 +132,16 @@ type
                                                         ## unsigned char h_samp_factor;    /* horizontal sampling factor (1..4) */
                                                         ## unsigned char v_samp_factor;    /* vertical sampling factor (1..4) */
     quant_tbl_no* {.importc: "quant_tbl_no".}: uint8 ##  quantization table selector (0..3)
-                                                  ##  These values may vary between scans
-                                                  ##  For compression, they must be supplied by the user interface
+                                                  ## These values may vary between scans
+                                                  ## For compression, they must be supplied by the user interface
                                                   ##  for decompression, they are read from the SOS marker.
     dc_tbl_no* {.importc: "dc_tbl_no".}: uint8 ##  DC entropy table selector (0..3)
     ac_tbl_no* {.importc: "ac_tbl_no".}: uint8 ##  AC entropy table selector (0..3)
-                                            ##  These values are computed during compression or decompression startup
+                                            ## These values are computed during compression or decompression startup
                                             ## int true_comp_width;  /* component's image width in samples */
                                             ## int true_comp_height; /* component's image height in samples */
                                             ##  the above are the logical dimensions of the downsampled image
-                                            ##  These values are computed before starting a scan of the component
+                                            ## These values are computed before starting a scan of the component
                                             ## int MCU_width;        /* number of blocks per MCU, horizontally */
                                             ## int MCU_height;       /* number of blocks per MCU, vertically */
                                             ## int MCU_blocks;       /* MCU_width * MCU_height */
@@ -151,7 +151,7 @@ type
                                             ##  the MCU dimensions; these are the working dimensions of the array
                                             ##  as it is passed through the DCT or IDCT step.  NOTE: these values
                                             ##  differ depending on whether the component is interleaved or not!!
-                                            ##  This flag is used only for decompression.  In cases where some of the
+                                            ## This flag is used only for decompression.  In cases where some of the
                                             ##  components will be ignored (eg grayscale output from YCbCr image),
                                             ##  we can skip IDCT etc. computations for the unused components.
 

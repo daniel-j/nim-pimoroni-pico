@@ -686,7 +686,7 @@ proc line*(self: var PicoGraphics; p1: Point; p2: Point) =
       dec(s)
 
 proc frameConvertRgb565*(self: var PicoGraphics; callback: PicoGraphicsConversionCallbackFunc; getNextPixel: PicoGraphicsNextPixelFunc) =
-  ##  Allocate two temporary buffers, as the callback may transfer by DMA
+  ## Allocate two temporary buffers, as the callback may transfer by DMA
   ##  while we're preparing the next part of the row
   const BUF_LEN = 64
   var rowBuf: array[2, array[BUF_LEN, uint16]]
@@ -696,17 +696,17 @@ proc frameConvertRgb565*(self: var PicoGraphics; callback: PicoGraphicsConversio
     rowBuf[bufIdx][bufEntry] = getNextPixel().uint16
     inc(bufEntry)
 
-    ##  Transfer a filled buffer and swap to the next one
+    ## Transfer a filled buffer and swap to the next one
     if bufEntry == BUF_LEN:
       callback(rowBuf[bufIdx][0].addr, BUF_LEN * sizeof(RGB565))
       bufIdx = bufIdx xor 1
       bufEntry = 0
 
-  ##  Transfer any remaining pixels ( < BUF_LEN )
+  ## Transfer any remaining pixels ( < BUF_LEN )
   if bufEntry > 0:
     callback(rowBuf[bufIdx][0].addr, uint(bufEntry * sizeof(RGB565)))
 
-  ##  Callback with zero length to ensure previous buffer is fully written
+  ## Callback with zero length to ensure previous buffer is fully written
   callback(rowBuf[bufIdx][0].addr, 0)
 
 

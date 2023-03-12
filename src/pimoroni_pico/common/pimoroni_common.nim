@@ -8,7 +8,7 @@ export i2c, spi, gpio, time
 const
   PinUnused* = -1.int8
 
-  ##  I2C
+  ## I2C
   I2cDefaultBaudrate* = 400_000
   I2cDefaultSda* = 20.Gpio
   I2cDefaultScl* = 21.Gpio
@@ -20,7 +20,7 @@ const
   I2cHeaderScl* = 21.Gpio
   I2cHeaderInt* = 19.Gpio
 
-  ##  SPI
+  ## SPI
   SpiDefaultMosi* = 19.Gpio
   SpiDefaultMiso* = 16.Gpio
   SpiDefaultDC* = 16.Gpio
@@ -49,7 +49,7 @@ const
                     214, 216, 218, 220, 222, 224, 227, 229, 231, 233, 235,
                     237, 239, 241, 244, 246, 248, 250, 252, 255]
 
-  ##  Moved from pico_unicorn.cpp
+  ## Moved from pico_unicorn.cpp
   ##     v = (uint16_t)(powf((float)(n) / 255.0f, 2.2) * 16383.0f + 0.5f)
   Gamma14Bit* = [0.uint16, 0, 0, 1, 2, 3, 4, 6, 8, 10, 13, 16, 20, 23, 28, 32, 37,
                       42, 48, 54, 61, 67, 75, 82, 90, 99, 108, 117, 127, 137,

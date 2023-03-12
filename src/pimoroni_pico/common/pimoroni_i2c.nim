@@ -20,9 +20,9 @@ proc init*(self: var I2c; sda: Gpio = I2cDefaultSda; scl: Gpio = I2cDefaultScl; 
   self.i2c = PimoroniI2cDefaultInstance
 
   #self.i2c = pinToInst(self.sda)
-  ##  TODO call pin_to_inst on sda and scl, and verify they are a valid i2c pin pair
-  ##  TODO maybe also fall back to PIO i2c for non-standard pin combinations
-  ##  Since it's easy to leave the I2C in a bad state when experimenting in the MicroPython REPL
+  ## TODO call pin_to_inst on sda and scl, and verify they are a valid i2c pin pair
+  ## TODO maybe also fall back to PIO i2c for non-standard pin combinations
+  ## Since it's easy to leave the I2C in a bad state when experimenting in the MicroPython REPL
   ##  self loop will find any I2C pins relevant to the current instance and reset them.
   var pin = 0
   while pin < 30:

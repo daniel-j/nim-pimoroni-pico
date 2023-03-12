@@ -10,7 +10,7 @@ const
 
 type
   Pcf85063a* = object
-    i2c: I2c               ##  Interface pins with our standard defaults where appropriate
+    i2c: I2c               ## Interface pins with our standard defaults where appropriate
     address: I2cAddress
     interrupt: int8
 
