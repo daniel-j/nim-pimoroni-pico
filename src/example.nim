@@ -22,9 +22,14 @@ echo "USB connected"
 
 
 
+import std/strutils
+
 var fs: FATFS
 var jpeg: JPEGDEC
-var inky: InkyFrame
+
+const inkyKind {.strdefine.} = "Unknown inkyKind"
+const inkyKindEnum = parseEnum[InkyFrameKind](inkyKind, InkyFrame5_6)
+var inky: InkyFrame[inkyKindEnum]
 
 type
   JpegDecodeOptions = object
@@ -333,7 +338,7 @@ proc drawJpeg(filename: string; x, y: int = 0; w, h: int; dither: bool = false; 
   return 1
 
 proc drawFile(filename: string) =
-  inky.led(Led.Activity, 50)
+  inky.led(Activity, 50)
   inky.setPen(Pen.White)
   inky.setBorder(Pen.White)
   inky.clear()
@@ -356,12 +361,12 @@ proc drawFile(filename: string) =
   # inky.rectangle(constructRect((600 div 8) * 7, 0, 600 div 8, 448))
 
   if drawJpeg(filename, 0, -1, 600, 450, dither=false, gravity=(0.5, 0.5)) == 1:
-    inky.led(Led.Activity, 100)
+    inky.led(Activity, 100)
     inky.update()
-    inky.led(Led.Activity, 0)
+    inky.led(Activity, 0)
     sleepMs(1 * 60 * 1000)
   else:
-    inky.led(Led.Activity, 0)
+    inky.led(Activity, 0)
 
 iterator walkDir(directory: string): FILINFO =
   var file: FILINFO
@@ -454,10 +459,10 @@ proc inkyProc() =
 inkyProc()
 
 while true:
-  inky.led(Led.Activity, 0)
+  inky.led(Activity, 0)
   # cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, true)
   sleepMs(250)
-  inky.led(Led.Activity, 100)
+  inky.led(Activity, 100)
   # cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, false)
   sleepMs(250)
   tightLoopContents()

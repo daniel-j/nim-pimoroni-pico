@@ -374,6 +374,7 @@ type
     penType*: PicoGraphicsPenType
     bounds*: Rect
     clip*: Rect
+    thickness*: Natural
     conversionCallbackFunc*: PicoGraphicsConversionCallbackFunc
     nextPixelFunc*: PicoGraphicsNextPixelFunc
     #bitmapFont*: ref Font
@@ -408,6 +409,7 @@ method setPen*(self: var PicoGraphics; c: Rgb) {.base.} = discard
 method setPixel*(self: var PicoGraphics; p: Point) {.base.} = discard
 method setPixel*(self: var PicoGraphics; p: Point; c: Rgb) {.base.} = discard
 method setPixelSpan*(self: var PicoGraphics; p: Point; l: uint) {.base.} = discard
+proc setThickness*(self: var PicoGraphics; thickness: Positive) = self.thickness = thickness
 method createPen*(self: var PicoGraphics; r: uint8; g: uint8; b: uint8): int {.base.} = discard
 method updatePen*(self: var PicoGraphics; i: uint8; r: uint8; g: uint8; b: uint8): int {.base.} = discard
 method resetPen*(self: var PicoGraphics; i: uint8): int {.base.} = discard
@@ -420,8 +422,6 @@ method sprite*(self: var PicoGraphics; data: pointer; sprite: Point; dest: Point
 # proc setFont*(self: var PicoGraphics; font: BitmapFont) = discard
 # proc setFont*(self: var PicoGraphics; font: HersheyFont) = discard
 # proc setFont*(self: var PicoGraphics; font: string) = discard
-
-
 
 proc setFramebuffer*(self: var PicoGraphics; frameBuffer: seq[uint8]) = self.frameBuffer = frameBuffer
 
@@ -685,6 +685,56 @@ proc line*(self: var PicoGraphics; p1: Point; p2: Point) =
       inc(x, sx)
       dec(s)
 
+proc thickLine*(self: var PicoGraphics; p1: Point; p2: Point; thickness: Positive = self.thickness) =
+  let ht = thickness div 2 # half thickness
+  let t = thickness # alias for thickness
+
+  ##  fast horizontal line
+  if p1.y == p2.y:
+    let start = min(p1.x, p2.x)
+    let `end` = max(p1.x, p2.x)
+    self.rectangle(Rect(x: start, y: p1.y - ht, w: `end` - start, h: t))
+    return
+
+  ##  fast vertical line
+  if p1.x == p2.x:
+    let start = min(p1.y, p2.y)
+    var length = max(p1.y, p2.y) - start
+    self.rectangle(Rect(x: p1.x - ht, y: start, w: t, h: length))
+    return
+
+  ##  general purpose line
+  ##  lines are either "shallow" or "steep" based on whether the x delta
+  ##  is greater than the y delta
+  let dx = p2.x - p1.x
+  let dy = p2.y - p1.y
+  var shallow = abs(dx) > abs(dy)
+  if shallow:
+    ##  shallow version
+    var s = abs(dx)  ##  number of steps
+    let sx = if dx < 0: -1 else: 1  ##  x step value
+    let sy = (dy shl 16) div s  ##  y step value in fixed 16:16
+    var x = p1.x
+    var y = p1.y shl 16
+    while s > 0:
+      self.rectangle(Rect(x: x - ht, y: (y shr 16) - ht, w: t, h: t))
+      inc(y, sy)
+      inc(x, sx)
+      dec(s)
+
+  else:
+    ##  steep version
+    var s = abs(dy)  ##  number of steps
+    let sy = if dy < 0: -1 else: 1  ##  y step value
+    let sx = (dx shl 16) div s  ##  x step value in fixed 16:16
+    var y = p1.y
+    var x = p1.x shl 16
+    while s > 0:
+      self.rectangle(Rect(x: (x shr 16) - ht, y: y - ht, w: t, h: t))
+      inc(y, sy)
+      inc(x, sx)
+      dec(s)
+
 proc frameConvertRgb565*(self: var PicoGraphics; callback: PicoGraphicsConversionCallbackFunc; getNextPixel: PicoGraphicsNextPixelFunc) =
   ## Allocate two temporary buffers, as the callback may transfer by DMA
   ##  while we're preparing the next part of the row
@@ -715,7 +765,7 @@ proc frameConvertRgb565*(self: var PicoGraphics; callback: PicoGraphicsConversio
 ##
 
 type
-  PicoGraphicsPen1Bit* {.bycopy.} = object of PicoGraphics
+  PicoGraphicsPen1Bit* = object of PicoGraphics
     color*: uint8
 
 func bufferSize*(self: PicoGraphicsPen1Bit; w: uint; h: uint): uint =
@@ -766,7 +816,7 @@ method setPixelSpan*(self: var PicoGraphicsPen1Bit; p: Point; l: uint) =
 ##
 
 type
-  PicoGraphicsPen1BitY* {.bycopy.} = object of PicoGraphicsPen1Bit
+  PicoGraphicsPen1BitY* = object of PicoGraphicsPen1Bit
 
 method setPen*(self: var PicoGraphicsPen1BitY; c: Rgb) =
   self.color = (max(c.r, max(c.g, c.b)) shr 4).uint8
@@ -804,7 +854,7 @@ method setPixelSpan*(self: var PicoGraphicsPen1BitY; p: Point; l: uint) =
 ##
 
 type
-  PicoGraphicsPen3Bit* {.bycopy.} = object of PicoGraphics
+  PicoGraphicsPen3Bit* = object of PicoGraphics
     color*: 0'u8 .. 7'u8
     palette*: array[8, Rgb]
     # candidateCache*: array[512, array[16, uint8]]
@@ -825,11 +875,11 @@ const PicoGraphicsPen3BitPalette* = [
 func bufferSize*(self: PicoGraphicsPen3Bit; w: uint; h: uint): uint =
   return (w * h div 8) * 3
 
-proc init*(self: var PicoGraphicsPen3Bit; width: uint16; height: uint16; frameBuffer: seq[uint8] = @[]) {.constructor.} =
-  init(PicoGraphics(self), width, height, frameBuffer)
+proc init*(self: var PicoGraphicsPen3Bit; width: uint16; height: uint16; frameBuffer: seq[uint8] = @[]; noFrameBuffer: bool = false) {.constructor.} =
+  PicoGraphics(self).init(width, height, frameBuffer)
   self.penType = Pen_3Bit
   self.palette = PicoGraphicsPen3BitPalette
-  if self.frameBuffer.len == 0:
+  if self.frameBuffer.len == 0 and not noFrameBuffer:
     self.frameBuffer = newSeq[uint8](self.bufferSize(width, height))
 
 proc constructPicoGraphicsPen3Bit*(width: uint16; height: uint16; frameBuffer: seq[uint8] = @[]): PicoGraphicsPen3Bit {.constructor.} =
