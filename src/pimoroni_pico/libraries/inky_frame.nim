@@ -18,16 +18,16 @@ const
   #PinI2cInt = 3.Gpio
   PinI2cSda = 4.Gpio
   PinI2CScl = 5.Gpio
-  LedActivity* = 6.Gpio
-  LedConnection* = 7.Gpio
+  PinLedActivity* = 6.Gpio
+  PinLedConnection* = 7.Gpio
   PinSrClock = 8.Gpio
   PinSrLatch = 9.Gpio
   PinSrOut = 10.Gpio
-  LedA* = 11.Gpio
-  LedB* = 12.Gpio
-  LedC* = 13.Gpio
-  LedD* = 14.Gpio
-  LedE* = 15.Gpio
+  PinLedA* = 11.Gpio
+  PinLedB* = 12.Gpio
+  PinLedC* = 13.Gpio
+  PinLedD* = 14.Gpio
+  PinLedE* = 15.Gpio
   #PinMiso = 16.Gpio
   PinEinkCs = 17.Gpio
   PinClk = 18.Gpio
@@ -45,6 +45,14 @@ type
   InkyFrameKind* = enum
     InkyFrame4_0, InkyFrame5_6, InkyFrame7_3
 
+  InkyFrame*[kind: static[InkyFrameKind]] = object of PicoGraphicsPen3Bit
+    uc8159*: Uc8159
+    rtc*: Pcf85063a
+    width*, height*: int
+    wakeUpEvent: WakeUpEvent
+    when kind == InkyFrame7_3:
+      ramDisplay*: PsRamDisplay
+
   Button* {.pure.} = enum
     A = 0
     B = 1
@@ -53,13 +61,13 @@ type
     E = 4
 
   Led* {.pure.} = enum
-    Activity = LedActivity
-    Connection = LedConnection
-    A = LedA
-    B = LedB
-    C = LedC
-    D = LedD
-    E = LedE
+    Activity = PinLedActivity
+    Connection = PinLedConnection
+    A = PinLedA
+    B = PinLedB
+    C = PinLedC
+    D = PinLedD
+    E = PinLedE
 
   Flags* {.pure.} = enum
     RtcAlarm = 5
@@ -77,17 +85,6 @@ type
     ExternalTrigger = 7
 
   Pen* = uc8159.Colour
-
-  InkyFrame*[kind: static[InkyFrameKind]] = object of PicoGraphicsPen3Bit
-    uc8159*: Uc8159
-    rtc*: Pcf85063a
-    width*, height*: int
-    wakeUpEvent: WakeUpEvent
-    when kind == InkyFrame7_3:
-      ramDisplay*: PsRamDisplay
-
-proc newInkyFrame*[IF: InkyFrame](kind: static[InkyFrameKind]): IF {.constructor.} =
-  return InkyFrame[kind]()
 
 proc gpioConfigure*(gpio: Gpio; dir: Direction; value: Value = Low) =
   gpioSetFunction(gpio, Sio)
@@ -166,13 +163,13 @@ proc init*[IF: InkyFrame](self: var IF) =
   self.rtc.init(move i2c)
 
   # setup led pwm
-  gpioConfigurePwm(LedA)
-  gpioConfigurePwm(LedB)
-  gpioConfigurePwm(LedC)
-  gpioConfigurePwm(LedD)
-  gpioConfigurePwm(LedE)
-  gpioConfigurePwm(LedActivity)
-  gpioConfigurePwm(LedConnection)
+  gpioConfigurePwm(PinLedA)
+  gpioConfigurePwm(PinLedB)
+  gpioConfigurePwm(PinLedC)
+  gpioConfigurePwm(PinLedD)
+  gpioConfigurePwm(PinLedE)
+  gpioConfigurePwm(PinLedActivity)
+  gpioConfigurePwm(PinLedConnection)
 
   when self.kind == InkyFrame7_3:
     self.ramDisplay.init(self.width.uint16, self.height.uint16)
