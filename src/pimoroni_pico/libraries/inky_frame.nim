@@ -69,7 +69,7 @@ type
     LedD = PinLedD
     LedE = PinLedE
 
-  Flags = enum
+  Flag* = enum
     FlagRtcAlarm = 5
     FlagExternalTrigger = 6
     FlagEinkBusy = 7
@@ -186,7 +186,7 @@ proc update*[IF: InkyFrame](self: var IF; blocking: bool = false) =
     tightLoopContents()
   self.uc8159.powerOff()
 
-proc pressed*(button: Button): bool =
+proc pressed*(button: Button|Flag): bool =
   readShiftRegisterBit(button.uint8)
 
 # set the LED brightness by generating a gamma corrected target value for
