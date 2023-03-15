@@ -588,7 +588,7 @@ const ditherCachePenP3 = getDitherCache(PicoGraphicsPenP3Palette)
 const closestCachePen3Bit = getNearestCache(PicoGraphicsPenP3Palette)
 
 method setPen*(self: var PicoGraphicsPenP3; c: uint) =
-  self.color = uint8(c and 0xf)
+  self.color = uint8 c and 0xf
 
 method setPen*(self: var PicoGraphicsPenP3; c: Rgb) =
   let cacheKey = (((c.r and 0xE0) shl 1) or ((c.g and 0xE0) shr 2) or ((c.b and 0xE0) shr 5))

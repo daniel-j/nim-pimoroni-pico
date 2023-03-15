@@ -245,5 +245,4 @@ proc image*[IF: InkyFrame](self: var IF; data: openArray[uint8]) =
   ## Display an image that fills the screen
   self.image(data, self.width, 0, 0, self.width, self.height, 0, 0)
 
-
-proc setPen*(self: var PicoGraphicsPenP3; c: Colour) = self.setPen(c.uint)
+template setPen*[IF: InkyFrame](self: var IF; c: Colour) = self.setPen(c.uint8)
