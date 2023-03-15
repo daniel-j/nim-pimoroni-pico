@@ -217,7 +217,7 @@ proc powerOff*(self: var Uc8159) =
   ##  turn off
 
 method update*(self: var Uc8159; graphics: var PicoGraphics) =
-  if graphics.penType != Pen_3Bit:
+  if graphics.penType != Pen_P3:
     return
 
   if self.blocking:

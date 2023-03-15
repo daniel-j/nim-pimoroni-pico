@@ -223,13 +223,13 @@ proc jpegdec_draw_callback(draw: ptr JPEGDRAW): cint {.cdecl.} =
       var divider = 0
       for sx in sxmin..<sxmax:
         for sy in symin..<symax:
-          colorv += constructRgb(RGB565(p[sx + sy * draw.iWidth])).rgbToVec3().srgbToLinear()
+          colorv += constructRgb(Rgb565(p[sx + sy * draw.iWidth])).rgbToVec3().srgbToLinear()
           inc(divider)
       if divider > 0:
         color = (colorv / divider.float).linearToSRGB().vec3ToRgb()
       else:
         # fallback
-        color = constructRgb(RGB565(p[sxmin + symin * draw.iWidth]))
+        color = constructRgb(Rgb565(p[sxmin + symin * draw.iWidth]))
 
       color = color.level(black=0.0, white=0.97).saturate(1.30)
       #color = color.level(white=0.96)

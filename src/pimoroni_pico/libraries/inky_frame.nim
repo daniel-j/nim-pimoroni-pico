@@ -45,7 +45,7 @@ type
   InkyFrameKind* = enum
     InkyFrame4_0, InkyFrame5_6, InkyFrame7_3
 
-  InkyFrame*[kind: static[InkyFrameKind]] = object of PicoGraphicsPen3Bit
+  InkyFrame*[kind: static[InkyFrameKind]] = object of PicoGraphicsPenP3
     uc8159*: Uc8159
     rtc*: Pcf85063a
     width*, height*: int
@@ -122,7 +122,7 @@ proc init*[IF: InkyFrame](self: var IF) =
     of InkyFrame5_6: (600, 448)
     of InkyFrame7_3: (800, 480)
 
-  PicoGraphicsPen3Bit(self).init(self.width.uint16, self.height.uint16, noFrameBuffer=static self.kind in [InkyFrame7_3])
+  PicoGraphicsPenP3(self).init(self.width.uint16, self.height.uint16, noFrameBuffer=static self.kind in [InkyFrame7_3])
   self.uc8159.init(self.width.uint16, self.height.uint16, SPIPins(spi: spi0, cs: PinEinkCs, sck: PinClk, mosi: PinMosi, dc: PinEinkDc))
 
   # keep the pico awake by holding vsys_en high
@@ -246,4 +246,4 @@ proc image*[IF: InkyFrame](self: var IF; data: openArray[uint8]) =
   self.image(data, self.width, 0, 0, self.width, self.height, 0, 0)
 
 
-proc setPen*(self: var PicoGraphicsPen3Bit; c: Colour) = self.setPen(c.uint)
+proc setPen*(self: var PicoGraphicsPenP3; c: Colour) = self.setPen(c.uint)
