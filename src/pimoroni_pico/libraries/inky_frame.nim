@@ -53,28 +53,28 @@ type
     when kind == InkyFrame7_3:
       ramDisplay*: PsRamDisplay
 
-  Button* {.pure.} = enum
-    A = 0
-    B = 1
-    C = 2
-    D = 3
-    E = 4
+  Button* = enum
+    BtnA = 0
+    BtnB = 1
+    BtnC = 2
+    BtnD = 3
+    BtnE = 4
 
-  Led* {.pure.} = enum
-    Activity = PinLedActivity
-    Connection = PinLedConnection
-    A = PinLedA
-    B = PinLedB
-    C = PinLedC
-    D = PinLedD
-    E = PinLedE
+  Led* = enum
+    LedActivity = PinLedActivity
+    LedConnection = PinLedConnection
+    LedA = PinLedA
+    LedB = PinLedB
+    LedC = PinLedC
+    LedD = PinLedD
+    LedE = PinLedE
 
-  Flags* {.pure.} = enum
-    RtcAlarm = 5
-    ExternalTrigger = 6
-    EinkBusy = 7
+  Flags = enum
+    FlagRtcAlarm = 5
+    FlagExternalTrigger = 6
+    FlagEinkBusy = 7
 
-  WakeUpEvent* {.pure.} = enum
+  WakeUpEvent* = enum
     Unknown = 0
     ButtonA = 1
     ButtonB = 2
@@ -135,19 +135,19 @@ proc init*[IF: InkyFrame](self: var IF) =
   self.wakeUpEvent = Unknown
 
   # determine wake up event
-  if readShiftRegisterBit(Button.A.uint8):
+  if readShiftRegisterBit(BtnA.uint8):
     self.wakeUpEvent = WakeUpEvent.ButtonA
-  if readShiftRegisterBit(Button.B.uint8):
+  if readShiftRegisterBit(BtnB.uint8):
     self.wakeUpEvent = WakeUpEvent.ButtonB
-  if readShiftRegisterBit(Button.C.uint8):
+  if readShiftRegisterBit(BtnC.uint8):
     self.wakeUpEvent = WakeUpEvent.ButtonC
-  if readShiftRegisterBit(Button.D.uint8):
+  if readShiftRegisterBit(BtnD.uint8):
     self.wakeUpEvent = WakeUpEvent.ButtonD
-  if readShiftRegisterBit(Button.E.uint8):
+  if readShiftRegisterBit(BtnE.uint8):
     self.wakeUpEvent = WakeUpEvent.ButtonE
-  if readShiftRegisterBit(Flags.RtcAlarm.uint8):
+  if readShiftRegisterBit(FlagRtcAlarm.uint8):
     self.wakeUpEvent = WakeUpEvent.RtcAlarm
-  if readShiftRegisterBit(Flags.ExternalTrigger.uint8):
+  if readShiftRegisterBit(FlagExternalTrigger.uint8):
     self.wakeUpEvent = WakeUpEvent.ExternalTrigger
   # there are other reasons a wake event can occur: connect power via usb,
   # connect a battery, or press the reset button. these cannot be
@@ -176,7 +176,7 @@ proc init*[IF: InkyFrame](self: var IF) =
 
 proc isBusy*(): bool =
   # check busy flag on shift register
-  not readShiftRegisterBit(Flags.EinkBusy.uint8)
+  not readShiftRegisterBit(FlagEinkBusy.uint8)
 
 proc update*[IF: InkyFrame](self: var IF; blocking: bool = false) =
   while isBusy():
