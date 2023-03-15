@@ -1,8 +1,8 @@
 import picostdlib
-import ../common/pimoroni_common, ../libraries/pico_graphics
+import ../common/pimoroni_common, ../libraries/pico_graphics/display_driver
 import ../common/pimoroni_bus
 
-export pico_graphics, pimoroni_bus
+export display_driver, pimoroni_bus
 
 type
   Uc8159* = object of DisplayDriver

@@ -338,7 +338,7 @@ proc drawJpeg(filename: string; x, y: int = 0; w, h: int; dither: bool = false; 
   return 1
 
 proc drawFile(filename: string) =
-  inky.led(Activity, 50)
+  inky.led(LedActivity, 50)
   inky.setPen(Pen.White)
   inky.setBorder(Pen.White)
   inky.clear()
@@ -361,12 +361,12 @@ proc drawFile(filename: string) =
   # inky.rectangle(constructRect((600 div 8) * 7, 0, 600 div 8, 448))
 
   if drawJpeg(filename, 0, -1, 600, 450, dither=false, gravity=(0.5, 0.5)) == 1:
-    inky.led(Activity, 100)
+    inky.led(LedActivity, 100)
     inky.update()
-    inky.led(Activity, 0)
+    inky.led(LedActivity, 0)
     sleepMs(1 * 60 * 1000)
   else:
-    inky.led(Activity, 0)
+    inky.led(LedActivity, 0)
 
 iterator walkDir(directory: string): FILINFO =
   var file: FILINFO
@@ -459,10 +459,10 @@ proc inkyProc() =
 inkyProc()
 
 while true:
-  inky.led(Activity, 0)
+  inky.led(LedActivity, 0)
   # cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, true)
   sleepMs(250)
-  inky.led(Activity, 100)
+  inky.led(LedActivity, 100)
   # cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, false)
   sleepMs(250)
   tightLoopContents()

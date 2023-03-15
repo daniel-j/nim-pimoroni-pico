@@ -3,14 +3,6 @@
 #   libraries/bitmapFonts/font6Data, libraries/bitmapFonts/font8Data,
 #   libraries/bitmapFonts/font14OutlineData
 
-import std/[algorithm, math]
-
-type
-  Rotation* {.pure.} = enum
-    Rotate_0 = 0, Rotate_90 = 90, Rotate_180 = 180, Rotate_270 = 270
-
-proc builtinBswap16(a: uint16): uint16 {.importc: "__builtin_bswap16", nodecl, noSideEffect.}
-
 ##  A tiny graphics library for our Pico products
 ##  supports:
 ##    - 16-bit (565) RGB
@@ -18,357 +10,32 @@ proc builtinBswap16(a: uint16): uint16 {.importc: "__builtin_bswap16", nodecl, n
 ##    - 8-bit with 16-bit 256 entry palette
 ##    - 4-bit with 16-bit 8 entry palette
 
-##
-## RGB
-##
+import ./pico_graphics/rgb
+import ./pico_graphics/shapes
+import ./pico_graphics/luts
 
-type
-  Rgb332* = distinct uint8
-  Rgb565* = distinct uint16
-  Rgb888* = distinct uint32
-  Rgb* {.bycopy, packed.} = object
-    r*: int16
-    g*: int16
-    b*: int16
+export rgb, shapes, luts
 
-func constructRgb*(): Rgb {.constructor.} =
-  result.r = 0
-  result.g = 0
-  result.b = 0
-
-func constructRgb*(c: Rgb332): Rgb {.constructor.} =
-  result.r = ((c.uint8 and 0b11100000) shr 0).int16
-  result.g = ((c.uint8 and 0b00011100) shl 3).int16
-  result.b = ((c.uint8 and 0b00000011) shl 6).int16
-
-func constructRgb*(c: Rgb565): Rgb {.constructor.} =
-  result.r = (((c.uint16) and 0b1111100000000000) shr 8).int16
-  result.g = (((c.uint16) and 0b0000011111100000) shr 3).int16
-  result.b = (((c.uint16) and 0b0000000000011111) shl 3).int16
-
-func constructRgbBe*(c: Rgb565): Rgb {.constructor.} =
-  result.r = ((builtinBswap16(c.uint16) and 0b1111100000000000) shr 8).int16
-  result.g = ((builtinBswap16(c.uint16) and 0b0000011111100000) shr 3).int16
-  result.b = ((builtinBswap16(c.uint16) and 0b0000000000011111) shl 3).int16
-
-func constructRgb*(r: int16; g: int16; b: int16): Rgb {.constructor.} =
-  result.r = r
-  result.g = g
-  result.b = b
-
-func `+`*(self: Rgb; c: Rgb): Rgb =
-  return constructRgb(self.r + c.r, self.g + c.g, self.b + c.b)
-
-func `*`*(self: Rgb; i: int16): Rgb =
-  return constructRgb(self.r * i, self.g * i, self.b * i)
-func `*`*(self: Rgb; i: float): Rgb =
-  return constructRgb((self.r.float * i).int16, (self.g.float * i).int16, (self.b.float * i).int16)
-
-func `div`*(self: Rgb; i: int16): Rgb =
-  return constructRgb(self.r div i, self.g div i, self.b div i)
-
-
-proc inc*(self: var Rgb; c: Rgb) =
-  inc(self.r, c.r)
-  inc(self.g, c.g)
-  inc(self.b, c.b)
-
-proc inc*(self: var Rgb; i: int) =
-  inc(self.r, i)
-  inc(self.g, i)
-  inc(self.b, i)
-
-proc dec*(self: var Rgb; c: Rgb) =
-  dec(self.r, c.r)
-  dec(self.g, c.g)
-  dec(self.b, c.b)
-
-proc dec*(self: var Rgb; i: int) =
-  dec(self.r, i)
-  dec(self.g, i)
-  dec(self.b, i)
-
-func `-`*(self: Rgb; c: Rgb): Rgb =
-  return constructRgb(self.r - c.r, self.g - c.g, self.b - c.b)
-func `-`*(self: Rgb; i: int16): Rgb =
-  return constructRgb(self.r - i, self.g - i, self.b - i)
-
-func clamp*(self: Rgb): Rgb =
-  result.r = clamp(self.r, 0, 255)
-  result.g = clamp(self.g, 0, 255)
-  result.b = clamp(self.b, 0, 255)
-
-func luminance*(self: Rgb): int =
-  ##  weights based on https://www.johndcook.com/blog/2009/08/24/algorithms-convert-color-grayscale/
-  return self.r * 21 + self.g * 72 + self.b * 7
-
-func distance*(self: Rgb; c: Rgb; whitepoint: Rgb = Rgb(r: 255, g: 255, b: 255)): float =
-  let e1 = (self)
-  let e2 = (c)
-  ##  algorithm from https://www.compuphase.com/cmetric.htm
-  let rmean = ((e1.r.float + e2.r.float) / 2) * (whitepoint.r.float / 255)
-  let rx = (e1.r.float - e2.r.float) * (whitepoint.r.float / 255)
-  let gx = (e1.g.float - e2.g.float) * (whitepoint.g.float / 255)
-  let bx = (e1.b.float - e2.b.float) * (whitepoint.b.float / 255)
-  return ((((512 + rmean) * rx * rx).int64 shr 8).float + 4.0 * gx * gx + (((767 - rmean) * bx * bx).int64 shr 8).float).abs()
-  #return ((2 + (rmean / 256)) * rx * rx + 4 * gx * gx + (2 + (255 - rmean) / 256) * bx * bx).abs()
-
-func closest*(self: Rgb; palette: openArray[Rgb]; fallback: int = 0; whitepoint: Rgb = Rgb(r: 255, g: 255, b: 255)): int =
-  assert(palette.len > 0)
-  assert(fallback >= 0 and fallback < palette.len)
-  var
-    d = float.high
-    m = fallback
-  for i in 0 ..< palette.len:
-    let dc = self.distance(palette[i], whitepoint)
-    if dc < d:
-      m = i
-      d = dc
-  return m
-
-func saturate*(self: Rgb; factor: float): Rgb =
-  const luR = 0.3086
-  const luG = 0.6094
-  const luB = 0.0820
-  #const luR = 0.25
-  #const luG = 0.7
-  #const luB = 0.10
-
-  let nfactor = (1 - factor)
-
-  let dz = nfactor * luR
-  let bz = nfactor * luG
-  let cz = nfactor * luB
-  let az = dz + factor
-  let ez = bz + factor
-  let iz = cz + factor
-  let fz = cz
-  let gz = dz
-  let hz = bz
-
-  let red = self.r / 255
-  let green = self.g / 255
-  let blue = self.b / 255
-
-  result.r = ((az*red + bz*green + cz*blue) * 255).int16
-  result.g = ((dz*red + ez*green + fz*blue) * 255).int16
-  result.b = ((gz*red + hz*green + iz*blue) * 255).int16
-
-  result = result.clamp()
-
-func level*(self: Rgb; black: float = 0; white: float = 1; gamma: float = 1): Rgb =
-  var r = self.r / 255
-  var g = self.g / 255
-  var b = self.b / 255
-
-  if black > 0 or white < 1:
-    let wb = white - black
-    r = (r - black) / wb
-    g = (g - black) / wb
-    b = (b - black) / wb
-    r = clamp(r, 0, 1)
-    g = clamp(g, 0, 1)
-    b = clamp(b, 0, 1)
-
-  if gamma != 1:
-    let ngamma = 1 / gamma
-    r = pow(r, ngamma)
-    g = pow(g, ngamma)
-    b = pow(b, ngamma)
-
-  result.r = (r * 255).int16
-  result.g = (g * 255).int16
-  result.b = (b * 255).int16
-
-func toRgb565*(self: Rgb): Rgb565 =
-  let rgb = self.clamp()
-  result = Rgb565(
-    ((rgb.r.uint16 and 0b11111000) shl 8) or
-    ((rgb.g.uint16 and 0b11111100) shl 3) or
-    ((rgb.b.uint16 and 0b11111000) shr 3)
-  )
-
-func toRgb565Be*(self: Rgb): Rgb565 =
-  let p =
-    ((self.r and 0b11111000) shl 8).uint16 or
-    ((self.g and 0b11111100) shl 3).uint16 or
-    ((self.b and 0b11111000) shr 3).uint16
-  return builtinBswap16(p).Rgb565
-
-func toRgb332*(self: Rgb): Rgb332 =
-  (
-    (self.r and 0b11100000) or
-    ((self.g and 0b11100000) shr 3) or
-    ((self.b and 0b11000000) shr 6)
-  ).Rgb332
-
-func toRgb888*(self: Rgb): Rgb888 =
-  (
-    (self.r shl 16).uint32 or
-    (self.g shl 8).uint32 or
-    (self.b shl 0).uint32
-  ).Rgb888
-
-func rgbToRgb332*(r: uint8; g: uint8; b: uint8): Rgb332 =
-  constructRgb(r.int16, g.int16, b.int16).toRgb332()
-
-func rgb332ToRgb565Be*(c: Rgb332): Rgb565 =
-  let p =
-    ((c.uint8 and 0b11100000) shl 8).uint16 or
-    ((c.uint8 and 0b00011100) shl 6).uint16 or
-    ((c.uint8 and 0b00000011) shl 3).uint16
-  return builtinBswap16(p).Rgb565
-
-func rgb565ToRgb332*(c: Rgb565): Rgb332 =
-  let c2 = builtinBswap16(c.uint16)
-  return (
-    ((c2 and 0b1110000000000000) shr 8).uint8 or
-    ((c2 and 0b0000011100000000) shr 6).uint8 or
-    ((c2 and 0b0000000000011000) shr 3).uint8
-  ).Rgb332
-
-func rgbToRgb565*(r: uint8; g: uint8; b: uint8): Rgb565 =
-  constructRgb(r.int16, g.int16, b.int16).toRgb565Be()
-
-func rgb332ToRgb*(c: Rgb332): Rgb = constructRgb(c)
-
-func rgb565ToRgb*(c: Rgb565): Rgb = constructRgb(c)
-
-
-##
-## Point & Rect
-##
-
-type
-  # Pen* = int
-
-  Point* {.bycopy.} = object
-    x*: int
-    y*: int
-  
-  Rect* {.bycopy.} = object
-    x*: int
-    y*: int
-    w*: int
-    h*: int
-
-func constructPoint*(x: int32; y: int32): Point {.constructor.} =
-  result.x = x
-  result.y = y
-
-const P* = constructPoint
-
-proc `-=`*(self: var Point; a: Point): var Point {.inline.} =
-  dec(self.x, a.x)
-  dec(self.y, a.y)
-  return self
-
-proc `+=`*(self: var Point; a: Point): var Point {.inline.} =
-  inc(self.x, a.x)
-  inc(self.y, a.y)
-  return self
-
-proc `/=`*(lhs: var Point; rhs: int32): var Point {.inline.} =
-  lhs.x = lhs.x div rhs
-  lhs.y = lhs.y div rhs
-  return lhs
-
-func `==`*(lhs: Point; rhs: Point): bool {.inline.} =
-  return lhs.x == rhs.x and lhs.y == rhs.y
-
-func `!=`*(lhs: Point; rhs: Point): bool {.inline.} =
-  return not (lhs == rhs)
-
-func `-`*(rhs: Point): Point {.inline.} =
-  return Point(x: -rhs.x, y: -rhs.y)
-
-func clamp*(self: Point; r: Rect): Point =
-  result.x = min(max(self.x, r.x), r.x + r.w)
-  result.y = min(max(self.y, r.y), r.y + r.h)
-
-
-func constructRect*(x: int32; y: int32; w: int32; h: int32): Rect {.constructor.} =
-  result.x = x
-  result.y = y
-  result.w = w
-  result.h = h
-
-func constructRect*(tl: Point; br: Point): Rect {.constructor.} =
-  result.x = tl.x
-  result.y = tl.y
-  result.w = br.x - tl.x
-  result.h = br.y - tl.y
-
-func empty*(self: Rect): bool =
-  return self.w <= 0 or self.h <= 0
-
-func contains*(self: Rect; p: Point): bool =
-  return p.x >= self.x and p.y >= self.y and p.x < self.x + self.w and p.y < self.y + self.h
-
-func contains*(self: Rect; p: Rect): bool =
-  return p.x >= self.x and p.y >= self.y and p.x + p.w < self.x + self.w and p.y + p.h < self.y + self.h
-
-func intersects*(self: Rect; r: Rect): bool =
-  return not (self.x > r.x + r.w or self.x + self.w < r.x or self.y > r.y + r.h or self.y + self.h < r.y)
-
-func intersection*(self: Rect; r: Rect): Rect =
-  result.x = max(self.x, r.x)
-  result.y = max(self.y, r.y)
-  result.w = min(self.x + self.w, r.x + r.w) - max(self.x, r.x)
-  result.h = min(self.y + self.h, r.y + r.h) - max(self.y, r.y)
-
-proc inflate*(self: var Rect; v: int32) =
-  dec(self.x, v)
-  dec(self.y, v)
-  inc(self.w, v * 2)
-  inc(self.h, v * 2)
-
-proc deflate*(self: var Rect; v: int32) =
-  inc(self.x, v)
-  inc(self.y, v)
-  dec(self.w, v * 2)
-  dec(self.h, v * 2)
-
-
-##
-## LUT
-##
-
-const rgb332ToRgb565Lut*: array[256, uint16] = [
-    0x0000.uint16, 0x0800, 0x1000, 0x1800, 0x0001,
-    0x0801, 0x1001, 0x1801, 0x0002, 0x0802, 0x1002, 0x1802, 0x0003, 0x0803, 0x1003,
-    0x1803, 0x0004, 0x0804, 0x1004, 0x1804, 0x0005, 0x0805, 0x1005, 0x1805, 0x0006,
-    0x0806, 0x1006, 0x1806, 0x0007, 0x0807, 0x1007, 0x1807, 0x0020, 0x0820, 0x1020,
-    0x1820, 0x0021, 0x0821, 0x1021, 0x1821, 0x0022, 0x0822, 0x1022, 0x1822, 0x0023,
-    0x0823, 0x1023, 0x1823, 0x0024, 0x0824, 0x1024, 0x1824, 0x0025, 0x0825, 0x1025,
-    0x1825, 0x0026, 0x0826, 0x1026, 0x1826, 0x0027, 0x0827, 0x1027, 0x1827, 0x0040,
-    0x0840, 0x1040, 0x1840, 0x0041, 0x0841, 0x1041, 0x1841, 0x0042, 0x0842, 0x1042,
-    0x1842, 0x0043, 0x0843, 0x1043, 0x1843, 0x0044, 0x0844, 0x1044, 0x1844, 0x0045,
-    0x0845, 0x1045, 0x1845, 0x0046, 0x0846, 0x1046, 0x1846, 0x0047, 0x0847, 0x1047,
-    0x1847, 0x0060, 0x0860, 0x1060, 0x1860, 0x0061, 0x0861, 0x1061, 0x1861, 0x0062,
-    0x0862, 0x1062, 0x1862, 0x0063, 0x0863, 0x1063, 0x1863, 0x0064, 0x0864, 0x1064,
-    0x1864, 0x0065, 0x0865, 0x1065, 0x1865, 0x0066, 0x0866, 0x1066, 0x1866, 0x0067,
-    0x0867, 0x1067, 0x1867, 0x0080, 0x0880, 0x1080, 0x1880, 0x0081, 0x0881, 0x1081,
-    0x1881, 0x0082, 0x0882, 0x1082, 0x1882, 0x0083, 0x0883, 0x1083, 0x1883, 0x0084,
-    0x0884, 0x1084, 0x1884, 0x0085, 0x0885, 0x1085, 0x1885, 0x0086, 0x0886, 0x1086,
-    0x1886, 0x0087, 0x0887, 0x1087, 0x1887, 0x00a0, 0x08a0, 0x10a0, 0x18a0, 0x00a1,
-    0x08a1, 0x10a1, 0x18a1, 0x00a2, 0x08a2, 0x10a2, 0x18a2, 0x00a3, 0x08a3, 0x10a3,
-    0x18a3, 0x00a4, 0x08a4, 0x10a4, 0x18a4, 0x00a5, 0x08a5, 0x10a5, 0x18a5, 0x00a6,
-    0x08a6, 0x10a6, 0x18a6, 0x00a7, 0x08a7, 0x10a7, 0x18a7, 0x00c0, 0x08c0, 0x10c0,
-    0x18c0, 0x00c1, 0x08c1, 0x10c1, 0x18c1, 0x00c2, 0x08c2, 0x10c2, 0x18c2, 0x00c3,
-    0x08c3, 0x10c3, 0x18c3, 0x00c4, 0x08c4, 0x10c4, 0x18c4, 0x00c5, 0x08c5, 0x10c5,
-    0x18c5, 0x00c6, 0x08c6, 0x10c6, 0x18c6, 0x00c7, 0x08c7, 0x10c7, 0x18c7, 0x00e0,
-    0x08e0, 0x10e0, 0x18e0, 0x00e1, 0x08e1, 0x10e1, 0x18e1, 0x00e2, 0x08e2, 0x10e2,
-    0x18e2, 0x00e3, 0x08e3, 0x10e3, 0x18e3, 0x00e4, 0x08e4, 0x10e4, 0x18e4, 0x00e5,
-    0x08e5, 0x10e5, 0x18e5, 0x00e6, 0x08e6, 0x10e6, 0x18e6, 0x00e7, 0x08e7, 0x10e7, 0x18e7]
-
-const dither16Pattern*: array[16, uint8] = [uint8 0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5]
+import std/algorithm
 
 ##
 ## Pico Graphics
 ##
 
 type
+  PicoGraphicsPenType* = enum
+    Pen_1Bit
+    Pen_3Bit
+    Pen_P2
+    Pen_P4
+    Pen_P8
+    Pen_RGB332
+    Pen_RGB565
+    Pen_RGB888
+    Pen_Inky7
+
+  PicoGraphicsConversionCallbackFunc* = proc (data: pointer; length: uint) {.closure.}
+
   PicoGraphics* = object of RootObj
     frameBuffer*: seq[uint8]
     penType*: PicoGraphicsPenType
@@ -376,15 +43,9 @@ type
     clip*: Rect
     thickness*: Natural
     conversionCallbackFunc*: PicoGraphicsConversionCallbackFunc
-    nextPixelFunc*: PicoGraphicsNextPixelFunc
-    #bitmapFont*: ref Font
-    #hersheyFont*: ref Font
-
-  PicoGraphicsPenType* {.pure.} = enum
-    Pen_1Bit, Pen_3Bit, Pen_P2, Pen_P4, Pen_P8, Pen_RGB332, Pen_RGB565, Pen_RGB888
-
-  PicoGraphicsConversionCallbackFunc* = proc (data: pointer; length: uint) {.closure.}
-  PicoGraphicsNextPixelFunc* = proc (): Rgb565
+    # nextPixelFunc*: proc (): T
+    # bitmapFont*: ref Font
+    # hersheyFont*: ref Font
 
 proc setDimensions*(self: var PicoGraphics; width: uint16; height: uint16) =
   self.bounds.x = 0
@@ -401,15 +62,15 @@ proc init*(self: var PicoGraphics; width: uint16; height: uint16; frameBuffer: s
   self.frameBuffer = frameBuffer
   # self.setFont(font6)
 
-func constructPicoGraphics*(width: uint16; height: uint16; frameBuffer: seq[uint8] = @[]): PicoGraphics {.constructor.} =
-  result.init(width, height, frameBuffer)
+# func constructPicoGraphics*(width: uint16; height: uint16; frameBuffer: seq[uint8] = @[]): PicoGraphics {.constructor.} =
+#   result.init(width, height, frameBuffer)
 
 method setPen*(self: var PicoGraphics; c: uint) {.base.} = discard
 method setPen*(self: var PicoGraphics; c: Rgb) {.base.} = discard
 method setPixel*(self: var PicoGraphics; p: Point) {.base.} = discard
 method setPixel*(self: var PicoGraphics; p: Point; c: Rgb) {.base.} = discard
 method setPixelSpan*(self: var PicoGraphics; p: Point; l: uint) {.base.} = discard
-proc setThickness*(self: var PicoGraphics; thickness: Positive) = self.thickness = thickness
+func setThickness*(self: var PicoGraphics; thickness: Positive) = self.thickness = thickness
 method createPen*(self: var PicoGraphics; r: uint8; g: uint8; b: uint8): int {.base.} = discard
 method updatePen*(self: var PicoGraphics; i: uint8; r: uint8; g: uint8; b: uint8): int {.base.} = discard
 method resetPen*(self: var PicoGraphics; i: uint8): int {.base.} = discard
@@ -423,7 +84,7 @@ method sprite*(self: var PicoGraphics; data: pointer; sprite: Point; dest: Point
 # proc setFont*(self: var PicoGraphics; font: HersheyFont) = discard
 # proc setFont*(self: var PicoGraphics; font: string) = discard
 
-proc setFramebuffer*(self: var PicoGraphics; frameBuffer: seq[uint8]) = self.frameBuffer = frameBuffer
+func setFramebuffer*(self: var PicoGraphics; frameBuffer: seq[uint8]) = self.frameBuffer = frameBuffer
 
 ## these seem to be unused?
 # proc getData*(self: var PicoGraphics): pointer = discard
@@ -735,26 +396,26 @@ proc thickLine*(self: var PicoGraphics; p1: Point; p2: Point; thickness: Positiv
       inc(x, sx)
       dec(s)
 
-proc frameConvertRgb565*(self: var PicoGraphics; callback: PicoGraphicsConversionCallbackFunc; getNextPixel: PicoGraphicsNextPixelFunc) =
+proc frameConvert*[T: Rgb565|Rgb888](self: var PicoGraphics; callback: PicoGraphicsConversionCallbackFunc, getNextPixel: proc(): T) =
   ## Allocate two temporary buffers, as the callback may transfer by DMA
   ##  while we're preparing the next part of the row
   const BUF_LEN = 64
-  var rowBuf: array[2, array[BUF_LEN, uint16]]
+  var rowBuf: array[2, array[BUF_LEN, T]]
   var bufIdx = 0
   var bufEntry = 0
   for i in 0 ..< self.bounds.w * self.bounds.h:
-    rowBuf[bufIdx][bufEntry] = getNextPixel().uint16
+    rowBuf[bufIdx][bufEntry] = getNextPixel()
     inc(bufEntry)
 
     ## Transfer a filled buffer and swap to the next one
     if bufEntry == BUF_LEN:
-      callback(rowBuf[bufIdx][0].addr, BUF_LEN * sizeof(RGB565))
+      callback(rowBuf[bufIdx][0].addr, BUF_LEN * sizeof(T))
       bufIdx = bufIdx xor 1
       bufEntry = 0
 
   ## Transfer any remaining pixels ( < BUF_LEN )
   if bufEntry > 0:
-    callback(rowBuf[bufIdx][0].addr, uint(bufEntry * sizeof(RGB565)))
+    callback(rowBuf[bufIdx][0].addr, uint(bufEntry * sizeof(T)))
 
   ## Callback with zero length to ensure previous buffer is fully written
   callback(rowBuf[bufIdx][0].addr, 0)
@@ -882,8 +543,8 @@ proc init*(self: var PicoGraphicsPen3Bit; width: uint16; height: uint16; frameBu
   if self.frameBuffer.len == 0 and not noFrameBuffer:
     self.frameBuffer = newSeq[uint8](self.bufferSize(width, height))
 
-proc constructPicoGraphicsPen3Bit*(width: uint16; height: uint16; frameBuffer: seq[uint8] = @[]): PicoGraphicsPen3Bit {.constructor.} =
-  result.init(width, height, frameBuffer)
+# proc constructPicoGraphicsPen3Bit*(width: uint16; height: uint16; frameBuffer: seq[uint8] = @[]): PicoGraphicsPen3Bit {.constructor.} =
+#   result.init(width, height, frameBuffer)
 
 proc getDitherCandidates*(col: Rgb; palette: array[8, Rgb]; candidates: var array[16, uint8]) =
   var error: Rgb
@@ -1021,7 +682,7 @@ method frameConvert*(self: var PicoGraphicsPen3Bit; `type`: PicoGraphicsPenType;
 const PicoGraphicsPenP4PaletteSize*: uint16 = 16
 
 type
-  PicoGraphicsPenP4* {.bycopy.} = object of PicoGraphics
+  PicoGraphicsPenP4* = object of PicoGraphics
     color*: uint8
     palette*: array[PicoGraphicsPenP4PaletteSize, Rgb]
     used*: array[PicoGraphicsPenP4PaletteSize, bool]
@@ -1029,9 +690,9 @@ type
     cacheBuilt*: bool
     candidates*: array[16, uint8]
 
-proc constructPicoGraphicsPenP4*(width: uint16; height: uint16;
-                                frameBuffer: pointer): PicoGraphicsPenP4 {.
-    constructor.} = discard
+# proc constructPicoGraphicsPenP4*(width: uint16; height: uint16;
+#                                 frameBuffer: pointer): PicoGraphicsPenP4 {.
+#     constructor.} = discard
 method setPen*(self: var PicoGraphicsPenP4; c: uint) = discard
 method setPen*(self: var PicoGraphicsPenP4; c: Rgb) = discard
 method updatePen*(self: var PicoGraphicsPenP4; i: uint8; r: uint8; g: uint8; b: uint8): int = discard
@@ -1039,11 +700,11 @@ method createPen*(self: var PicoGraphicsPenP4; r: uint8; g: uint8; b: uint8): in
 method resetPen*(self: var PicoGraphicsPenP4; i: uint8): int = discard
 method setPixel*(self: var PicoGraphicsPenP4; p: Point) = discard
 method setPixelSpan*(self: var PicoGraphicsPenP4; p: Point; l: uint) = discard
-proc getDitherCandidates*(self: var PicoGraphicsPenP4; col: Rgb; palette: ptr Rgb;
+func getDitherCandidates*(self: var PicoGraphicsPenP4; col: Rgb; palette: ptr Rgb;
                          len: csize_t; candidates: var array[16, uint8]) = discard
 method setPixelDither*(self: var PicoGraphicsPenP4; p: Point; c: Rgb) = discard
 method frameConvert*(self: var PicoGraphicsPenP4; `type`: PicoGraphicsPenType; callback: PicoGraphicsConversionCallbackFunc) = discard
-proc bufferSize*(self: var PicoGraphicsPenP4; w: uint; h: uint): csize_t =
+func bufferSize*(self: var PicoGraphicsPenP4; w: uint; h: uint): csize_t =
   return w * h div 2
 
 
@@ -1054,7 +715,7 @@ proc bufferSize*(self: var PicoGraphicsPenP4; w: uint; h: uint): csize_t =
 const PicoGraphicsPenP8PaletteSize*: uint16 = 256
 
 type
-  PicoGraphicsPenP8* {.bycopy.} = object of PicoGraphics
+  PicoGraphicsPenP8* = object of PicoGraphics
     color*: uint8
     palette*: array[PicoGraphicsPenP8PaletteSize, Rgb]
     used*: array[PicoGraphicsPenP8PaletteSize, bool]
@@ -1063,9 +724,9 @@ type
     candidates*: array[16, uint8]
 
 
-proc constructPicoGraphicsPenP8*(width: uint16; height: uint16;
-                                frameBuffer: pointer): PicoGraphicsPenP8 {.
-    constructor.} = discard
+# proc constructPicoGraphicsPenP8*(width: uint16; height: uint16;
+#                                 frameBuffer: pointer): PicoGraphicsPenP8 {.
+#     constructor.} = discard
 method setPen*(self: var PicoGraphicsPenP8; c: uint) = discard
 method setPen*(self: var PicoGraphicsPenP8; c: Rgb) = discard
 method updatePen*(self: var PicoGraphicsPenP8; i: uint8; r: uint8; g: uint8; b: uint8): int = discard
@@ -1073,7 +734,7 @@ method createPen*(self: var PicoGraphicsPenP8; r: uint8; g: uint8; b: uint8): in
 method resetPen*(self: var PicoGraphicsPenP8; i: uint8): int = discard
 method setPixel*(self: var PicoGraphicsPenP8; p: Point) = discard
 method setPixelSpan*(self: var PicoGraphicsPenP8; p: Point; l: uint) = discard
-proc getDitherCandidates*(self: var PicoGraphicsPenP8; col: Rgb; palette: ptr Rgb;
+func getDitherCandidates*(self: var PicoGraphicsPenP8; col: Rgb; palette: ptr Rgb;
                          len: csize_t; candidates: var array[16, uint8]) = discard
 method setPixelDither*(self: var PicoGraphicsPenP8; p: Point; c: Rgb) = discard
 method frameConvert*(self: var PicoGraphicsPenP8; `type`: PicoGraphicsPenType; callback: PicoGraphicsConversionCallbackFunc) = discard
@@ -1086,13 +747,13 @@ func bufferSize*(self: PicoGraphicsPenP8; w: uint; h: uint): uint =
 ##
 
 type
-  PicoGraphicsPenRGB332* {.bycopy.} = object of PicoGraphics
+  PicoGraphicsPenRGB332* = object of PicoGraphics
     color*: Rgb332
 
 
-proc constructPicoGraphicsPenRGB332*(width: uint16; height: uint16;
-                                    frameBuffer: pointer): PicoGraphicsPenRGB332 {.
-    constructor.} = discard
+# proc constructPicoGraphicsPenRGB332*(width: uint16; height: uint16;
+#                                     frameBuffer: pointer): PicoGraphicsPenRGB332 {.
+#     constructor.} = discard
 method setPen*(self: var PicoGraphicsPenRGB332; c: uint) = discard
 method setPen*(self: var PicoGraphicsPenRGB332; c: Rgb) = discard
 method createPen*(self: var PicoGraphicsPenRGB332; r: uint8; g: uint8; b: uint8): int = discard
@@ -1112,14 +773,14 @@ func bufferSize*(self: PicoGraphicsPenRGB332; w: uint; h: uint): uint =
 ##
 
 type
-  PicoGraphicsPenRGB565* {.bycopy.} = object of PicoGraphics
+  PicoGraphicsPenRGB565* = object of PicoGraphics
     srcColor*: Rgb
     color*: Rgb565
 
 
-proc constructPicoGraphicsPenRGB565*(width: uint16; height: uint16;
-                                    frameBuffer: pointer): PicoGraphicsPenRGB565 {.
-    constructor.} = discard
+# proc constructPicoGraphicsPenRGB565*(width: uint16; height: uint16;
+#                                     frameBuffer: pointer): PicoGraphicsPenRGB565 {.
+#     constructor.} = discard
 method setPen*(self: var PicoGraphicsPenRGB565; c: uint) = discard
 method setPen*(self: var PicoGraphicsPenRGB565; c: Rgb) = discard
 method createPen*(self: var PicoGraphicsPenRGB565; r: uint8; g: uint8; b: uint8): int = discard
@@ -1134,14 +795,14 @@ func bufferSize*(self: PicoGraphicsPenRGB565; w: uint; h: uint): uint =
 ##
 
 type
-  PicoGraphicsPenRGB888* {.bycopy.} = object of PicoGraphics
+  PicoGraphicsPenRGB888* = object of PicoGraphics
     srcColor*: Rgb
     color*: Rgb888
 
 
-proc constructPicoGraphicsPenRGB888*(width: uint16; height: uint16;
-                                    frameBuffer: pointer): PicoGraphicsPenRGB888 {.
-    constructor.} = discard
+# proc constructPicoGraphicsPenRGB888*(width: uint16; height: uint16;
+#                                     frameBuffer: pointer): PicoGraphicsPenRGB888 {.
+#     constructor.} = discard
 method setPen*(self: var PicoGraphicsPenRGB888; c: uint) = discard
 method setPen*(self: var PicoGraphicsPenRGB888; c: Rgb) = discard
 method createPen*(self: var PicoGraphicsPenRGB888; r: uint8; g: uint8; b: uint8): int = discard
@@ -1150,43 +811,3 @@ method setPixelSpan*(self: var PicoGraphicsPenRGB888; p: Point; l: uint) = disca
 func bufferSize*(self: PicoGraphicsPenRGB888; w: uint; h: uint): uint =
   return w * h * uint sizeof(Rgb888)
 
-
-##
-## Display Driver
-##
-
-type
-  DisplayDriver* = object of RootObj
-    width*: uint16
-    height*: uint16
-    rotation*: Rotation
-
-proc init*(self: var DisplayDriver; width: uint16; height: uint16; rotation: Rotation = Rotate_0) =
-  self.width = width
-  self.height = height
-  self.rotation = rotation
-
-proc constructDisplayDriver*(width: uint16; height: uint16; rotation: Rotation = Rotate_0): DisplayDriver {.
-    constructor.} =
-  init(result, width, height, rotation)
-
-method update*(self: var DisplayDriver; display: var PicoGraphics) {.base.} =
-  discard
-
-method partialUpdate*(self: var DisplayDriver; display: var PicoGraphics; region: Rect) {.base.} =
-  discard
-
-method setUpdateSpeed*(self: var DisplayDriver; updateSpeed: int): bool {.base.} =
-  return false
-
-method setBacklight*(self: var DisplayDriver; brightness: uint8) {.base.} =
-  discard
-
-method isBusy*(self: var DisplayDriver): bool {.base.} =
-  return false
-
-method powerOff*(self: var DisplayDriver) {.base.} =
-  discard
-
-method cleanup*(self: var DisplayDriver) {.base.} =
-  discard
