@@ -53,13 +53,6 @@ type
     when kind == InkyFrame7_3:
       ramDisplay*: PsRamDisplay
 
-  Button* = enum
-    BtnA = 0
-    BtnB = 1
-    BtnC = 2
-    BtnD = 3
-    BtnE = 4
-
   Led* = enum
     LedActivity = PinLedActivity
     LedConnection = PinLedConnection
@@ -69,20 +62,27 @@ type
     LedD = PinLedD
     LedE = PinLedE
 
+  Button* = enum
+    BtnA = 0
+    BtnB = 1
+    BtnC = 2
+    BtnD = 3
+    BtnE = 4
+
   Flag* = enum
     FlagRtcAlarm = 5
     FlagExternalTrigger = 6
     FlagEinkBusy = 7
 
   WakeUpEvent* = enum
-    Unknown = 0
-    ButtonA = 1
-    ButtonB = 2
-    ButtonC = 3
-    ButtonD = 4
-    ButtonE = 5
-    RtcAlarm = 6
-    ExternalTrigger = 7
+    EvtUnknown = -1
+    EvtBtnA
+    EvtBtnB
+    EvtBtnC
+    EvtBtnD
+    EvtBtnE
+    EvtRtcAlarm
+    EvtExternalTrigger
 
   Pen* = uc8159.Colour
 
@@ -132,23 +132,23 @@ proc init*[IF: InkyFrame](self: var IF) =
   gpioConfigure(PinSrClock, Out, High)
   gpioConfigure(PinSrLatch, Out, High)
   gpioConfigure(PinSrOut, In)
-  self.wakeUpEvent = Unknown
+  self.wakeUpEvent = EvtUnknown
 
   # determine wake up event
   if readShiftRegisterBit(BtnA.uint8):
-    self.wakeUpEvent = WakeUpEvent.ButtonA
+    self.wakeUpEvent = EvtBtnA
   if readShiftRegisterBit(BtnB.uint8):
-    self.wakeUpEvent = WakeUpEvent.ButtonB
+    self.wakeUpEvent = EvtBtnB
   if readShiftRegisterBit(BtnC.uint8):
-    self.wakeUpEvent = WakeUpEvent.ButtonC
+    self.wakeUpEvent = EvtBtnC
   if readShiftRegisterBit(BtnD.uint8):
-    self.wakeUpEvent = WakeUpEvent.ButtonD
+    self.wakeUpEvent = EvtBtnD
   if readShiftRegisterBit(BtnE.uint8):
-    self.wakeUpEvent = WakeUpEvent.ButtonE
+    self.wakeUpEvent = EvtBtnE
   if readShiftRegisterBit(FlagRtcAlarm.uint8):
-    self.wakeUpEvent = WakeUpEvent.RtcAlarm
+    self.wakeUpEvent = EvtRtcAlarm
   if readShiftRegisterBit(FlagExternalTrigger.uint8):
-    self.wakeUpEvent = WakeUpEvent.ExternalTrigger
+    self.wakeUpEvent = EvtExternalTrigger
   # there are other reasons a wake event can occur: connect power via usb,
   # connect a battery, or press the reset button. these cannot be
   # disambiguated so we don't attempt to report them
