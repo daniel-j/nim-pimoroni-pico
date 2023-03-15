@@ -226,7 +226,7 @@ func toRgb888*(self: Rgb): Rgb888 =
     (self.b shl 0).uint32
   ).Rgb888
 
-func rgbToRgb332*(r: uint8; g: uint8; b: uint8): Rgb332 =
+func rgbToRgb332*(r, g, b: uint8): Rgb332 =
   constructRgb(r.int16, g.int16, b.int16).toRgb332()
 
 func rgb332ToRgb565Be*(c: Rgb332): Rgb565 =
@@ -244,7 +244,7 @@ func rgb565ToRgb332*(c: Rgb565): Rgb332 =
     ((c2 and 0b0000000000011000) shr 3).uint8
   ).Rgb332
 
-func rgbToRgb565*(r: uint8; g: uint8; b: uint8): Rgb565 =
+func rgbToRgb565*(r, g, b: uint8): Rgb565 =
   constructRgb(r.int16, g.int16, b.int16).toRgb565Be()
 
 func rgb332ToRgb*(c: Rgb332): Rgb = constructRgb(c)

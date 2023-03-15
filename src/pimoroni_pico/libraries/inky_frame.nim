@@ -2,16 +2,10 @@ import std/math
 import picostdlib
 import picostdlib/[hardware/i2c, hardware/pwm]
 
-import ../drivers/[
-  uc8159, pcf85063a, fatfs, psram_display
-]
+import ../drivers/[uc8159, pcf85063a, fatfs, psram_display]
+import ./pico_graphics
 
-import pico_graphics
-
-
-export pico_graphics
-export fatfs
-export Colour
+export pico_graphics, fatfs, Colour
 
 const
   PinHoldSysEn = 2.Gpio

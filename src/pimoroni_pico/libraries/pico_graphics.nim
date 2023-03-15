@@ -10,13 +10,11 @@
 ##    - 8-bit with 16-bit 256 entry palette
 ##    - 4-bit with 16-bit 8 entry palette
 
-import ./pico_graphics/rgb
-import ./pico_graphics/shapes
-import ./pico_graphics/luts
+import std/algorithm
+import ./pico_graphics/[rgb, shapes, luts]
 
 export rgb, shapes, luts
 
-import std/algorithm
 
 ##
 ## Pico Graphics
@@ -230,13 +228,13 @@ proc polygon*(self: var PicoGraphics; points: openArray[Point]) =
 
     inc(p.y)
 
-func orient2d(p1: Point; p2: Point; p3: Point): int =
+func orient2d(p1, p2, p3: Point): int =
   return (p2.x - p1.x) * (p3.y - p1.y) - (p2.y - p1.y) * (p3.x - p1.x)
 
-func isTopLeft(p1: Point; p2: Point): bool =
+func isTopLeft(p1, p2: Point): bool =
   return (p1.y == p2.y and p1.x > p2.x) or (p1.y < p2.y)
 
-proc triangle*(self: var PicoGraphics; p1: var Point; p2: var Point; p3: var Point) =
+proc triangle*(self: var PicoGraphics; p1, p2, p3: var Point) =
   var triangleBounds = constructRect(
     Point(x: min(p1.x, min(p2.x, p3.x)), y: min(p1.y, min(p2.y, p3.y))),
     Point(x: max(p1.x, max(p2.x, p3.x)), y: max(p1.y, max(p2.y, p3.y)))
@@ -292,7 +290,7 @@ proc triangle*(self: var PicoGraphics; p1: var Point; p2: var Point; p3: var Poi
     inc(w1row, b20)
     inc(w2row, b01)
 
-proc line*(self: var PicoGraphics; p1: Point; p2: Point) =
+proc line*(self: var PicoGraphics; p1, p2: Point) =
   ##  fast horizontal line
   if p1.y == p2.y:
     let start = min(p1.x, p2.x)
@@ -345,7 +343,7 @@ proc line*(self: var PicoGraphics; p1: Point; p2: Point) =
       inc(x, sx)
       dec(s)
 
-proc thickLine*(self: var PicoGraphics; p1: Point; p2: Point; thickness: Positive = self.thickness) =
+proc thickLine*(self: var PicoGraphics; p1, p2: Point; thickness: Positive = self.thickness) =
   let ht = thickness div 2 # half thickness
   let t = thickness # alias for thickness
 

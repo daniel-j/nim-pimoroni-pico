@@ -8,7 +8,7 @@ type
     x*: int
     y*: int
 
-func constructPoint*(x: int32; y: int32): Point {.constructor.} =
+func constructPoint*(x, y: int32): Point {.constructor.} =
   result.x = x
   result.y = y
 
@@ -27,10 +27,10 @@ proc `/=`*(lhs: var Point; rhs: int32): var Point {.inline.} =
   lhs.y = lhs.y div rhs
   return lhs
 
-func `==`*(lhs: Point; rhs: Point): bool {.inline.} =
+func `==`*(lhs, rhs: Point): bool {.inline.} =
   return lhs.x == rhs.x and lhs.y == rhs.y
 
-func `!=`*(lhs: Point; rhs: Point): bool {.inline.} =
+func `!=`*(lhs, rhs: Point): bool {.inline.} =
   return not (lhs == rhs)
 
 func `-`*(rhs: Point): Point {.inline.} =
@@ -48,7 +48,7 @@ type
     w*: int
     h*: int
 
-func constructRect*(x: int32; y: int32; w: int32; h: int32): Rect {.constructor.} =
+func constructRect*(x, y, w, h: int32): Rect {.constructor.} =
   result.x = x
   result.y = y
   result.w = w
