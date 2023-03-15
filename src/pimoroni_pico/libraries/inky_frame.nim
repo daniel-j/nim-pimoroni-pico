@@ -86,9 +86,7 @@ type
     when kind == InkyFrame7_3:
       ramDisplay*: PsRamDisplay
 
-  InkyFrameAny* = InkyFrame[InkyFrame4_0] | InkyFrame[InkyFrame5_6] | InkyFrame[InkyFrame7_3]
-
-proc newInkyFrame*(kind: static[InkyFrameKind]): InkyFrameAny {.constructor.} =
+proc newInkyFrame*[IF: InkyFrame](kind: static[InkyFrameKind]): IF {.constructor.} =
   return InkyFrame[kind]()
 
 proc gpioConfigure*(gpio: Gpio; dir: Direction; value: Value = Low) =
@@ -120,7 +118,7 @@ proc readShiftRegister*(): uint8 =
 proc readShiftRegisterBit*(index: uint8): bool =
   (readShiftRegister() and (1 shl index).uint8).bool
 
-proc init*(self: var InkyFrameAny) =
+proc init*[IF: InkyFrame](self: var IF) =
   (self.width, self.height) = static:
     case self.kind:
     of InkyFrame4_0: (640, 480)
@@ -183,7 +181,7 @@ proc isBusy*(): bool =
   # check busy flag on shift register
   not readShiftRegisterBit(Flags.EinkBusy.uint8)
 
-proc update*(self: var InkyFrameAny; blocking: bool = false) =
+proc update*[IF: InkyFrame](self: var IF; blocking: bool = false) =
   while isBusy():
     tightLoopContents()
   self.uc8159.update(self)
@@ -197,10 +195,10 @@ proc pressed*(button: Button): bool =
 # set the LED brightness by generating a gamma corrected target value for
 # the 16-bit pwm channel. brightness values are from 0 to 100.
 
-proc led*(self: InkyFrameAny; led: Led; brightness: range[0.uint8..100.uint8]) =
+proc led*[IF: InkyFrame](self: IF; led: Led; brightness: range[0.uint8..100.uint8]) =
   pwmSetGpioLevel(led.Gpio, (pow(brightness.float / 100, 2.8) * 65535.0f + 0.5f).uint16)
 
-proc sleep*(self: var InkyFrameAny; wakeInMinutes: int = -1) =
+proc sleep*[IF: InkyFrame](self: var IF; wakeInMinutes: int = -1) =
   if wakeInMinutes != -1:
     # set an alarm to wake inky up in wake_in_minutes - the maximum sleep
     # is 255 minutes or around 4.5 hours which is the longest timer the RTC
@@ -214,18 +212,18 @@ proc sleep*(self: var InkyFrameAny; wakeInMinutes: int = -1) =
   while true:
     discard
 
-proc sleepUntil*(self: var InkyFrameAny; second, minute, hour, day: int = -1) =
+proc sleepUntil*[IF: InkyFrame](self: var IF; second, minute, hour, day: int = -1) =
   if second != -1 or minute != -1 or hour != -1 or day != -1:
     # set an alarm to wake inky up at the specified time and day
     self.rtc.setAlarm(second, minute, hour, day)
     self.rtc.enableAlarmInterrupt(true)
   gpioPut(PinHoldSysEn, Low)
 
-proc getWakeUpEvent*(self: InkyFrameAny): WakeUpEvent = self.wakeUpEvent
+proc getWakeUpEvent*[IF: InkyFrame](self: IF): WakeUpEvent = self.wakeUpEvent
 
-proc setBorder*(self: var InkyFrameAny; colour: Colour) = self.uc8159.setBorder(colour)
+proc setBorder*[IF: InkyFrame](self: var IF; colour: Colour) = self.uc8159.setBorder(colour)
 
-proc image*(self: var InkyFrameAny; data: openArray[uint8]; stride: int; sx: int; sy: int; dw: int; dh: int; dx: int; dy: int) =
+proc image*[IF: InkyFrame](self: var IF; data: openArray[uint8]; stride: int; sx: int; sy: int; dw: int; dh: int; dx: int; dy: int) =
   var y = 0
   while y < dh:
     var x = 0
@@ -238,15 +236,15 @@ proc image*(self: var InkyFrameAny; data: openArray[uint8]; stride: int; sx: int
       inc(x)
     inc(y)
 
-proc icon*(self: var InkyFrameAny; data: openArray[uint8]; sheetWidth: int; iconSize: int; index: int; dx: int; dy: int) =
+proc icon*[IF: InkyFrame](self: var IF; data: openArray[uint8]; sheetWidth: int; iconSize: int; index: int; dx: int; dy: int) =
   ## Display a portion of an image (icon sheet) at dx, dy
   self.image(data, sheetWidth, iconSize * index, 0, iconSize, iconSize, dx, dy)
 
-proc image*(self: var InkyFrameAny; data: openArray[uint8]; w: int; h: int; x: int; y: int) =
+proc image*[IF: InkyFrame](self: var IF; data: openArray[uint8]; w: int; h: int; x: int; y: int) =
   ## Display an image smaller than the screen (sw*sh) at dx, dy
   self.image(data, w, 0, 0, w, h, x, y)
 
-proc image*(self: var InkyFrameAny; data: openArray[uint8]) =
+proc image*[IF: InkyFrame](self: var IF; data: openArray[uint8]) =
   ## Display an image that fills the screen
   self.image(data, self.width, 0, 0, self.width, self.height, 0, 0)
 
