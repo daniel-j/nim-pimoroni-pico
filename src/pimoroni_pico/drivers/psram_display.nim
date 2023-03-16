@@ -1,7 +1,6 @@
 import picostdlib
 import picostdlib/hardware/spi
-import ../common/pimoroni_common
-import ../common/pimoroni_bus
+import ../common/[pimoroni_common, pimoroni_bus]
 import ../libraries/pico_graphics
 from ./uc8159 import Colour
 

@@ -37,7 +37,7 @@ const
 
 type
   InkyFrameKind* = enum
-    InkyFrame4_0, InkyFrame5_6, InkyFrame7_3
+    InkyFrame4_0, InkyFrame5_7, InkyFrame7_3
 
   InkyFrame*[kind: static[InkyFrameKind]] = object of PicoGraphicsPenP3
     uc8159*: Uc8159
@@ -113,10 +113,10 @@ proc init*[IF: InkyFrame](self: var IF) =
   (self.width, self.height) = static:
     case self.kind:
     of InkyFrame4_0: (640, 480)
-    of InkyFrame5_6: (600, 448)
+    of InkyFrame5_7: (600, 448)
     of InkyFrame7_3: (800, 480)
 
-  PicoGraphicsPenP3(self).init(self.width.uint16, self.height.uint16, noFrameBuffer=static self.kind in [InkyFrame7_3])
+  PicoGraphicsPenP3(self).init(self.width.uint16, self.height.uint16, noFrameBuffer=static self.kind in {InkyFrame7_3})
   self.uc8159.init(self.width.uint16, self.height.uint16, SPIPins(spi: spi0, cs: PinEinkCs, sck: PinClk, mosi: PinMosi, dc: PinEinkDc))
 
   # keep the pico awake by holding vsys_en high

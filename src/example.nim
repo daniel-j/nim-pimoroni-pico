@@ -28,7 +28,7 @@ var fs: FATFS
 var jpeg: JPEGDEC
 
 const inkyKind {.strdefine.} = "Unknown inkyKind"
-const inkyKindEnum = parseEnum[InkyFrameKind](inkyKind, InkyFrame5_6)
+const inkyKindEnum = parseEnum[InkyFrameKind](inkyKind, InkyFrame5_7)
 var inky: InkyFrame[inkyKindEnum]
 
 type
