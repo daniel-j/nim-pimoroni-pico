@@ -1,11 +1,12 @@
 import std/math, std/bitops, std/options
+
 import picostdlib
 import picostdlib/[hardware/i2c, hardware/pwm]
 
 import ../drivers/[uc8159, pcf85063a, fatfs, psram_display]
-import ./pico_graphics
+import ./pico_graphics, ./shift_register
 
-export options, pico_graphics, fatfs, Colour
+export options, pico_graphics, fatfs, psram_display, Colour
 
 const
   PinHoldSysEn = 2.Gpio
@@ -32,10 +33,12 @@ const
   #PinSdDat3 = 22.Gpio
   #PinSdCs = 22.Gpio
   #PinAdc0 = 26.Gpio
-  #PinEinkReset = 27.Gpio
+  PinEinkReset = 27.Gpio
   PinEinkDc = 28.Gpio
 
   FlagEinkBusy = 0x07
+
+const sr = ShiftRegister (PinSrLatch, PinSrClock, PinSrOut, 8)
 
 type
   Led* = enum
@@ -64,13 +67,13 @@ type
     EvtRtcAlarm
     EvtExternalTrigger
 
-  Pen* = uc8159.Colour
+  Pen* = Colour
 
   InkyFrameKind* = enum
     InkyFrame4_0, InkyFrame5_7, InkyFrame7_3
 
   InkyFrame*[kind: static[InkyFrameKind]] = object of PicoGraphicsPenP3
-    uc8159*: Uc8159
+    einkDriver*: Uc8159
     rtc*: Pcf85063a
     width*, height*: int
     wakeUpEvents: set[WakeUpEvent]
@@ -83,26 +86,10 @@ proc gpioConfigure*(gpio: Gpio; dir: Direction; value: Value = Low) =
   gpioPut(gpio, value)
 
 proc gpioConfigurePwm*(gpio: Gpio) =
-  var cfg = pwmGetDefaultConfig()
   pwmSetWrap(pwmGpioToSliceNum(gpio), 65535)
+  var cfg = pwmGetDefaultConfig()
   pwmInit(pwmGpioToSliceNum(gpio), cfg.addr, true)
   gpioSetFunction(gpio, Pwm)
-
-proc readShiftRegister*(): uint8 =
-  gpioPut(PinSrLatch, Low)
-  sleepUs(1)
-  gpioPut(PinSrLatch, High)
-  sleepUs(1)
-  for i in countdown(7, 0):
-    if gpioGet(PinSrOut) == High:
-      result.setBit(i)
-    gpioPut(PinSrClock, Low)
-    sleepUs(1)
-    gpioPut(PinSrClock, High)
-    sleepUs(1)
-
-proc readShiftRegisterBit*(index: uint8): bool =
-  readShiftRegister().testBit(index)
 
 proc detectInkyFrameModel*(): Option[InkyFrameKind] =
   ## Experimental function to detect the model
@@ -110,14 +97,20 @@ proc detectInkyFrameModel*(): Option[InkyFrameKind] =
   const mask = {PinSrLatch, PinI2cInt}
   gpioInitMask(mask)
   gpioSetDirInMasked(mask)
-  gpioMaskCall(mask, gpioPullDown)
+  gpioPullDown(PinSrLatch)
+  gpioPullDown(PinI2cInt)
   let switchLatch = gpioGet(PinSrLatch)
   let i2cInt = gpioGet(PinI2cInt)
-  gpioMaskCall(mask, gpioDeinit)
+  gpioDeinit(PinSrLatch)
+  gpioDeinit(PinI2cInt)
 
-  if (switchLatch, i2cInt) == (High, High): return some(InkyFrame4_0)
-  elif (switchLatch, i2cInt) == (Low, High): return some(InkyFrame5_7)
-  elif (switchLatch, i2cInt) == (Low, Low): return some(InkyFrame7_3)
+  if switchLatch == High and i2cInt == High: return some(InkyFrame4_0)
+  elif switchLatch == Low and i2cInt == High: return some(InkyFrame5_7)
+  elif switchLatch == Low and i2cInt == Low: return some(InkyFrame7_3)
+
+proc isBusy*(): bool =
+  ## Check busy flag on shift register
+  not sr.readBit(FlagEinkBusy)
 
 proc init*[IF: InkyFrame](self: var IF) =
   (self.width, self.height) = static:
@@ -126,8 +119,19 @@ proc init*[IF: InkyFrame](self: var IF) =
     of InkyFrame5_7: (600, 448)
     of InkyFrame7_3: (800, 480)
 
-  PicoGraphicsPenP3(self).init(self.width.uint16, self.height.uint16, noFrameBuffer=static self.kind in {InkyFrame7_3})
-  self.uc8159.init(self.width.uint16, self.height.uint16, SPIPins(spi: spi0, cs: PinEinkCs, sck: PinClk, mosi: PinMosi, dc: PinEinkDc))
+  PicoGraphicsPenP3(self).init(
+    self.width.uint16,
+    self.height.uint16,
+    noFrameBuffer = static self.kind in {InkyFrame7_3}
+  )
+
+  self.einkDriver.init(
+    self.width.uint16,
+    self.height.uint16,
+    SpiPins(spi: spi0, cs: PinEinkCs, sck: PinClk, mosi: PinMosi, dc: PinEinkDc),
+    resetPin = PinEinkReset,
+    isBusy,
+    blocking = true)
 
   # keep the pico awake by holding vsys_en high
   gpioConfigure(PinHoldSysEn, Out, High)
@@ -138,14 +142,11 @@ proc init*[IF: InkyFrame](self: var IF) =
   gpioConfigure(PinSrOut, In)
 
   # determine wake up event
-  let bits = readShiftRegister()
-  self.wakeUpEvents = cast[set[WakeUpEvent]](bits.bitsliced(WakeUpEvent.low.ord..WakeUpEvent.high.ord))
+  let bits = sr.read()
+  self.wakeUpEvents = cast[set[WakeUpEvent]](bits.bitsliced(static WakeUpEvent.low.ord..WakeUpEvent.high.ord))
   # there are other reasons a wake event can occur: connect power via usb,
   # connect a battery, or press the reset button. these cannot be
   # disambiguated so we don't attempt to report them
-
-  ## Disable display update busy wait, we'll handle it ourselves
-  self.uc8159.setBlocking(false)
 
   var i2c: I2c
   i2c.init(PinI2cSda, PinI2cScl)
@@ -165,25 +166,22 @@ proc init*[IF: InkyFrame](self: var IF) =
   when self.kind == InkyFrame7_3:
     self.ramDisplay.init(self.width.uint16, self.height.uint16)
 
-proc isBusy*(): bool =
-  # check busy flag on shift register
-  not readShiftRegisterBit(FlagEinkBusy)
-
-proc update*[IF: InkyFrame](self: var IF; blocking: bool = false) =
-  while isBusy():
-    tightLoopContents()
-  self.uc8159.update(self)
-  while isBusy():
-    tightLoopContents()
-  self.uc8159.powerOff()
+proc update*[IF: InkyFrame](self: var IF) =
+  if not self.einkDriver.getBlocking():
+    while isBusy():
+      tightLoopContents()
+  self.einkDriver.update(self)
+  if not self.einkDriver.getBlocking():
+    while isBusy():
+      tightLoopContents()
+    self.einkDriver.powerOff()
 
 proc pressed*(button: Button): bool =
-  readShiftRegisterBit(button.uint8)
-
-# set the LED brightness by generating a gamma corrected target value for
-# the 16-bit pwm channel. brightness values are from 0 to 100.
+  sr.readBit(button.uint8)
 
 proc led*[IF: InkyFrame](self: IF; led: Led; brightness: range[0.uint8..100.uint8]) =
+  ## Set the LED brightness by generating a gamma corrected target value for
+  ## the 16-bit pwm channel. Brightness values are from 0 to 100.
   pwmSetGpioLevel(led.Gpio, (pow(brightness.float / 100, 2.8) * 65535.0f + 0.5f).uint16)
 
 proc sleep*[IF: InkyFrame](self: var IF; wakeInMinutes: int = -1) =
@@ -209,7 +207,7 @@ proc sleepUntil*[IF: InkyFrame](self: var IF; second, minute, hour, day: int = -
 
 proc getWakeUpEvents*[IF: InkyFrame](self: IF): set[WakeUpEvent] = self.wakeUpEvents
 
-proc setBorder*[IF: InkyFrame](self: var IF; colour: Colour) = self.uc8159.setBorder(colour)
+proc setBorder*[IF: InkyFrame](self: var IF; colour: Colour) = self.einkDriver.setBorder(colour)
 
 proc image*[IF: InkyFrame](self: var IF; data: openArray[uint8]; stride: int; sx: int; sy: int; dw: int; dh: int; dx: int; dy: int) =
   var y = 0
@@ -236,4 +234,4 @@ proc image*[IF: InkyFrame](self: var IF; data: openArray[uint8]) =
   ## Display an image that fills the screen
   self.image(data, self.width, 0, 0, self.width, self.height, 0, 0)
 
-template setPen*[IF: InkyFrame](self: var IF; c: Colour) = self.setPen(c.uint8)
+template setPen*[IF: InkyFrame](self: var IF; c: Pen) = self.setPen(c.uint8)

@@ -348,25 +348,25 @@ proc drawJpeg(filename: string; x, y: int = 0; w, h: int; dither: bool = false; 
 
 proc drawFile(filename: string) =
   inky.led(LedActivity, 50)
-  inky.setPen(Pen.White)
-  inky.setBorder(Pen.White)
+  inky.setPen(White)
+  inky.setBorder(White)
   inky.clear()
 
-  # inky.setPen(Pen.Black)
+  # inky.setPen(Black)
   # inky.rectangle(constructRect(0, 0, 600 div 8, 448))
-  # inky.setPen(Pen.White)
+  # inky.setPen(White)
   # inky.rectangle(constructRect((600 div 8) * 1, 0, 600 div 8, 448))
-  # inky.setPen(Pen.Green)
+  # inky.setPen(Green)
   # inky.rectangle(constructRect((600 div 8) * 2, 0, 600 div 8, 448))
-  # inky.setPen(Pen.Blue)
+  # inky.setPen(Blue)
   # inky.rectangle(constructRect((600 div 8) * 3, 0, 600 div 8, 448))
-  # inky.setPen(Pen.Red)
+  # inky.setPen(Red)
   # inky.rectangle(constructRect((600 div 8) * 4, 0, 600 div 8, 448))
-  # inky.setPen(Pen.Yellow)
+  # inky.setPen(Yellow)
   # inky.rectangle(constructRect((600 div 8) * 5, 0, 600 div 8, 448))
-  # inky.setPen(Pen.Orange)
+  # inky.setPen(Orange)
   # inky.rectangle(constructRect((600 div 8) * 6, 0, 600 div 8, 448))
-  # inky.setPen(Pen.Clean)
+  # inky.setPen(Clean)
   # inky.rectangle(constructRect((600 div 8) * 7, 0, 600 div 8, 448))
 
   if drawJpeg(filename, 0, -1, 600, 450, dither=false, gravity=(0.5, 0.5)) == 1:
@@ -394,31 +394,32 @@ proc getFileN(directory: string; n: Natural): FILINFO =
 proc inkyProc() =
   echo "Starting..."
 
-  # inky.setPen(Pen.Black)
+  # inky.setPen(Black)
   # inky.rectangle(constructRect(0, 0, 600 div 8, 448))
-  # inky.setPen(Pen.White)
+  # inky.setPen(White)
   # inky.rectangle(constructRect((600 div 8) * 1, 0, 600 div 8, 448))
-  # inky.setPen(Pen.Green)
+  # inky.setPen(Green)
   # inky.rectangle(constructRect((600 div 8) * 2, 0, 600 div 8, 448))
-  # inky.setPen(Pen.Blue)
+  # inky.setPen(Blue)
   # inky.rectangle(constructRect((600 div 8) * 3, 0, 600 div 8, 448))
-  # inky.setPen(Pen.Red)
+  # inky.setPen(Red)
   # inky.rectangle(constructRect((600 div 8) * 4, 0, 600 div 8, 448))
-  # inky.setPen(Pen.Yellow)
+  # inky.setPen(Yellow)
   # inky.rectangle(constructRect((600 div 8) * 5, 0, 600 div 8, 448))
-  # inky.setPen(Pen.Orange)
+  # inky.setPen(Orange)
   # inky.rectangle(constructRect((600 div 8) * 6, 0, 600 div 8, 448))
-  # inky.setPen(Pen.Clean)
+  # inky.setPen(Clean)
   # inky.rectangle(constructRect((600 div 8) * 7, 0, 600 div 8, 448))
+  # echo "Updating..."
   # inky.update()
 
-  echo "Cleaning..."
-  inky.setPen(Pen.Clean)
-  inky.setBorder(Pen.Orange)
-  inky.clear()
-  inky.update()
-  inky.setBorder(Pen.White)
-  inky.update()
+  # echo "Cleaning..."
+  # inky.setPen(Clean)
+  # inky.setBorder(Orange)
+  # inky.clear()
+  # inky.update()
+  # inky.setBorder(White)
+  # inky.update()
 
   echo "Mounting SD card..."
 

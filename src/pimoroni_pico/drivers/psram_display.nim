@@ -38,7 +38,7 @@ proc init(self: var PsRamDisplay) =
   discard spiWriteBlocking(self.spi, commandBuffer[0].addr, commandBuffer.len.csize_t)
   gpioPut(self.pinCs, High)
 
-proc init*(self: var PsRamDisplay; width, height: uint16; pins: SPIPins = SPIPins(spi: spiDefault, cs: 3.Gpio, sck: SpiDefaultSck, mosi: SpiDefaultMosi, miso: SpiDefaultMiso)) =
+proc init*(self: var PsRamDisplay; width, height: uint16; pins: SpiPins = SpiPins(spi: spiDefault, cs: 3.Gpio, sck: SpiDefaultSck, mosi: SpiDefaultMosi, miso: SpiDefaultMiso)) =
   self.spi = pins.spi
   self.pinCs = pins.cs
   self.pinSck = pins.sck

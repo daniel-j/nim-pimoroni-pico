@@ -2,7 +2,7 @@ import ./pimoroni_common
 export pimoroni_common
 
 type
-  SPIPins* = object
+  SpiPins* = object
     spi*: ptr SpiInst
     cs*: Gpio
     sck*: Gpio

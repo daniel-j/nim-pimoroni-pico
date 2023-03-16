@@ -5,28 +5,6 @@ import ../common/pimoroni_bus
 export display_driver, pimoroni_bus
 
 type
-  Uc8159* = object of DisplayDriver
-    spi: ptr SpiInst
-    csPin: Gpio
-    dcPin: Gpio
-    sckPin: Gpio
-    mosiPin: Gpio
-    busyPin: int8
-    resetPin: Gpio
-    timeout: AbsoluteTime
-    blocking: bool
-    borderColour: Colour
-
-  Colour* = enum
-    Black
-    White
-    Green
-    Blue
-    Red
-    Yellow
-    Orange
-    Clean
-
   Reg = enum
     Psr   = 0x00
     Pwr   = 0x01
@@ -66,8 +44,31 @@ type
     Vdcs  = 0x82
     Pws   = 0xE3
 
+  Colour* = enum
+    Black
+    White
+    Green
+    Blue
+    Red
+    Yellow
+    Orange
+    Clean
 
-proc init*(self: var Uc8159; width: uint16; height: uint16; pins: SPIPins) =
+  IsBusyProc* = proc (): bool
+
+  Uc8159* = object of DisplayDriver
+    spi: ptr SpiInst
+    csPin: Gpio
+    dcPin: Gpio
+    sckPin: Gpio
+    mosiPin: Gpio
+    resetPin: Gpio
+    timeout: AbsoluteTime
+    blocking: bool
+    borderColour: Colour
+    isBusyProc: IsBusyProc
+
+proc init*(self: var Uc8159; width: uint16; height: uint16; pins: SpiPins; resetPin: Gpio; isBusyProc: IsBusyProc = nil; blocking: bool = true) =
   DisplayDriver(self).init(width, height)
 
   self.spi = pins.spi
@@ -76,41 +77,45 @@ proc init*(self: var Uc8159; width: uint16; height: uint16; pins: SPIPins) =
   self.dcPin = pins.dc
   self.mosiPin = pins.mosi
 
-  self.busyPin = PinUnused
-  self.resetPin = 27.Gpio
+  self.isBusyProc = isBusyProc
+  self.resetPin = resetPin
 
-  self.blocking = false
+  self.blocking = blocking
   self.borderColour = White
 
   ##  configure spi interface and pins
-  discard spiInit(self.spi, 3_000_000.cuint)
-  gpioSetFunction(self.dcPin, GpioFunction.Sio)
+  discard spiInit(self.spi, 3_000_000)
+
+  gpioSetFunction(self.dcPin, Sio)
   gpioSetDir(self.dcPin, Out)
-  gpioSetFunction(self.csPin, GpioFunction.Sio)
+
+  gpioSetFunction(self.csPin, Sio)
   gpioSetDir(self.csPin, Out)
   gpioPut(self.csPin, High)
-  gpioSetFunction(self.resetPin, GpioFunction.Sio)
+
+  gpioSetFunction(self.resetPin, Sio)
   gpioSetDir(self.resetPin, Out)
   gpioPut(self.resetPin, High)
-  if self.busyPin != PinUnused:
-    gpioSetFunction(self.busyPin.Gpio, GpioFunction.Sio)
-    gpioSetDir(self.busyPin.Gpio, In)
-    gpioSetPulls(self.busyPin.Gpio, up=true, down=false)
-  gpioSetFunction(self.sckPin, GpioFunction.Spi)
-  gpioSetFunction(self.mosiPin, GpioFunction.Spi)
+
+  gpioSetFunction(self.sckPin, Spi)
+  gpioSetFunction(self.mosiPin, Spi)
 
 proc isBusy*(self: Uc8159): bool =
-  if self.busyPin == PinUnused:
-    if absoluteTimeDiffUs(getAbsoluteTime(), self.timeout) > 0:
-      return true
-    else:
-      return false
-  return not gpioGet(self.busyPin.Gpio).bool
+  ## Wait for the timeout to complete, then check the busy callback.
+  ## This is to avoid polling the callback constantly
+  if absoluteTimeDiffUs(getAbsoluteTime(), self.timeout) > 0:
+    return true
+  if not self.isBusyProc.isNil:
+    return self.isBusyProc()
 
 proc busyWait*(self: var Uc8159, minimumWaitMs: uint32 = 0) =
+  # echo "busyWait ", minimumWaitMs
+  # let startTime = getAbsoluteTime()
   self.timeout = makeTimeoutTimeMs(minimumWaitMs)
   while self.isBusy():
     tightLoopContents()
+  # let endTime = getAbsoluteTime()
+  # echo absoluteTimeDiffUs(startTime, endTime)
 
 proc reset*(self: var Uc8159) =
   gpioPut(self.resetPin, Low)
@@ -205,18 +210,17 @@ proc setup*(self: var Uc8159) =
 
   # sleepMs(100)
 
-proc setBlocking*(self: var Uc8159; blocking: bool) =
-  self.blocking = blocking
+proc getBlocking*(self: Uc8159): bool = self.blocking
 
-proc setBorder*(self: var Uc8159; colour: Colour) =
-  self.borderColour = colour
+proc setBlocking*(self: var Uc8159; blocking: bool) = self.blocking = blocking
+
+proc setBorder*(self: var Uc8159; colour: Colour) = self.borderColour = colour
 
 proc powerOff*(self: var Uc8159) =
   self.busyWait()
-  self.command(Pof)
-  ##  turn off
+  self.command(Pof) ##  turn off
 
-method update*(self: var Uc8159; graphics: var PicoGraphics) =
+proc update*(self: var Uc8159; graphics: var PicoGraphics) =
   if graphics.penType != Pen_P3:
     return
 
@@ -226,12 +230,11 @@ method update*(self: var Uc8159; graphics: var PicoGraphics) =
   self.setup()
 
   gpioPut(self.csPin, Low)
-  ##  command mode
-  gpioPut(self.dcPin, Low)
+
+  gpioPut(self.dcPin, Low) ##  command mode
   discard spiWriteBlocking(self.spi, Dtm1.uint8)
 
-  ##  data mode
-  gpioPut(self.dcPin, High)
+  gpioPut(self.dcPin, High) ##  data mode
 
   ## HACK: Output 48 rows of data since our buffer is 400px tall
   ##  but the display has no offset configuration and H/V scan
@@ -246,17 +249,18 @@ method update*(self: var Uc8159; graphics: var PicoGraphics) =
     if length > 0:
       discard spiWriteBlocking(spiPtr, cast[ptr uint8](buf), length.csize_t)
   ))
+
   gpioPut(self.csPin, High)
+
   self.busyWait()
-  self.command(Pon)
-  ##  turn on
-  self.busyWait(200)
-  self.command(Drf)
-  ##  start display refresh
-  self.busyWait(200)
+
+  self.command(Pon) ##  turn on
+  self.busyWait(100)
+
+  self.command(Drf) ##  start display refresh
+
   if self.blocking:
-    self.busyWait(32 * 1000)
-    self.command(Pof)
-    ##  turn off
+    self.busyWait(28 * 1000)
+    self.command(Pof) ##  turn off
   else:
-    self.timeout = makeTimeoutTimeMs(32 * 1000)
+    self.timeout = makeTimeoutTimeMs(28 * 1000)
