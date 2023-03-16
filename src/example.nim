@@ -31,6 +31,12 @@ const inkyKind {.strdefine.} = "Unknown inkyKind"
 const inkyKindEnum = parseEnum[InkyFrameKind](inkyKind, InkyFrame5_7)
 var inky: InkyFrame[inkyKindEnum]
 
+let m = detectInkyFrameModel()
+if m.isSome:
+  echo "Detected Inky Frame model: ", m.get()
+else:
+  echo "Unknown Inky Frame model"
+
 inky.init()
 echo "Wake Up Events: ", inky.getWakeUpEvents()
 

@@ -1,15 +1,15 @@
-import std/math, std/bitops
+import std/math, std/bitops, std/options
 import picostdlib
 import picostdlib/[hardware/i2c, hardware/pwm]
 
 import ../drivers/[uc8159, pcf85063a, fatfs, psram_display]
 import ./pico_graphics
 
-export pico_graphics, fatfs, Colour
+export options, pico_graphics, fatfs, Colour
 
 const
   PinHoldSysEn = 2.Gpio
-  #PinI2cInt = 3.Gpio
+  PinI2cInt = 3.Gpio
   PinI2cSda = 4.Gpio
   PinI2CScl = 5.Gpio
   PinLedActivity* = 6.Gpio
@@ -103,6 +103,23 @@ proc readShiftRegister*(): uint8 =
 
 proc readShiftRegisterBit*(index: uint8): bool =
   readShiftRegister().testBit(index)
+
+proc detectInkyFrameModel*(): Option[InkyFrameKind] =
+  ## Experimental function to detect the model
+  ## Call before InkyFrame.init, since it changes the gpio states
+  gpioConfigure(PinSrLatch, In)
+  gpioPullDown(PinSrLatch)
+  let switchLatch = gpioGet(PinSrLatch)
+  gpioDeinit(PinSrLatch)
+
+  gpioConfigure(PinI2cInt, In)
+  gpioPullDown(PinI2cInt)
+  let i2cInt = gpioGet(PinI2cInt)
+  gpioDeinit(PinI2cInt)
+
+  if (switchLatch, i2cInt) == (High, High): return some(InkyFrame4_0)
+  elif (switchLatch, i2cInt) == (Low, High): return some(InkyFrame5_7)
+  elif (switchLatch, i2cInt) == (Low, Low): return some(InkyFrame7_3)
 
 proc init*[IF: InkyFrame](self: var IF) =
   (self.width, self.height) = static:
