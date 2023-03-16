@@ -31,6 +31,9 @@ const inkyKind {.strdefine.} = "Unknown inkyKind"
 const inkyKindEnum = parseEnum[InkyFrameKind](inkyKind, InkyFrame5_7)
 var inky: InkyFrame[inkyKindEnum]
 
+inky.init()
+echo "Wake Up Events: ", inky.getWakeUpEvents()
+
 type
   JpegDecodeOptions = object
     x, y, w, h: int
@@ -384,11 +387,6 @@ proc getFileN(directory: string; n: Natural): FILINFO =
 
 proc inkyProc() =
   echo "Starting..."
-
-  inky.init()
-
-  echo "Wake Up Event: ", inky.getWakeUpEvent()
-
 
   # inky.setPen(Pen.Black)
   # inky.rectangle(constructRect(0, 0, 600 div 8, 448))

@@ -1,4 +1,4 @@
-import std/math
+import std/math, std/bitops
 import picostdlib
 import picostdlib/[hardware/i2c, hardware/pwm]
 
@@ -35,18 +35,9 @@ const
   #PinEinkReset = 27.Gpio
   PinEinkDc = 28.Gpio
 
+  FlagEinkBusy = 0x07
+
 type
-  InkyFrameKind* = enum
-    InkyFrame4_0, InkyFrame5_7, InkyFrame7_3
-
-  InkyFrame*[kind: static[InkyFrameKind]] = object of PicoGraphicsPenP3
-    uc8159*: Uc8159
-    rtc*: Pcf85063a
-    width*, height*: int
-    wakeUpEvent: WakeUpEvent
-    when kind == InkyFrame7_3:
-      ramDisplay*: PsRamDisplay
-
   Led* = enum
     LedActivity = PinLedActivity
     LedConnection = PinLedConnection
@@ -63,13 +54,8 @@ type
     BtnD = 3
     BtnE = 4
 
-  Flag* = enum
-    FlagRtcAlarm = 5
-    FlagExternalTrigger = 6
-    FlagEinkBusy = 7
-
+  # Must come before InkyFrame object, where set[WakeUpEvent] is
   WakeUpEvent* = enum
-    EvtUnknown = -1
     EvtBtnA
     EvtBtnB
     EvtBtnC
@@ -79,6 +65,17 @@ type
     EvtExternalTrigger
 
   Pen* = uc8159.Colour
+
+  InkyFrameKind* = enum
+    InkyFrame4_0, InkyFrame5_7, InkyFrame7_3
+
+  InkyFrame*[kind: static[InkyFrameKind]] = object of PicoGraphicsPenP3
+    uc8159*: Uc8159
+    rtc*: Pcf85063a
+    width*, height*: int
+    wakeUpEvents: set[WakeUpEvent]
+    when kind == InkyFrame7_3:
+      ramDisplay*: PsRamDisplay
 
 proc gpioConfigure*(gpio: Gpio; dir: Direction; value: Value = Low) =
   gpioSetFunction(gpio, Sio)
@@ -96,18 +93,16 @@ proc readShiftRegister*(): uint8 =
   sleepUs(1)
   gpioPut(PinSrLatch, High)
   sleepUs(1)
-  var bits: uint8 = 8
-  while bits > 0:
-    result = result shl 1
-    result = result or (if gpioGet(PinSrOut).bool: 1 else: 0).uint8
+  for i in countdown(7, 0):
+    if gpioGet(PinSrOut) == High:
+      result.setBit(i)
     gpioPut(PinSrClock, Low)
     sleepUs(1)
     gpioPut(PinSrClock, High)
     sleepUs(1)
-    dec(bits)
 
 proc readShiftRegisterBit*(index: uint8): bool =
-  (readShiftRegister() and (1 shl index).uint8).bool
+  readShiftRegister().testBit(index)
 
 proc init*[IF: InkyFrame](self: var IF) =
   (self.width, self.height) = static:
@@ -126,23 +121,10 @@ proc init*[IF: InkyFrame](self: var IF) =
   gpioConfigure(PinSrClock, Out, High)
   gpioConfigure(PinSrLatch, Out, High)
   gpioConfigure(PinSrOut, In)
-  self.wakeUpEvent = EvtUnknown
 
   # determine wake up event
-  if readShiftRegisterBit(BtnA.uint8):
-    self.wakeUpEvent = EvtBtnA
-  if readShiftRegisterBit(BtnB.uint8):
-    self.wakeUpEvent = EvtBtnB
-  if readShiftRegisterBit(BtnC.uint8):
-    self.wakeUpEvent = EvtBtnC
-  if readShiftRegisterBit(BtnD.uint8):
-    self.wakeUpEvent = EvtBtnD
-  if readShiftRegisterBit(BtnE.uint8):
-    self.wakeUpEvent = EvtBtnE
-  if readShiftRegisterBit(FlagRtcAlarm.uint8):
-    self.wakeUpEvent = EvtRtcAlarm
-  if readShiftRegisterBit(FlagExternalTrigger.uint8):
-    self.wakeUpEvent = EvtExternalTrigger
+  let bits = readShiftRegister()
+  self.wakeUpEvents = cast[set[WakeUpEvent]](bits.bitsliced(WakeUpEvent.low.ord..WakeUpEvent.high.ord))
   # there are other reasons a wake event can occur: connect power via usb,
   # connect a battery, or press the reset button. these cannot be
   # disambiguated so we don't attempt to report them
@@ -170,7 +152,7 @@ proc init*[IF: InkyFrame](self: var IF) =
 
 proc isBusy*(): bool =
   # check busy flag on shift register
-  not readShiftRegisterBit(FlagEinkBusy.uint8)
+  not readShiftRegisterBit(FlagEinkBusy)
 
 proc update*[IF: InkyFrame](self: var IF; blocking: bool = false) =
   while isBusy():
@@ -180,7 +162,7 @@ proc update*[IF: InkyFrame](self: var IF; blocking: bool = false) =
     tightLoopContents()
   self.uc8159.powerOff()
 
-proc pressed*(button: Button|Flag): bool =
+proc pressed*(button: Button): bool =
   readShiftRegisterBit(button.uint8)
 
 # set the LED brightness by generating a gamma corrected target value for
@@ -210,7 +192,7 @@ proc sleepUntil*[IF: InkyFrame](self: var IF; second, minute, hour, day: int = -
     self.rtc.enableAlarmInterrupt(true)
   gpioPut(PinHoldSysEn, Low)
 
-proc getWakeUpEvent*[IF: InkyFrame](self: IF): WakeUpEvent = self.wakeUpEvent
+proc getWakeUpEvents*[IF: InkyFrame](self: IF): set[WakeUpEvent] = self.wakeUpEvents
 
 proc setBorder*[IF: InkyFrame](self: var IF; colour: Colour) = self.uc8159.setBorder(colour)
 
