@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.13)
 
+SET(CMAKE_BUILD_TYPE MinSizeRel)
+
 if(NOT DEFINED OUTPUT_NAME)
   set(OUTPUT_NAME pimoroni_pico)
 endif()
