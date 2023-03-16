@@ -107,15 +107,13 @@ proc readShiftRegisterBit*(index: uint8): bool =
 proc detectInkyFrameModel*(): Option[InkyFrameKind] =
   ## Experimental function to detect the model
   ## Call before InkyFrame.init, since it changes the gpio states
-  gpioConfigure(PinSrLatch, In)
-  gpioPullDown(PinSrLatch)
+  const mask = {PinSrLatch, PinI2cInt}
+  gpioInitMask(mask)
+  gpioSetDirInMasked(mask)
+  gpioMaskCall(mask, gpioPullDown)
   let switchLatch = gpioGet(PinSrLatch)
-  gpioDeinit(PinSrLatch)
-
-  gpioConfigure(PinI2cInt, In)
-  gpioPullDown(PinI2cInt)
   let i2cInt = gpioGet(PinI2cInt)
-  gpioDeinit(PinI2cInt)
+  gpioMaskCall(mask, gpioDeinit)
 
   if (switchLatch, i2cInt) == (High, High): return some(InkyFrame4_0)
   elif (switchLatch, i2cInt) == (Low, High): return some(InkyFrame5_7)
