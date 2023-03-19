@@ -115,7 +115,7 @@ proc isBusy*(): bool =
 proc init*[IF: InkyFrame](self: var IF) =
   (self.width, self.height) = static:
     case self.kind:
-    of InkyFrame4_0: (640, 480)
+    of InkyFrame4_0: (640, 400)
     of InkyFrame5_7: (600, 448)
     of InkyFrame7_3: (800, 480)
 
