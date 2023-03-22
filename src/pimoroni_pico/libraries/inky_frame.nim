@@ -3,8 +3,8 @@ import std/math, std/bitops, std/options
 import picostdlib
 import picostdlib/[hardware/i2c, hardware/pwm]
 
-import ../drivers/[uc8159, pcf85063a, fatfs, psram_display]
-import ./pico_graphics, ./shift_register
+import ../drivers/[uc8159, pcf85063a, shiftregister, fatfs, psram_display]
+import ./pico_graphics
 
 export options, pico_graphics, fatfs, psram_display, Colour
 
@@ -73,7 +73,10 @@ type
     InkyFrame4_0, InkyFrame5_7, InkyFrame7_3
 
   InkyFrame*[kind: static[InkyFrameKind]] = object of PicoGraphicsPenP3
-    einkDriver*: Uc8159
+    when kind != InkyFrame7_3:
+      einkDriver*: Uc8159[Standard]
+    else:
+      einkDriver*: Uc8159[Inky7]
     rtc*: Pcf85063a
     width*, height*: int
     wakeUpEvents: set[WakeUpEvent]

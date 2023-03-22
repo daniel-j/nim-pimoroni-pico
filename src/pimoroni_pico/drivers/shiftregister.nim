@@ -7,16 +7,16 @@ type
 
 proc read*(self: ShiftRegister): uint =
   gpioPut(self.pinLatch, Low)
-  sleepUs(1)
+  asm "NOP;"
   gpioPut(self.pinLatch, High)
-  sleepUs(1)
+  asm "NOP;"
   for i in countdown(self.bits - 1, 0):
     if gpioGet(self.pinOut) == High:
       result.setBit(i)
     gpioPut(self.pinClock, Low)
-    sleepUs(1)
+    asm "NOP;"
     gpioPut(self.pinClock, High)
-    sleepUs(1)
+    asm "NOP;"
 
 proc readBit*(self: ShiftRegister; index: uint): bool =
   self.read().int.testBit(index)
