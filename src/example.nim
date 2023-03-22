@@ -1,11 +1,6 @@
 
-import picostdlib/[
-  pico/stdio,
-  pico/time,
-  pico/platform,
-  pico/rand,
-  # pico/cyw43_arch
-]
+import picostdlib
+import picostdlib/pico/rand
 
 import pimoroni_pico/libraries/jpegdec
 import pimoroni_pico/libraries/inky_frame
