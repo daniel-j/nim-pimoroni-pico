@@ -1,6 +1,5 @@
 import std/bitops
-
-import picostdlib
+import picostdlib/hardware/gpio
 
 type
   ShiftRegister* = tuple[pinLatch, pinClock, pinOut: Gpio; bits: int]
