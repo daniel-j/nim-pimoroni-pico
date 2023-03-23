@@ -418,7 +418,7 @@ proc inkyProc() =
 
   echo "Mounting SD card..."
 
-  let fr = f_mount(fs.addr, "", 1)
+  let fr = f_mount(fs.addr, "".cstring, 1)
   if fr != FR_OK:
     echo "Failed to mount SD card, error: ", fr
   else:
