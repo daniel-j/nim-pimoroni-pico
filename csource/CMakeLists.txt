@@ -38,6 +38,16 @@ set_source_files_properties(
   PROPERTIES COMPILE_OPTIONS "-Wno-unused-result"
 )
 
+# # fetch and initialize FreeRTOS-Kernel
+# include(FetchContent)
+# FetchContent_Declare( freertos_kernel
+#   GIT_REPOSITORY https://github.com/FreeRTOS/FreeRTOS-Kernel.git
+#   GIT_TAG        V10.5.1
+# )
+# FetchContent_Populate(freertos_kernel)
+# set(FREERTOS_KERNEL_PATH ${freertos_kernel_SOURCE_DIR})
+# include(${FREERTOS_KERNEL_PATH}/portable/ThirdParty/GCC/RP2040/FreeRTOS_Kernel_import.cmake)
+
 set(NIMCACHE_DIR "${CMAKE_CURRENT_BINARY_DIR}/nimcache")
 set(NIMCACHE_JSON_FILE "${NIMCACHE_DIR}/${OUTPUT_NAME}.cached.json")
 
