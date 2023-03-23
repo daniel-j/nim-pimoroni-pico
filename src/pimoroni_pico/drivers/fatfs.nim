@@ -1,7 +1,9 @@
 ##
 ## FatFs License
 ##
-## FatFs has being developped as a personal project of the author, ChaN. It is free from the code anyone else wrote at current release. Following code block shows a copy of the FatFs license document that heading the source files.
+## FatFs has being developped as a personal project of the author, ChaN. It is
+## free from the code anyone else wrote at current release. Following code block
+## shows a copy of the FatFs license document that heading the source files.
 ##
 ## /*----------------------------------------------------------------------------/
 ## /  FatFs - Generic FAT Filesystem Module  Rx.xx                               /
@@ -22,19 +24,32 @@
 ## / by use of this software.
 ## /----------------------------------------------------------------------------*/
 ##
-## Therefore FatFs license is one of the BSD-style licenses, but there is a significant feature. FatFs is mainly intended for embedded systems. In order to extend the usability for commercial products, the redistributions of FatFs in binary form, such as embedded code, binary library and any forms without source code, do not need to include about FatFs in the documentations. This is equivalent to the 1-clause BSD license. Of course FatFs is compatible with the most of open source software licenses include GNU GPL. When you redistribute the FatFs source code with changes or create a fork, the license can also be changed to GNU GPL, BSD-style license or any open source software license that not conflict with FatFs license.
+## Therefore FatFs license is one of the BSD-style licenses, but there is a
+## significant feature. FatFs is mainly intended for embedded systems. In order
+## to extend the usability for commercial products, the redistributions of FatFs
+## in binary form, such as embedded code, binary library and any forms without
+## source code, do not need to include about FatFs in the documentations. This
+## is equivalent to the 1-clause BSD license. Of course FatFs is compatible with
+## the most of open source software licenses include GNU GPL. When you
+## redistribute the FatFs source code with changes or create a fork, the license
+## can also be changed to GNU GPL, BSD-style license or any open source software
+## license that not conflict with FatFs license.
 ##
 
 import std/os
 import picostdlib/helpers
+import picostdlib/hardware/rtc
 import futhark
 
 const fatfsInclude = currentSourcePath.parentDir / ".." / "vendor" / "fatfs"
 
-#{.compile: fatfsInclude / "ff.c".}
-#{.compile: fatfsInclude / "ffsystem.c".}
-#{.compile: fatfsInclude / "ffunicode.c".}
-#{.compile: fatfsInclude / "diskio.c".}
+#[
+{.compile: fatfsInclude / "ff.c".}
+{.compile: fatfsInclude / "ffsystem.c".}
+{.compile: fatfsInclude / "ffunicode.c".}
+{.compile: fatfsInclude / "diskio.c".}
+]#
+
 
 importc:
   compilerArg "--target=arm-none-eabi"
@@ -84,3 +99,21 @@ func `$`*(fileTime: tuple[year: int, month: int, day: int]): string =
 func `$`*(fileTime: tuple[hour: int, min: int, sec: int]): string =
   return intToStr(fileTime.hour, 2) & ":" & intToStr(fileTime.min, 2) & ":" & intToStr(fileTime.sec, 2)
 
+proc get_fattime_impl(): DWORD {.exportc: "get_fattime", cdecl.} =
+  var dt = Datetime(
+    year: 2023,
+    month: 1,
+    day: 1
+  )
+  # If RTC is active, load current datetime.
+  # Otherwise use fallback datetime defined above
+  discard rtcGetDatetime(dt.addr)
+
+  return (
+    DWORD(dt.year - 1980) shl 25 or
+    DWORD(dt.month + 1) shl 21 or
+    DWORD(dt.day) shl 16 or
+    DWORD(dt.hour) shl 11 or
+    DWORD(dt.min) shl 5 or
+    DWORD(dt.sec shr 1)
+  )

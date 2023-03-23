@@ -454,14 +454,14 @@ DRESULT disk_read (
 }
 
 
-
-#if !FF_FS_READONLY && !FF_FS_NORTC
-/* get the current time */
-DWORD get_fattime (void)
-{
-	return 0;
-}
-#endif
+// This is handled in fatfs.nim
+// #if !FF_FS_READONLY && !FF_FS_NORTC
+// /* get the current time */
+// DWORD get_fattime (void)
+// {
+// 	return 0;
+// }
+// #endif
 
 #if FF_FS_READONLY == 0
 /* Transmit multiple byte */

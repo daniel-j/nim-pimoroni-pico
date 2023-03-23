@@ -1,6 +1,9 @@
 #ifndef _SDCARD_H_
 #define _SDCARD_H_
 
+// #define SDCARD_PIO pio0
+// #define SDCARD_PIO_SM 0
+
 /* SPI pin assignment */
 
 /* Pico Wireless */
