@@ -55,6 +55,7 @@ importc:
   compilerArg "--target=arm-none-eabi"
   compilerArg "-mthumb"
   compilerArg "-mcpu=cortex-m0plus"
+  compilerArg "-fsigned-char"
 
   sysPath armSysrootInclude
   sysPath armInstallInclude
@@ -68,9 +69,6 @@ importc:
 # Nim helpers
 
 import std/strutils
-
-when Tchar is uint8:
-  converter stringToPtrTchar*(x: cstring): ptr Tchar = cast[ptr Tchar](x)
 
 func f_eof*(fp: ptr FIL): auto {.inline.} = fp.fptr == fp.obj.objsize
 func f_error*(fp: ptr FIL): auto {.inline.} = fp.err
