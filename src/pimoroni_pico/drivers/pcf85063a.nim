@@ -209,3 +209,15 @@ proc setByte*(self: var Pcf85063a; v: uint8) =
 
 proc getByte*(self: var Pcf85063a): uint8 =
   self.i2c.regReadUint8(self.address, Registers.RAM_BYTE.uint8)
+
+
+proc syncFromPicoRtc*(self: var Pcf85063a): bool =
+  var dt: Datetime
+  if not rtcGetDatetime(dt.addr):
+    return false
+  self.setDatetime(dt.addr)
+  return true
+
+proc syncToPicoRtc*(self: var Pcf85063a): bool =
+  var dt = self.getDatetime()
+  return rtcSetDatetime(dt.addr)

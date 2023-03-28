@@ -74,10 +74,10 @@ type
 
   InkyFrame*[kind: static[InkyFrameKind]] = object of PicoGraphicsPenP3
     when kind != InkyFrame7_3:
-      einkDriver*: Uc8159[Standard]
+      einkDriver: Uc8159[Standard]
     else:
-      einkDriver*: Uc8159[Inky7]
-    rtc*: Pcf85063a
+      einkDriver: Uc8159[Inky7]
+    rtc: Pcf85063a
     width*, height*: int
     wakeUpEvents: set[WakeUpEvent]
     when kind == InkyFrame7_3:
@@ -211,6 +211,10 @@ proc sleepUntil*[IF: InkyFrame](self: var IF; second, minute, hour, day: int = -
 proc getWakeUpEvents*[IF: InkyFrame](self: IF): set[WakeUpEvent] = self.wakeUpEvents
 
 proc setBorder*[IF: InkyFrame](self: var IF; colour: Colour) = self.einkDriver.setBorder(colour)
+
+proc syncRtcFromPicoRtc*[IF: InkyFrame](self: IF): bool = self.rtc.syncFromPicoRtc()
+
+proc syncRtcToPicoRtc*[IF: InkyFrame](self: IF): bool = self.rtc.syncToPicoRtc()
 
 proc image*[IF: InkyFrame](self: var IF; data: openArray[uint8]; stride: int; sx: int; sy: int; dw: int; dh: int; dx: int; dy: int) =
   var y = 0
