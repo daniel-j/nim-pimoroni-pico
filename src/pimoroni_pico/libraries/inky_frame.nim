@@ -73,15 +73,14 @@ type
     InkyFrame4_0, InkyFrame5_7, InkyFrame7_3
 
   InkyFrame*[kind: static[InkyFrameKind]] = object of PicoGraphicsPenP3
-    when kind != InkyFrame7_3:
-      einkDriver: EinkUc8159
-    else:
+    when kind == InkyFrame7_3:
       einkDriver: EinkAc073tc1a
+      ramDisplay*: PsRamDisplay
+    else:
+      einkDriver: EinkUc8159
     rtc: RtcPcf85063a
     width*, height*: int
     wakeUpEvents: set[WakeUpEvent]
-    when kind == InkyFrame7_3:
-      ramDisplay*: PsRamDisplay
 
 proc gpioConfigure*(gpio: Gpio; dir: Direction; value: Value = Low) =
   gpioSetFunction(gpio, Sio)
