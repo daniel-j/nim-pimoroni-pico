@@ -2,8 +2,9 @@ import picostdlib
 import ../common/pimoroni_common
 import ../common/pimoroni_bus
 import ../libraries/pico_graphics/display_driver
+import ./eink_common
 
-export display_driver, pimoroni_bus
+export display_driver, pimoroni_bus, Colour
 
 type
   Reg = enum
@@ -12,10 +13,8 @@ type
     Pof   = 0x02
     Pfs   = 0x03
     Pon   = 0x04
-    Btst1 = 0x05
-    Btst2 = 0x06
+    Btst  = 0x06
     Dslp  = 0x07
-    Btst3 = 0x08
     Dtm1  = 0x10
     Dsp   = 0x11
     Drf   = 0x12
@@ -45,29 +44,11 @@ type
     Amv   = 0x80
     Vv    = 0x81
     Vdcs  = 0x82
-    TVdcs = 0x84
-    Agid  = 0x86
-    Cmdh  = 0xAA
-    Ccset = 0xE0
     Pws   = 0xE3
-    Tsset = 0xE6 # E5 or E6
-
-  Colour* = enum
-    Black
-    White
-    Green
-    Blue
-    Red
-    Yellow
-    Orange
-    Clean
 
   IsBusyProc* = proc (): bool
 
-  Uc8159Kind* = enum
-    Standard, Inky7
-
-  Uc8159*[kind: static[Uc8159Kind]] = object of DisplayDriver
+  EinkUc8159* = object of DisplayDriver
     spi: ptr SpiInst
     csPin: Gpio
     dcPin: Gpio
@@ -79,7 +60,7 @@ type
     borderColour: Colour
     isBusyProc: IsBusyProc
 
-proc init*(self: var Uc8159; width: uint16; height: uint16; pins: SpiPins; resetPin: Gpio; isBusyProc: IsBusyProc = nil; blocking: bool = true) =
+proc init*(self: var EinkUc8159; width: uint16; height: uint16; pins: SpiPins; resetPin: Gpio; isBusyProc: IsBusyProc = nil; blocking: bool = true) =
   DisplayDriver(self).init(width, height)
 
   self.spi = pins.spi
@@ -95,10 +76,7 @@ proc init*(self: var Uc8159; width: uint16; height: uint16; pins: SpiPins; reset
   self.borderColour = White
 
   ##  configure spi interface and pins
-  when self.kind != Inky7:
-    discard spiInit(self.spi, 3_000_000)
-  else:
-    discard spiInit(self.spi, 20_000_000)
+  discard spiInit(self.spi, 20_000_000)
 
   gpioSetFunction(self.dcPin, Sio)
   gpioSetDir(self.dcPin, Out)
@@ -114,7 +92,7 @@ proc init*(self: var Uc8159; width: uint16; height: uint16; pins: SpiPins; reset
   gpioSetFunction(self.sckPin, Spi)
   gpioSetFunction(self.mosiPin, Spi)
 
-proc isBusy*(self: Uc8159): bool =
+proc isBusy*(self: EinkUc8159): bool =
   ## Wait for the timeout to complete, then check the busy callback.
   ## This is to avoid polling the callback constantly
   if absoluteTimeDiffUs(getAbsoluteTime(), self.timeout) > 0:
@@ -122,7 +100,7 @@ proc isBusy*(self: Uc8159): bool =
   if not self.isBusyProc.isNil:
     return self.isBusyProc()
 
-proc busyWait*(self: var Uc8159, minimumWaitMs: uint32 = 0) =
+proc busyWait*(self: var EinkUc8159, minimumWaitMs: uint32 = 0) =
   # echo "busyWait ", minimumWaitMs
   # let startTime = getAbsoluteTime()
   self.timeout = makeTimeoutTimeMs(minimumWaitMs)
@@ -131,14 +109,14 @@ proc busyWait*(self: var Uc8159, minimumWaitMs: uint32 = 0) =
   # let endTime = getAbsoluteTime()
   # echo absoluteTimeDiffUs(startTime, endTime)
 
-proc reset*(self: var Uc8159) =
+proc reset*(self: var EinkUc8159) =
   gpioPut(self.resetPin, Low)
   sleepMs(10)
   gpioPut(self.resetPin, High)
   sleepMs(10)
   self.busyWait()
 
-proc data*(self: var Uc8159, len: uint; data: varargs[uint8]) =
+proc data*(self: var EinkUc8159, len: uint; data: varargs[uint8]) =
   gpioPut(self.csPin, Low)
   ##  data mode
   gpioPut(self.dcPin, High)
@@ -146,7 +124,7 @@ proc data*(self: var Uc8159, len: uint; data: varargs[uint8]) =
   discard spiWriteBlocking(self.spi, data)
   gpioPut(self.csPin, High)
 
-proc command*(self: var Uc8159; reg: Reg; data: varargs[uint8]) =
+proc command*(self: var EinkUc8159; reg: Reg; data: varargs[uint8]) =
   gpioPut(self.csPin, Low)
   ##  command mode
   gpioPut(self.dcPin, Low)
@@ -157,40 +135,8 @@ proc command*(self: var Uc8159; reg: Reg; data: varargs[uint8]) =
     discard spiWriteBlocking(self.spi, data)
   gpioPut(self.csPin, High)
 
-proc setupInky7(self: var Uc8159) =
-  static: assert(self.kind == Inky7)
-  self.reset()
-  self.busyWait()
 
-  self.command(Cmdh, 0x49, 0x55, 0x20, 0x08, 0x09, 0x18)
-  self.command(Pwr,0x3F, 0x00, 0x32, 0x2A, 0x0E, 0x2A)
-  if self.rotation == Rotate_0:
-    self.command(Psr, 0x53, 0x69)
-  else:
-    self.command(Psr, 0x5F, 0x69)
-
-  self.command(Pfs, 0x00, 0x54, 0x00, 0x44)
-  self.command(Btst1, 0x40, 0x1F, 0x1F, 0x2C)
-  self.command(Btst2, 0x6F, 0x1F, 0x1F, 0x22)
-  self.command(Btst3, 0x6F, 0x1F, 0x1F, 0x22)
-  self.command(Ipc, 0x00, 0x04)
-  self.command(Pll, 0x3C)
-  self.command(Tse, 0x00)
-  self.command(Cdi, 0x3F)
-  self.command(Tcon, 0x02, 0x00)
-  self.command(Tres, 0x03, 0x20, 0x01, 0xE0)
-  self.command(Vdcs, 0x1E)
-  self.command(TVdcs, 0x00)
-  self.command(Agid, 0x00)
-  self.command(Pws, 0x2F)
-  self.command(Ccset, 0x00)
-  self.command(Tsset, 0x00)
-
-proc setup*(self: var Uc8159) =
-  when self.kind == Inky7:
-    self.setupInky7()
-    return
-
+proc setup*(self: var EinkUc8159) =
   self.reset()
   self.busyWait()
 
@@ -224,7 +170,7 @@ proc setup*(self: var Uc8159) =
   )
 
   # Booster Soft Start
-  self.command(Btst2,
+  self.command(Btst,
     0b11_000_111, # Soft Start Phase Period = 40 ms, Driving Strength = (reserved), Minimum OFF Time = 6.77 us
     0b11_000_111, # Soft Start Phase Period = 40 ms, Driving Strength = (reserved), Minimum OFF Time = 6.77 us
     0b011_101 # Driving strength = 2, Minimum OFF Time = 1.61 us
@@ -257,17 +203,17 @@ proc setup*(self: var Uc8159) =
 
   # sleepMs(100)
 
-proc getBlocking*(self: Uc8159): bool = self.blocking
+proc getBlocking*(self: EinkUc8159): bool = self.blocking
 
-proc setBlocking*(self: var Uc8159; blocking: bool) = self.blocking = blocking
+proc setBlocking*(self: var EinkUc8159; blocking: bool) = self.blocking = blocking
 
-proc setBorder*(self: var Uc8159; colour: Colour) = self.borderColour = colour
+proc setBorder*(self: var EinkUc8159; colour: Colour) = self.borderColour = colour
 
-proc powerOff*(self: var Uc8159) =
+proc powerOff*(self: var EinkUc8159) =
   self.busyWait()
   self.command(Pof) ##  turn off
 
-proc update*(self: var Uc8159; graphics: var PicoGraphics) =
+proc update*(self: var EinkUc8159; graphics: var PicoGraphics) =
   if graphics.penType != Pen_P3:
     return
 

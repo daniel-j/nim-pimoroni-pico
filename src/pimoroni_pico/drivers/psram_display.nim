@@ -2,7 +2,9 @@ import picostdlib
 import picostdlib/hardware/spi
 import ../common/[pimoroni_common, pimoroni_bus]
 import ../libraries/pico_graphics
-from ./uc8159 import Colour
+from ./eink_common import Colour
+
+export Colour
 
 type
   PsRamDisplay* = object

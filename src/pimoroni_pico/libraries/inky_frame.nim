@@ -3,7 +3,7 @@ import std/math, std/bitops, std/options
 import picostdlib
 import picostdlib/[hardware/i2c, hardware/pwm]
 
-import ../drivers/[uc8159, pcf85063a, shiftregister, fatfs, psram_display]
+import ../drivers/[eink_uc8159, eink_ac073tc1a, rtc_pcf85063a, shiftregister, fatfs, psram_display]
 import ./pico_graphics
 
 export options, pico_graphics, fatfs, psram_display, Colour
@@ -74,10 +74,10 @@ type
 
   InkyFrame*[kind: static[InkyFrameKind]] = object of PicoGraphicsPenP3
     when kind != InkyFrame7_3:
-      einkDriver: Uc8159[Standard]
+      einkDriver: EinkUc8159
     else:
-      einkDriver: Uc8159[Inky7]
-    rtc: Pcf85063a
+      einkDriver: EinkAc073tc1a
+    rtc: RtcPcf85063a
     width*, height*: int
     wakeUpEvents: set[WakeUpEvent]
     when kind == InkyFrame7_3:
@@ -195,7 +195,7 @@ proc sleep*[IF: InkyFrame](self: var IF; wakeInMinutes: int = -1) =
     # wake up
     self.rtc.setTimer(wakeInMinutes.uint8, tt1Over60Hz)
     self.rtc.enableTimerInterrupt(true, false)
-  
+
   # release the vsys hold pin so that inky can go to sleep
   gpioPut(PinHoldSysEn, Low)
   while true:
