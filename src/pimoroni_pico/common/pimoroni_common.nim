@@ -5,6 +5,10 @@ import picostdlib/[
 
 export i2c, spi, gpio, time
 
+let
+  PimoroniI2cDefaultInstance* = i2c0
+  PimoroniSpiDefaultInstance* = spi0
+
 const
   PinUnused* = -1.int8
 
@@ -21,12 +25,12 @@ const
   I2cHeaderInt* = 19.Gpio
 
   ## SPI
-  SpiDefaultMosi* = 19.Gpio
-  SpiDefaultMiso* = 16.Gpio
-  SpiDefaultDC* = 16.Gpio
-  SpiDefaultSck* = 18.Gpio
+  SpiDefaultMosi* = 19.Gpio # DefaultSpiTxPin
+  SpiDefaultMiso* = 16.Gpio # DefaultSpiRxPin
+  SpiDefaultDc* = 16.Gpio
+  SpiDefaultSck* = 18.Gpio # DefaultSpiSckPin
   SpiBgFrontPwm* = 20.Gpio
-  SpiBgFrontCs* = 17.Gpio
+  SpiBgFrontCs* = 17.Gpio # DefaultSpiCsnPin
   SpiBgBackPwm* = 21.Gpio
   SpiBgBackCs* = 22.Gpio
 
@@ -81,10 +85,6 @@ const
                       13817, 13946, 14076, 14206, 14337, 14469, 14602,
                       14735, 14868, 15003, 15138, 15273, 15410, 15547,
                       15685, 15823, 15962, 16102, 16242, 16383]
-
-let
-  PimoroniI2cDefaultInstance* = i2c0
-  PimoroniSpiDefaultInstance* = spi0
 
 type
   BgSpiSlot* {.pure.} = enum

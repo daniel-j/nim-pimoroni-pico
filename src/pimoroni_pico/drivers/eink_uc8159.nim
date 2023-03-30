@@ -76,7 +76,7 @@ proc init*(self: var EinkUc8159; width: uint16; height: uint16; pins: SpiPins; r
   self.borderColour = White
 
   ##  configure spi interface and pins
-  discard spiInit(self.spi, 20_000_000)
+  echo "Eink SPI init: ", spiInit(self.spi, 20_000_000)
 
   gpioSetFunction(self.dcPin, Sio)
   gpioSetDir(self.dcPin, Out)

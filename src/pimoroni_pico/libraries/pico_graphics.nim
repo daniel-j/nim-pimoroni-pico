@@ -12,6 +12,7 @@
 
 import std/algorithm
 import ./pico_graphics/[rgb, shapes, luts]
+import ../drivers/psram_display
 
 export rgb, shapes, luts
 
@@ -33,8 +34,13 @@ type
 
   PicoGraphicsConversionCallbackFunc* = proc (data: pointer; length: uint) {.closure.}
 
+  PicoGraphicsBackend* = enum
+    BackendMemory, BackendPsram
+
   PicoGraphics* = object of RootObj
-    frameBuffer*: seq[uint8]
+    case backend*: PicoGraphicsBackend:
+    of BackendMemory: frameBuffer*: seq[uint8]
+    of BackendPsram: fbPsram*: PsramDisplay
     penType*: PicoGraphicsPenType
     bounds*: Rect
     clip*: Rect
@@ -54,12 +60,14 @@ proc setDimensions*(self: var PicoGraphics; width: uint16; height: uint16) =
   self.clip.w = width.int
   self.clip.h = height.int
 
-proc init*(self: var PicoGraphics; width: uint16; height: uint16; frameBuffer: seq[uint8] = @[]) =
+proc init*(self: var PicoGraphics; width: uint16; height: uint16; backend: PicoGraphicsBackend = BackendMemory; frameBuffer: seq[uint8] = @[]) =
   self.setDimensions(width, height)
-  self.frameBuffer = frameBuffer
+  self.backend = backend
+  if self.backend == BackendMemory:
+    self.frameBuffer = frameBuffer
   # self.setFont(font6)
 
-# func constructPicoGraphics*(width: uint16; height: uint16; frameBuffer: seq[uint8] = @[]): PicoGraphics {.constructor.} =
+# func constructPicoGraphics*(width: uint16; height: uint16; backend: PicoGraphicsBackend = BackendMemory; frameBuffer: seq[uint8] = @[]): PicoGraphics {.constructor.} =
 #   result.init(width, height, frameBuffer)
 
 method setPen*(self: var PicoGraphics; c: uint) {.base.} = discard
@@ -429,11 +437,12 @@ type
 func bufferSize*(self: PicoGraphicsPen1Bit; w: uint; h: uint): uint =
   return w * h div 8
 
-proc init*(self: var PicoGraphicsPen1Bit; width: uint16; height: uint16; frameBuffer: seq[uint8] = @[]) {.constructor.} =
-  init(PicoGraphics(self), width, height, frameBuffer)
+proc init*(self: var PicoGraphicsPen1Bit; width: uint16; height: uint16; backend: PicoGraphicsBackend = BackendMemory; frameBuffer: seq[uint8] = @[]) {.constructor.} =
+  init(PicoGraphics(self), width, height, backend, frameBuffer)
   self.penType = Pen_1Bit
-  if self.frameBuffer.len == 0:
-    self.frameBuffer = newSeq[uint8](self.bufferSize(width, height))
+  if self.backend == BackendMemory:
+    if self.frameBuffer.len == 0:
+      self.frameBuffer = newSeq[uint8](self.bufferSize(width, height))
 
 method setPen*(self: var PicoGraphicsPen1Bit; c: uint) =
   self.color = c.uint8
@@ -513,7 +522,7 @@ method setPixelSpan*(self: var PicoGraphicsPen1BitY; p: Point; l: uint) =
 
 type
   PicoGraphicsPenP3* = object of PicoGraphics
-    color*: 0'u8 .. 7'u8
+    color*: uint
     palette*: array[8, Rgb]
     # candidateCache*: array[512, array[16, uint8]]
     # cacheBuilt*: bool
@@ -533,14 +542,18 @@ const PicoGraphicsPenP3Palette* = [
 func bufferSize*(self: PicoGraphicsPenP3; w: uint; h: uint): uint =
   return (w * h div 8) * 3
 
-proc init*(self: var PicoGraphicsPenP3; width: uint16; height: uint16; frameBuffer: seq[uint8] = @[]; noFrameBuffer: bool = false) {.constructor.} =
-  PicoGraphics(self).init(width, height, frameBuffer)
+proc init*(self: var PicoGraphicsPenP3; width: uint16; height: uint16; backend: PicoGraphicsBackend = BackendMemory; frameBuffer: seq[uint8] = @[]) =
+  PicoGraphics(self).init(width, height, backend, frameBuffer)
   self.palette = PicoGraphicsPenP3Palette
   self.penType = Pen_P3
-  if self.frameBuffer.len == 0 and not noFrameBuffer:
-    self.frameBuffer = newSeq[uint8](self.bufferSize(width, height))
+  case self.backend:
+  of BackendMemory:
+    if self.frameBuffer.len == 0:
+      self.frameBuffer = newSeq[uint8](self.bufferSize(width, height))
+  of BackendPsram:
+    self.fbPsram.init(width, height)
 
-# proc constructPicoGraphicsPenP3*(width: uint16; height: uint16; frameBuffer: seq[uint8] = @[]): PicoGraphicsPenP3 {.constructor.} =
+# proc constructPicoGraphicsPenP3*(width: uint16; height: uint16; backend: PicoGraphicsBackend = BackendMemory; frameBuffer: seq[uint8] = @[]): PicoGraphicsPenP3 {.constructor.} =
 #   result.init(width, height, frameBuffer)
 
 proc getDitherCandidates*(col: Rgb; palette: array[8, Rgb]; candidates: var array[16, uint8]) =
@@ -585,31 +598,53 @@ proc getNearestCache(palette: openArray[Rgb]): array[512, uint8] =
 const ditherCachePenP3 = getDitherCache(PicoGraphicsPenP3Palette)
 const closestCachePen3Bit = getNearestCache(PicoGraphicsPenP3Palette)
 
+const RGB_FLAG*: uint = 0x7f000000
+
 method setPen*(self: var PicoGraphicsPenP3; c: uint) =
-  self.color = uint8 c and 0xf
+  self.color = c
 
 method setPen*(self: var PicoGraphicsPenP3; c: Rgb) =
-  let cacheKey = (((c.r and 0xE0) shl 1) or ((c.g and 0xE0) shr 2) or ((c.b and 0xE0) shr 5))
-  self.color = closestCachePen3Bit[cacheKey]
+  self.color = c.toRgb888().uint or RGB_FLAG
+  echo "setting rgb color! ", c
+
+proc createPen*(self: PicoGraphicsPenP3; c: Rgb): uint =
+  c.toRgb888().uint or RGB_FLAG
+
+proc createPenHsv*(self: PicoGraphicsPenP3; h, s, v: float): uint =
+  hsvToRgb(h, s,v).toRgb888().uint or RGB_FLAG
 
 proc setPenClosest*(self: var PicoGraphicsPenP3; c: Rgb; whitepoint: Rgb = Rgb(r: 255, g: 255, b: 255)) =
   self.color = c.closest(self.palette, self.color.int, whitepoint).uint8
 
+proc setPenClosestFast*(self: var PicoGraphicsPenP3; c: Rgb) =
+  let cacheKey = (((c.r and 0xE0) shl 1) or ((c.g and 0xE0) shr 2) or ((c.b and 0xE0) shr 5))
+  self.color = closestCachePen3Bit[cacheKey]
+
+proc setPixelImpl(self: var PicoGraphicsPenP3; p: Point; col: uint) =
+  case self.backend:
+  of BackendMemory:
+    let base = (p.x div 8) + (p.y * self.bounds.w div 8)
+    let offset = (self.bounds.w * self.bounds.h) div 8
+    let offA = base
+    let offB = offA + offset
+    let offC = offB + offset
+    let bo = uint8 7 - (p.x and 0b111)
+    let cA = uint8 (col and 0b100) shr 2
+    self.frameBuffer[offA] = (self.frameBuffer[offA] and not (1'u8 shl bo)) or (cA shl bo)
+    let cB = uint8 (col and 0b010) shr 1
+    self.frameBuffer[offB] = (self.frameBuffer[offB] and not (1'u8 shl bo)) or (cB shl bo)
+    let cC = uint8 (col and 0b001)
+    self.frameBuffer[offC] = (self.frameBuffer[offC] and not (1'u8 shl bo)) or (cC shl bo)
+  of BackendPsram:
+    self.fbPsram.writePixel(p, col.uint8)
+
 method setPixel*(self: var PicoGraphicsPenP3; p: Point) =
   if not self.bounds.contains(p) or not self.clip.contains(p):
     return
-  let base = (p.x div 8) + (p.y * self.bounds.w div 8)
-  let offset = (self.bounds.w * self.bounds.h) div 8
-  let offA = base
-  let offB = offA + offset
-  let offC = offB + offset
-  let bo = 7 - (uint8 p.x and 0b111)
-  let cA = (self.color and 0b100) shr 2
-  self.frameBuffer[offA] = (self.frameBuffer[offA] and not (1'u8 shl bo)) or (cA shl bo)
-  let cB = (self.color and 0b010) shr 1
-  self.frameBuffer[offB] = (self.frameBuffer[offB] and not (1'u8 shl bo)) or (cB shl bo)
-  let cC = (self.color and 0b001)
-  self.frameBuffer[offC] = (self.frameBuffer[offC] and not (1'u8 shl bo)) or (cC shl bo)
+  if (self.color and RGB_FLAG) == RGB_FLAG:
+    self.setPixelDither(p, constructRgb(self.color.Rgb888))
+  else:
+    self.setPixelImpl(p, self.color)
 
 method setPixel*(self: var PicoGraphicsPenP3; p: Point; c: Rgb) =
   if not self.bounds.contains(p) or not self.clip.contains(p):
@@ -633,6 +668,10 @@ proc getPixel*(self: PicoGraphicsPenP3; p: Point): uint8 =
     ((self.frameBuffer[offC] and (1'u8 shl bo)) shr bo)
 
 method setPixelSpan*(self: var PicoGraphicsPenP3; p: Point; l: uint) =
+  if self.backend == BackendPsram and (self.color and RGB_FLAG) != RGB_FLAG:
+    # is not an rgb color
+    self.fbPsram.writePixelSpan(p, l, self.color.uint8)
+    return
   var lp: Point = p
   var length = l
   while length > 0:
@@ -648,29 +687,42 @@ method setPixelDither*(self: var PicoGraphicsPenP3; p: Point; c: Rgb) =
   ##  find the pattern coordinate offset
   let patternIndex = ((p.x and 0b11) or ((p.y and 0b11) shl 2)).uint
   ##  set the pixel
-  self.color = ditherCachePenP3[cacheKey][dither16Pattern[patternIndex]]
-  self.setPixel(p)
+  self.setPixelImpl(p, ditherCachePenP3[cacheKey][dither16Pattern[patternIndex]])
 
 method frameConvert*(self: var PicoGraphicsPenP3; `type`: PicoGraphicsPenType; callback: PicoGraphicsConversionCallbackFunc) =
   if `type` == Pen_P4:
-    var rowBuf = newSeq[uint8](self.bounds.w div 2)
-    var offset = ((self.bounds.w * self.bounds.h) div 8).uint
-    for y in 0 ..< self.bounds.h:
-      for x in 0 ..< self.bounds.w:
-        var bo: uint = 7 - (uint x and 0b111)
-        var bufA: ptr uint8 = addr(self.frameBuffer[(x div 8) + (y * self.bounds.w div 8)])
-        var bufB: ptr uint8 = cast[ptr uint8](cast[uint](bufA) + offset)
-        var bufC: ptr uint8 = cast[ptr uint8](cast[uint](bufA) + offset + offset)
-        var nibble: uint8 = (bufA[] shr bo) and 1
-        nibble = nibble shl 1
-        nibble = nibble or (bufB[] shr bo) and 1
-        nibble = nibble shl 1
-        nibble = nibble or (bufC[] shr bo) and 1
-        nibble = nibble shl (if (x and 0b1).bool: 0 else: 4)
-        rowBuf[x div 2] = rowBuf[x div 2] and (if (x and 0b1).bool: 0b11110000 else: 0b00001111)
-        rowBuf[x div 2] = rowBuf[x div 2] or nibble
+    case self.backend:
+    of BackendMemory:
+      var rowBuf = newSeq[uint8](self.bounds.w div 2)
+      var offset = ((self.bounds.w * self.bounds.h) div 8).uint
+      for y in 0 ..< self.bounds.h:
+        for x in 0 ..< self.bounds.w:
+          var bo: uint = 7 - (uint x and 0b111)
+          var bufA: ptr uint8 = addr(self.frameBuffer[(x div 8) + (y * self.bounds.w div 8)])
+          var bufB: ptr uint8 = cast[ptr uint8](cast[uint](bufA) + offset)
+          var bufC: ptr uint8 = cast[ptr uint8](cast[uint](bufA) + offset + offset)
+          var nibble: uint8 = (bufA[] shr bo) and 1
+          nibble = nibble shl 1
+          nibble = nibble or (bufB[] shr bo) and 1
+          nibble = nibble shl 1
+          nibble = nibble or (bufC[] shr bo) and 1
+          nibble = nibble shl (if (x and 0b1).bool: 0 else: 4)
+          rowBuf[x div 2] = rowBuf[x div 2] and (if (x and 0b1).bool: 0b11110000 else: 0b00001111)
+          rowBuf[x div 2] = rowBuf[x div 2] or nibble
 
-      callback(cast[pointer](rowBuf[0].addr), rowBuf.len.uint)
+        callback(cast[pointer](rowBuf[0].addr), rowBuf.len.uint)
+
+    of BackendPsram:
+      var rowBuf = newSeq[uint8](self.bounds.w)
+      let byteCount = uint self.bounds.w div 2
+      for y in 0 ..< self.bounds.h:
+        self.fbPsram.readPixelSpan(Point(x: 0, y: y), rowBuf.len.uint, rowBuf[0].addr)
+        for x in 0..<byteCount:
+          var nibble = (rowBuf[x * 2] shl 4) or (rowBuf[x * 2 + 1] and 0xf)
+          rowBuf[x] = nibble
+
+        callback(cast[pointer](rowBuf[0].addr), byteCount)
+
 
 ##
 ## Pico Graphics Pen P4

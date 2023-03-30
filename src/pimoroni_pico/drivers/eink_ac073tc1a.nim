@@ -21,16 +21,6 @@ type
     Dsp   = 0x11
     Drf   = 0x12
     Ipc   = 0x13
-    # LutC  = 0x20
-    # LutB  = 0x21
-    # LutW  = 0x22
-    # LutG1 = 0x23
-    # LutG2 = 0x24
-    # LutR0 = 0x25
-    # LutR1 = 0x26
-    # LutR2 = 0x27
-    # LutR3 = 0x28
-    # LutXon = 0x29
     Pll   = 0x30
     Tsc   = 0x40
     Tse   = 0x41
@@ -51,7 +41,7 @@ type
     Cmdh  = 0xAA
     Ccset = 0xE0
     Pws   = 0xE3
-    Tsset = 0xE6 # E5 or E6
+    Tsset = 0xE6
 
   IsBusyProc* = proc (): bool
 
@@ -83,7 +73,7 @@ proc init*(self: var EinkAc073tc1a; width: uint16; height: uint16; pins: SpiPins
   self.borderColour = White
 
   ##  configure spi interface and pins
-  discard spiInit(self.spi, 20_000_000)
+  echo "Eink SPI init: ", spiInit(self.spi, 20_000_000)
 
   gpioSetFunction(self.dcPin, Sio)
   gpioSetDir(self.dcPin, Out)
@@ -143,6 +133,8 @@ proc command*(self: var EinkAc073tc1a; reg: Reg; data: varargs[uint8]) =
   gpioPut(self.csPin, High)
 
 proc setup*(self: var EinkAc073tc1a) =
+  assert(self.width == 800 and self.height == 480, "Panel size must be 800x480!")
+
   self.reset()
   self.busyWait()
 
@@ -196,28 +188,26 @@ proc update*(self: var EinkAc073tc1a; graphics: var PicoGraphics) =
 
   gpioPut(self.dcPin, High) ##  data mode
 
-  ## HACK: Output 48 rows of data since our buffer is 400px tall
-  ##  but the display has no offset configuration and H/V scan
-  ##  are reversed.
-  ## Any garbage data will do.
-  ##  2px per byte, so we need width * 24 bytes
-  if self.height == 400 and self.rotation == Rotate_0:
-    discard spiWriteBlocking(self.spi, graphics.frameBuffer[0].addr, self.width * 24)
-
   let spiPtr = self.spi
+  let csPin = self.csPin
+  gpioPut(csPin, High) # ???
   graphics.frameConvert(Pen_P4, (proc (buf: pointer; length: uint) =
     if length > 0:
+      gpioPut(csPin, Low)
       discard spiWriteBlocking(spiPtr, cast[ptr uint8](buf), length.csize_t)
+      gpioPut(csPin, High)
   ))
+
+  gpioPut(self.dcPin, Low) ##  data mode
 
   gpioPut(self.csPin, High)
 
   self.busyWait()
 
-  self.command(Pon) ##  turn on
-  self.busyWait(100)
+  self.command(Pon, 0) ##  turn on
+  self.busyWait(170)
 
-  self.command(Drf) ##  start display refresh
+  self.command(Drf, 0) ##  start display refresh
 
   if self.blocking:
     self.busyWait(28 * 1000)

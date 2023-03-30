@@ -36,9 +36,14 @@ func constructRgb*(c: Rgb332): Rgb {.constructor.} =
   result.b = ((c.uint8 and 0b00000011) shl 6).int16
 
 func constructRgb*(c: Rgb565): Rgb {.constructor.} =
-  result.r = (((c.uint16) and 0b1111100000000000) shr 8).int16
-  result.g = (((c.uint16) and 0b0000011111100000) shr 3).int16
-  result.b = (((c.uint16) and 0b0000000000011111) shl 3).int16
+  result.r = ((c.uint16 and 0b1111100000000000) shr 8).int16
+  result.g = ((c.uint16 and 0b0000011111100000) shr 3).int16
+  result.b = ((c.uint16 and 0b0000000000011111) shl 3).int16
+
+func constructRgb*(c: Rgb888): Rgb {.constructor.} =
+  result.r = ((c.uint32 shr 16) and 0xff).int16
+  result.g = ((c.uint32 shr 8) and 0xff).int16
+  result.b = (c.uint32 and 0xff) .int16
 
 func constructRgbBe*(c: Rgb565): Rgb {.constructor.} =
   result.r = ((builtinBswap16(c.uint16) and 0b1111100000000000) shr 8).int16

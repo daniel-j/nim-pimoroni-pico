@@ -48,7 +48,7 @@ type
     w*: int
     h*: int
 
-func constructRect*(x, y, w, h: int32): Rect {.constructor.} =
+func constructRect*(x, y, w, h: int): Rect {.constructor.} =
   result.x = x
   result.y = y
   result.w = w

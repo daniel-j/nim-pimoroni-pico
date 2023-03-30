@@ -75,7 +75,6 @@ type
   InkyFrame*[kind: static[InkyFrameKind]] = object of PicoGraphicsPenP3
     when kind == InkyFrame7_3:
       einkDriver: EinkAc073tc1a
-      ramDisplay*: PsRamDisplay
     else:
       einkDriver: EinkUc8159
     rtc: RtcPcf85063a
@@ -124,13 +123,13 @@ proc init*[IF: InkyFrame](self: var IF) =
   PicoGraphicsPenP3(self).init(
     self.width.uint16,
     self.height.uint16,
-    noFrameBuffer = static self.kind in {InkyFrame7_3}
+    when self.kind == InkyFrame7_3: BackendPsram else: BackendMemory
   )
 
   self.einkDriver.init(
     self.width.uint16,
     self.height.uint16,
-    SpiPins(spi: spi0, cs: PinEinkCs, sck: PinClk, mosi: PinMosi, dc: PinEinkDc),
+    SpiPins(spi: PimoroniSpiDefaultInstance, cs: PinEinkCs, sck: PinClk, mosi: PinMosi, dc: PinEinkDc),
     resetPin = PinEinkReset,
     isBusy,
     blocking = true)
@@ -164,9 +163,6 @@ proc init*[IF: InkyFrame](self: var IF) =
   gpioConfigurePwm(PinLedE)
   gpioConfigurePwm(PinLedActivity)
   gpioConfigurePwm(PinLedConnection)
-
-  when self.kind == InkyFrame7_3:
-    self.ramDisplay.init(self.width.uint16, self.height.uint16)
 
 proc update*[IF: InkyFrame](self: var IF) =
   if not self.einkDriver.getBlocking():
