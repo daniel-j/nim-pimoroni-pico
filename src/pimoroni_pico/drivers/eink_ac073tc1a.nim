@@ -78,7 +78,6 @@ proc command(self: var EinkDriver; reg: Reg; data: varargs[uint8]) =
   self.command(reg.uint8, data)
 
 proc setup(self: var EinkDriver) =
-  echo self.width, " ", self.height
   assert(self.width == 800 and self.height == 480, "Panel size must be 800x480!")
 
   self.reset()
