@@ -1,10 +1,5 @@
-import picostdlib
-import ../common/pimoroni_common
-import ../common/pimoroni_bus
-import ../libraries/pico_graphics/display_driver
-import ./eink_common
-
-export display_driver, pimoroni_bus, Colour
+import ./eink_driver
+export eink_driver
 
 type
   Reg = enum
@@ -46,23 +41,7 @@ type
     Vdcs  = 0x82
     Pws   = 0xE3
 
-  IsBusyProc* = proc (): bool
-
-  EinkUc8159* = object of DisplayDriver
-    spi: ptr SpiInst
-    csPin: Gpio
-    dcPin: Gpio
-    sckPin: Gpio
-    mosiPin: Gpio
-    resetPin: Gpio
-    timeout: AbsoluteTime
-    blocking: bool
-    borderColour: Colour
-    isBusyProc: IsBusyProc
-
-proc init*(self: var EinkUc8159; width: uint16; height: uint16; pins: SpiPins; resetPin: Gpio; isBusyProc: IsBusyProc = nil; blocking: bool = true) =
-  DisplayDriver(self).init(width, height)
-
+proc initUc8159*(self: var EinkDriver; width: uint16; height: uint16; pins: SpiPins; resetPin: Gpio; isBusyProc: IsBusyProc = nil; blocking: bool = true) =
   self.spi = pins.spi
   self.csPin = pins.cs
   self.sckPin = pins.sck
@@ -73,10 +52,9 @@ proc init*(self: var EinkUc8159; width: uint16; height: uint16; pins: SpiPins; r
   self.resetPin = resetPin
 
   self.blocking = blocking
-  self.borderColour = White
 
   ##  configure spi interface and pins
-  echo "Eink SPI init: ", spiInit(self.spi, 20_000_000)
+  echo "Eink Uc8159 SPI init: ", spiInit(self.spi, 20_000_000)
 
   gpioSetFunction(self.dcPin, Sio)
   gpioSetDir(self.dcPin, Out)
@@ -92,51 +70,17 @@ proc init*(self: var EinkUc8159; width: uint16; height: uint16; pins: SpiPins; r
   gpioSetFunction(self.sckPin, Spi)
   gpioSetFunction(self.mosiPin, Spi)
 
-proc isBusy*(self: EinkUc8159): bool =
-  ## Wait for the timeout to complete, then check the busy callback.
-  ## This is to avoid polling the callback constantly
-  if absoluteTimeDiffUs(getAbsoluteTime(), self.timeout) > 0:
-    return true
-  if not self.isBusyProc.isNil:
-    return self.isBusyProc()
-
-proc busyWait*(self: var EinkUc8159, minimumWaitMs: uint32 = 0) =
-  # echo "busyWait ", minimumWaitMs
-  # let startTime = getAbsoluteTime()
-  self.timeout = makeTimeoutTimeMs(minimumWaitMs)
-  while self.isBusy():
-    tightLoopContents()
-  # let endTime = getAbsoluteTime()
-  # echo absoluteTimeDiffUs(startTime, endTime)
-
-proc reset*(self: var EinkUc8159) =
+proc reset(self: var EinkDriver) =
   gpioPut(self.resetPin, Low)
   sleepMs(10)
   gpioPut(self.resetPin, High)
   sleepMs(10)
   self.busyWait()
 
-proc data*(self: var EinkUc8159, len: uint; data: varargs[uint8]) =
-  gpioPut(self.csPin, Low)
-  ##  data mode
-  gpioPut(self.dcPin, High)
+proc command(self: var EinkDriver; reg: Reg; data: varargs[uint8]) =
+  self.command(reg.uint8, data)
 
-  discard spiWriteBlocking(self.spi, data)
-  gpioPut(self.csPin, High)
-
-proc command*(self: var EinkUc8159; reg: Reg; data: varargs[uint8]) =
-  gpioPut(self.csPin, Low)
-  ##  command mode
-  gpioPut(self.dcPin, Low)
-  discard spiWriteBlocking(self.spi, reg.uint8)
-  if data.len > 0:
-    ##  data mode
-    gpioPut(self.dcPin, High)
-    discard spiWriteBlocking(self.spi, data)
-  gpioPut(self.csPin, High)
-
-
-proc setup*(self: var EinkUc8159) =
+proc setup(self: var EinkDriver) =
   self.reset()
   self.busyWait()
 
@@ -188,7 +132,6 @@ proc setup*(self: var EinkUc8159) =
   # Power OFF Sequence Setting
   # self.command(Pfs, 0x00)
 
-
   # PLL control
   # self.command(Pll, 0b111_100) # Frame Rate = 50 Hz
 
@@ -203,17 +146,11 @@ proc setup*(self: var EinkUc8159) =
 
   # sleepMs(100)
 
-proc getBlocking*(self: EinkUc8159): bool = self.blocking
-
-proc setBlocking*(self: var EinkUc8159; blocking: bool) = self.blocking = blocking
-
-proc setBorder*(self: var EinkUc8159; colour: Colour) = self.borderColour = colour
-
-proc powerOff*(self: var EinkUc8159) =
+proc powerOffUc8159*(self: var EinkDriver) =
   self.busyWait()
   self.command(Pof) ##  turn off
 
-proc update*(self: var EinkUc8159; graphics: var PicoGraphics) =
+proc updateUc8159*(self: var EinkDriver; graphics: var PicoGraphics) =
   if graphics.penType != Pen_P3:
     return
 

@@ -22,15 +22,17 @@ import std/strutils
 var fs: FATFS
 var jpeg: JPEGDEC
 
-const inkyKind {.strdefine.} = "Unknown inkyKind"
-const inkyKindEnum = parseEnum[InkyFrameKind](inkyKind, InkyFrame5_7)
-var inky: InkyFrame[inkyKindEnum]
-
 let m = detectInkyFrameModel()
 if m.isSome:
   echo "Detected Inky Frame model: ", m.get()
 else:
   echo "Unknown Inky Frame model"
+
+assert(m.isSome)
+
+const inkyKind {.strdefine.} = "Unknown inkyKind"
+let inkyKindEnum = parseEnum[InkyFrameKind](inkyKind, m.get())
+var inky = InkyFrame(kind: inkyKindEnum)
 
 inky.init()
 echo "Wake Up Events: ", inky.getWakeUpEvents()
@@ -364,7 +366,12 @@ proc drawFile(filename: string) =
   # inky.setPen(Clean)
   # inky.rectangle(constructRect((600 div 8) * 7, 0, 600 div 8, 448))
 
-  if drawJpeg(filename, 0, -1, 600, 450, dither=false, gravity=(0.5, 0.5)) == 1:
+  let (x, y, w, h) = case inky.kind:
+    of InkyFrame4_0: (0, 0, inky.width, inky.height)
+    of InkyFrame5_7: (0, -1, 600, 450)
+    of InkyFrame7_3: (-27, 0, 854, 480)
+
+  if drawJpeg(filename, x, y, w, h, dither=false, gravity=(0.5, 0.5)) == 1:
     inky.led(LedActivity, 100)
     inky.update()
     inky.led(LedActivity, 0)
@@ -390,21 +397,21 @@ proc inkyProc() =
   echo "Starting..."
 
   # inky.setPen(Black)
-  # inky.rectangle(constructRect(0, 0, 600 div 8, 448))
+  # inky.rectangle(constructRect(0, 0, inky.width div 8, inky.height))
   # inky.setPen(White)
-  # inky.rectangle(constructRect((600 div 8) * 1, 0, 600 div 8, 448))
+  # inky.rectangle(constructRect((inky.width div 8) * 1, 0, inky.width div 8, inky.height))
   # inky.setPen(Green)
-  # inky.rectangle(constructRect((600 div 8) * 2, 0, 600 div 8, 448))
+  # inky.rectangle(constructRect((inky.width div 8) * 2, 0, inky.width div 8, inky.height))
   # inky.setPen(Blue)
-  # inky.rectangle(constructRect((600 div 8) * 3, 0, 600 div 8, 448))
+  # inky.rectangle(constructRect((inky.width div 8) * 3, 0, inky.width div 8, inky.height))
   # inky.setPen(Red)
-  # inky.rectangle(constructRect((600 div 8) * 4, 0, 600 div 8, 448))
+  # inky.rectangle(constructRect((inky.width div 8) * 4, 0, inky.width div 8, inky.height))
   # inky.setPen(Yellow)
-  # inky.rectangle(constructRect((600 div 8) * 5, 0, 600 div 8, 448))
+  # inky.rectangle(constructRect((inky.width div 8) * 5, 0, inky.width div 8, inky.height))
   # inky.setPen(Orange)
-  # inky.rectangle(constructRect((600 div 8) * 6, 0, 600 div 8, 448))
+  # inky.rectangle(constructRect((inky.width div 8) * 6, 0, inky.width div 8, inky.height))
   # inky.setPen(Clean)
-  # inky.rectangle(constructRect((600 div 8) * 7, 0, 600 div 8, 448))
+  # inky.rectangle(constructRect((inky.width div 8) * 7, 0, inky.width div 8, inky.height))
   # echo "Updating..."
   # inky.update()
 

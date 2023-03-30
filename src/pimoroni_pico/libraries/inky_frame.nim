@@ -3,7 +3,7 @@ import std/math, std/bitops, std/options
 import picostdlib
 import picostdlib/[hardware/i2c, hardware/pwm]
 
-import ../drivers/[eink_uc8159, eink_ac073tc1a, rtc_pcf85063a, shiftregister, fatfs, psram_display]
+import ../drivers/[eink_driver_wrapper, rtc_pcf85063a, shiftregister, fatfs, psram_display]
 import ./pico_graphics
 
 export options, pico_graphics, fatfs, psram_display, Colour
@@ -72,11 +72,9 @@ type
   InkyFrameKind* = enum
     InkyFrame4_0, InkyFrame5_7, InkyFrame7_3
 
-  InkyFrame*[kind: static[InkyFrameKind]] = object of PicoGraphicsPenP3
-    when kind == InkyFrame7_3:
-      einkDriver: EinkAc073tc1a
-    else:
-      einkDriver: EinkUc8159
+  InkyFrame* = object of PicoGraphicsPenP3
+    kind*: InkyFrameKind
+    einkDriver: EinkDriver
     rtc: RtcPcf85063a
     width*, height*: int
     wakeUpEvents: set[WakeUpEvent]
@@ -113,8 +111,8 @@ proc isBusy*(): bool =
   ## Check busy flag on shift register
   not sr.readBit(FlagEinkBusy)
 
-proc init*[IF: InkyFrame](self: var IF) =
-  (self.width, self.height) = static:
+proc init*(self: var InkyFrame) =
+  (self.width, self.height) =
     case self.kind:
     of InkyFrame4_0: (640, 400)
     of InkyFrame5_7: (600, 448)
@@ -123,13 +121,17 @@ proc init*[IF: InkyFrame](self: var IF) =
   PicoGraphicsPenP3(self).init(
     self.width.uint16,
     self.height.uint16,
-    when self.kind == InkyFrame7_3: BackendPsram else: BackendMemory
+    if self.kind == InkyFrame7_3: BackendPsram else: BackendMemory
   )
+
+  let pins = SpiPins(spi: PimoroniSpiDefaultInstance, cs: PinEinkCs, sck: PinClk, mosi: PinMosi, dc: PinEinkDc)
+
+  self.einkDriver.kind = if self.kind == InkyFrame7_3: KindAc073tc1a else: KindUc8159
 
   self.einkDriver.init(
     self.width.uint16,
     self.height.uint16,
-    SpiPins(spi: PimoroniSpiDefaultInstance, cs: PinEinkCs, sck: PinClk, mosi: PinMosi, dc: PinEinkDc),
+    pins,
     resetPin = PinEinkReset,
     isBusy,
     blocking = true)
@@ -138,9 +140,7 @@ proc init*[IF: InkyFrame](self: var IF) =
   gpioConfigure(PinHoldSysEn, Out, High)
 
   # setup the shift register
-  gpioConfigure(PinSrClock, Out, High)
-  gpioConfigure(PinSrLatch, Out, High)
-  gpioConfigure(PinSrOut, In)
+  sr.init()
 
   # determine wake up event
   let bits = sr.read()
@@ -164,7 +164,7 @@ proc init*[IF: InkyFrame](self: var IF) =
   gpioConfigurePwm(PinLedActivity)
   gpioConfigurePwm(PinLedConnection)
 
-proc update*[IF: InkyFrame](self: var IF) =
+proc update*(self: var InkyFrame) =
   if not self.einkDriver.getBlocking():
     while isBusy():
       tightLoopContents()
@@ -177,12 +177,12 @@ proc update*[IF: InkyFrame](self: var IF) =
 proc pressed*(button: Button): bool =
   sr.readBit(button.uint8)
 
-proc led*[IF: InkyFrame](self: IF; led: Led; brightness: range[0.uint8..100.uint8]) =
+proc led*(self: InkyFrame; led: Led; brightness: range[0.uint8..100.uint8]) =
   ## Set the LED brightness by generating a gamma corrected target value for
   ## the 16-bit pwm channel. Brightness values are from 0 to 100.
   pwmSetGpioLevel(led.Gpio, (pow(brightness.float / 100, 2.8) * 65535.0f + 0.5f).uint16)
 
-proc sleep*[IF: InkyFrame](self: var IF; wakeInMinutes: int = -1) =
+proc sleep*(self: var InkyFrame; wakeInMinutes: int = -1) =
   if wakeInMinutes != -1:
     # set an alarm to wake inky up in wake_in_minutes - the maximum sleep
     # is 255 minutes or around 4.5 hours which is the longest timer the RTC
@@ -196,22 +196,23 @@ proc sleep*[IF: InkyFrame](self: var IF; wakeInMinutes: int = -1) =
   while true:
     discard
 
-proc sleepUntil*[IF: InkyFrame](self: var IF; second, minute, hour, day: int = -1) =
+proc sleepUntil*(self: var InkyFrame; second, minute, hour, day: int = -1) =
   if second != -1 or minute != -1 or hour != -1 or day != -1:
     # set an alarm to wake inky up at the specified time and day
     self.rtc.setAlarm(second, minute, hour, day)
     self.rtc.enableAlarmInterrupt(true)
   gpioPut(PinHoldSysEn, Low)
 
-proc getWakeUpEvents*[IF: InkyFrame](self: IF): set[WakeUpEvent] = self.wakeUpEvents
+proc getWakeUpEvents*(self: InkyFrame): set[WakeUpEvent] = self.wakeUpEvents
 
-proc setBorder*[IF: InkyFrame](self: var IF; colour: Colour) = self.einkDriver.setBorder(colour)
+proc setBorder*(self: var InkyFrame; colour: Colour) =
+  self.einkDriver.setBorder(colour)
 
-proc syncRtcFromPicoRtc*[IF: InkyFrame](self: IF): bool = self.rtc.syncFromPicoRtc()
+proc syncRtcFromPicoRtc*(self: var InkyFrame): bool = self.rtc.syncFromPicoRtc()
 
-proc syncRtcToPicoRtc*[IF: InkyFrame](self: IF): bool = self.rtc.syncToPicoRtc()
+proc syncRtcToPicoRtc*(self: var InkyFrame): bool = self.rtc.syncToPicoRtc()
 
-proc image*[IF: InkyFrame](self: var IF; data: openArray[uint8]; stride: int; sx: int; sy: int; dw: int; dh: int; dx: int; dy: int) =
+proc image*(self: var InkyFrame; data: openArray[uint8]; stride: int; sx: int; sy: int; dw: int; dh: int; dx: int; dy: int) =
   var y = 0
   while y < dh:
     var x = 0
@@ -224,16 +225,16 @@ proc image*[IF: InkyFrame](self: var IF; data: openArray[uint8]; stride: int; sx
       inc(x)
     inc(y)
 
-proc icon*[IF: InkyFrame](self: var IF; data: openArray[uint8]; sheetWidth: int; iconSize: int; index: int; dx: int; dy: int) =
+proc icon*(self: var InkyFrame; data: openArray[uint8]; sheetWidth: int; iconSize: int; index: int; dx: int; dy: int) =
   ## Display a portion of an image (icon sheet) at dx, dy
   self.image(data, sheetWidth, iconSize * index, 0, iconSize, iconSize, dx, dy)
 
-proc image*[IF: InkyFrame](self: var IF; data: openArray[uint8]; w: int; h: int; x: int; y: int) =
+proc image*(self: var InkyFrame; data: openArray[uint8]; w: int; h: int; x: int; y: int) =
   ## Display an image smaller than the screen (sw*sh) at dx, dy
   self.image(data, w, 0, 0, w, h, x, y)
 
-proc image*[IF: InkyFrame](self: var IF; data: openArray[uint8]) =
+proc image*(self: var InkyFrame; data: openArray[uint8]) =
   ## Display an image that fills the screen
   self.image(data, self.width, 0, 0, self.width, self.height, 0, 0)
 
-template setPen*[IF: InkyFrame](self: var IF; c: Pen) = self.setPen(c.uint8)
+template setPen*(self: var InkyFrame; c: Pen) = self.setPen(c.uint8)

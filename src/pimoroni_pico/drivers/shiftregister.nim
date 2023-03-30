@@ -4,6 +4,16 @@ import picostdlib/hardware/gpio
 type
   ShiftRegister* = tuple[pinLatch, pinClock, pinOut: Gpio; bits: int]
 
+proc gpioConfigure(gpio: Gpio; dir: Direction; value: Value = Low) =
+  gpioSetFunction(gpio, Sio)
+  gpioSetDir(gpio, dir)
+  gpioPut(gpio, value)
+
+proc init*(self: ShiftRegister) =
+  gpioConfigure(self.pinClock, Out, High)
+  gpioConfigure(self.pinLatch, Out, High)
+  gpioConfigure(self.pinOut, In)
+
 proc read*(self: ShiftRegister): uint =
   gpioPut(self.pinLatch, Low)
   asm "NOP;"

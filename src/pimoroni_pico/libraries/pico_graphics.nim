@@ -536,7 +536,9 @@ const PicoGraphicsPenP3Palette* = [
   Rgb(r: 223, g:  14, b:  19), ##  red
   Rgb(r: 238, g: 220, b:  16), ##  yellow
   Rgb(r: 255, g: 130, b:  35), ##  orange
-  Rgb(r: 245, g: 215, b: 191), ##  clean / taupe?!
+
+  Rgb(r: 238, g: 255, b: 246) # white copy
+  #Rgb(r: 245, g: 215, b: 191), ##  clean / taupe?!
 ]
 
 func bufferSize*(self: PicoGraphicsPenP3; w: uint; h: uint): uint =

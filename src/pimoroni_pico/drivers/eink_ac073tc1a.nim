@@ -1,10 +1,5 @@
-import picostdlib
-import ../common/pimoroni_common
-import ../common/pimoroni_bus
-import ../libraries/pico_graphics/display_driver
-import ./eink_common
-
-export display_driver, pimoroni_bus, Colour
+import ./eink_driver
+export eink_driver
 
 type
   Reg = enum
@@ -43,23 +38,7 @@ type
     Pws   = 0xE3
     Tsset = 0xE6
 
-  IsBusyProc* = proc (): bool
-
-  EinkAc073tc1a* = object of DisplayDriver
-    spi: ptr SpiInst
-    csPin: Gpio
-    dcPin: Gpio
-    sckPin: Gpio
-    mosiPin: Gpio
-    resetPin: Gpio
-    timeout: AbsoluteTime
-    blocking: bool
-    borderColour: Colour
-    isBusyProc: IsBusyProc
-
-proc init*(self: var EinkAc073tc1a; width: uint16; height: uint16; pins: SpiPins; resetPin: Gpio; isBusyProc: IsBusyProc = nil; blocking: bool = true) =
-  DisplayDriver(self).init(width, height)
-
+proc initAc073tc1a*(self: var EinkDriver; width: uint16; height: uint16; pins: SpiPins; resetPin: Gpio; isBusyProc: IsBusyProc = nil; blocking: bool = true) =
   self.spi = pins.spi
   self.csPin = pins.cs
   self.sckPin = pins.sck
@@ -70,10 +49,9 @@ proc init*(self: var EinkAc073tc1a; width: uint16; height: uint16; pins: SpiPins
   self.resetPin = resetPin
 
   self.blocking = blocking
-  self.borderColour = White
 
   ##  configure spi interface and pins
-  echo "Eink SPI init: ", spiInit(self.spi, 20_000_000)
+  echo "Eink Ac073tc1a SPI init: ", spiInit(self.spi, 20_000_000)
 
   gpioSetFunction(self.dcPin, Sio)
   gpioSetDir(self.dcPin, Out)
@@ -89,54 +67,24 @@ proc init*(self: var EinkAc073tc1a; width: uint16; height: uint16; pins: SpiPins
   gpioSetFunction(self.sckPin, Spi)
   gpioSetFunction(self.mosiPin, Spi)
 
-proc isBusy*(self: EinkAc073tc1a): bool =
-  ## Wait for the timeout to complete, then check the busy callback.
-  ## This is to avoid polling the callback constantly
-  if absoluteTimeDiffUs(getAbsoluteTime(), self.timeout) > 0:
-    return true
-  if not self.isBusyProc.isNil:
-    return self.isBusyProc()
-
-proc busyWait*(self: var EinkAc073tc1a, minimumWaitMs: uint32 = 0) =
-  # echo "busyWait ", minimumWaitMs
-  # let startTime = getAbsoluteTime()
-  self.timeout = makeTimeoutTimeMs(minimumWaitMs)
-  while self.isBusy():
-    tightLoopContents()
-  # let endTime = getAbsoluteTime()
-  # echo absoluteTimeDiffUs(startTime, endTime)
-
-proc reset*(self: var EinkAc073tc1a) =
+proc reset(self: var EinkDriver) =
   gpioPut(self.resetPin, Low)
   sleepMs(10)
   gpioPut(self.resetPin, High)
   sleepMs(10)
   self.busyWait()
 
-proc data*(self: var EinkAc073tc1a, len: uint; data: varargs[uint8]) =
-  gpioPut(self.csPin, Low)
-  ##  data mode
-  gpioPut(self.dcPin, High)
+proc command(self: var EinkDriver; reg: Reg; data: varargs[uint8]) =
+  self.command(reg.uint8, data)
 
-  discard spiWriteBlocking(self.spi, data)
-  gpioPut(self.csPin, High)
-
-proc command*(self: var EinkAc073tc1a; reg: Reg; data: varargs[uint8]) =
-  gpioPut(self.csPin, Low)
-  ##  command mode
-  gpioPut(self.dcPin, Low)
-  discard spiWriteBlocking(self.spi, reg.uint8)
-  if data.len > 0:
-    ##  data mode
-    gpioPut(self.dcPin, High)
-    discard spiWriteBlocking(self.spi, data)
-  gpioPut(self.csPin, High)
-
-proc setup*(self: var EinkAc073tc1a) =
+proc setup(self: var EinkDriver) =
+  echo self.width, " ", self.height
   assert(self.width == 800 and self.height == 480, "Panel size must be 800x480!")
 
   self.reset()
   self.busyWait()
+
+  let cdi = (self.borderColour.uint8 shl 5) or 0b11111
 
   self.command(Cmdh, 0x49, 0x55, 0x20, 0x08, 0x09, 0x18)
   self.command(Pwr,0x3F, 0x00, 0x32, 0x2A, 0x0E, 0x2A)
@@ -152,7 +100,7 @@ proc setup*(self: var EinkAc073tc1a) =
   self.command(Ipc, 0x00, 0x04)
   self.command(Pll, 0x3C)
   self.command(Tse, 0x00)
-  self.command(Cdi, 0x3F)
+  self.command(Cdi, cdi)
   self.command(Tcon, 0x02, 0x00)
   self.command(Tres, 0x03, 0x20, 0x01, 0xE0)
   self.command(Vdcs, 0x1E)
@@ -162,17 +110,11 @@ proc setup*(self: var EinkAc073tc1a) =
   self.command(Ccset, 0x00)
   self.command(Tsset, 0x00)
 
-proc getBlocking*(self: EinkAc073tc1a): bool = self.blocking
-
-proc setBlocking*(self: var EinkAc073tc1a; blocking: bool) = self.blocking = blocking
-
-proc setBorder*(self: var EinkAc073tc1a; colour: Colour) = self.borderColour = colour
-
-proc powerOff*(self: var EinkAc073tc1a) =
+proc powerOffAc073tc1a*(self: var EinkDriver) =
   self.busyWait()
   self.command(Pof) ##  turn off
 
-proc update*(self: var EinkAc073tc1a; graphics: var PicoGraphics) =
+proc updateAc073tc1a*(self: var EinkDriver; graphics: var PicoGraphics) =
   if graphics.penType != Pen_P3:
     return
 
