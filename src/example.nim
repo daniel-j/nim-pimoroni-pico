@@ -10,7 +10,7 @@ import vmath
 import std/math
 
 
-discard stdioUsbInit()
+discard stdioInitAll()
 # blockUntilUsbConnected()
 
 echo "USB connected"
@@ -396,32 +396,79 @@ proc getFileN(directory: string; n: Natural): FILINFO =
 proc inkyProc() =
   echo "Starting..."
 
-  # inky.setPen(Black)
-  # inky.rectangle(constructRect(0, 0, inky.width div 8, inky.height))
-  # inky.setPen(White)
-  # inky.rectangle(constructRect((inky.width div 8) * 1, 0, inky.width div 8, inky.height))
-  # inky.setPen(Green)
-  # inky.rectangle(constructRect((inky.width div 8) * 2, 0, inky.width div 8, inky.height))
-  # inky.setPen(Blue)
-  # inky.rectangle(constructRect((inky.width div 8) * 3, 0, inky.width div 8, inky.height))
-  # inky.setPen(Red)
-  # inky.rectangle(constructRect((inky.width div 8) * 4, 0, inky.width div 8, inky.height))
-  # inky.setPen(Yellow)
-  # inky.rectangle(constructRect((inky.width div 8) * 5, 0, inky.width div 8, inky.height))
-  # inky.setPen(Orange)
-  # inky.rectangle(constructRect((inky.width div 8) * 6, 0, inky.width div 8, inky.height))
-  # inky.setPen(Clean)
-  # inky.rectangle(constructRect((inky.width div 8) * 7, 0, inky.width div 8, inky.height))
-  # echo "Updating..."
-  # inky.update()
+  if EvtBtnA in inky.getWakeUpEvents():
+    echo "Drawing HSL chart..."
+    inky.setPen(White)
+    inky.clear()
+    var p = Point()
+    for y in 0..<inky.height:
+      echo y, " of ", inky.height
+      p.y = y
+      let yd = y / inky.height
+      let l = yd
+      for x in 0..<inky.width:
+        p.x = x
+        let xd = x / inky.width
+        let hue = xd
+        inky.setPen(inky.createPenHsl(hue, 0.9, 1.0 - l))
+        inky.setPixel(p)
 
-  # echo "Cleaning..."
-  # inky.setPen(Clean)
-  # inky.setBorder(Orange)
-  # inky.clear()
-  # inky.update()
-  # inky.setBorder(White)
-  # inky.update()
+    echo "Updating..."
+    inky.update()
+
+  elif EvtBtnB in inky.getWakeUpEvents():
+    echo "Drawing bubbles..."
+    inky.setPen(White)
+    inky.clear()
+    const bubbleCount = 100
+
+    for i in 0..<bubbleCount:
+      echo i, " of ", bubbleCount
+      let size = 25 + rand(50)
+      let x = rand(inky.bounds.w)
+      let y = rand(inky.bounds.h)
+      let p = Point(x: x, y: y)
+
+      inky.setPen(Black)
+      inky.circle(p, size)
+
+      inky.setPen(inky.createPenHsl(rand(1.0), 0.5 + rand(0.5), 0.25 + rand(0.5)))
+      inky.circle(p, size - 2)
+
+    echo "Updating..."
+    inky.update()
+
+  elif EvtBtnC in inky.getWakeUpEvents():
+    echo "Drawing palette stripes..."
+    inky.setPen(Black)
+    inky.rectangle(constructRect(0, 0, inky.width div 8, inky.height))
+    inky.setPen(White)
+    inky.rectangle(constructRect((inky.width div 8) * 1, 0, inky.width div 8, inky.height))
+    inky.setPen(Green)
+    inky.rectangle(constructRect((inky.width div 8) * 2, 0, inky.width div 8, inky.height))
+    inky.setPen(Blue)
+    inky.rectangle(constructRect((inky.width div 8) * 3, 0, inky.width div 8, inky.height))
+    inky.setPen(Red)
+    inky.rectangle(constructRect((inky.width div 8) * 4, 0, inky.width div 8, inky.height))
+    inky.setPen(Yellow)
+    inky.rectangle(constructRect((inky.width div 8) * 5, 0, inky.width div 8, inky.height))
+    inky.setPen(Orange)
+    inky.rectangle(constructRect((inky.width div 8) * 6, 0, inky.width div 8, inky.height))
+    inky.setPen(Clean)
+    inky.rectangle(constructRect((inky.width div 8) * 7, 0, inky.width div 8, inky.height))
+    echo "Updating..."
+    inky.update()
+
+  elif EvtBtnE in inky.getWakeUpEvents():
+    echo "Cleaning..."
+    inky.setPen(Clean)
+    inky.setBorder(Orange)
+    inky.clear()
+    echo "First update..."
+    inky.update()
+    inky.setBorder(White)
+    echo "Second update..."
+    inky.update()
 
   echo "Mounting SD card..."
 

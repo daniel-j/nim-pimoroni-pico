@@ -567,7 +567,7 @@ proc getDitherCandidates*(col: Rgb; palette: array[8, Rgb]; candidates: var arra
   # pixels in the dither matrix are at extreme opposites of luminence
   # giving a more balanced output
   sort(candidates, func (a: uint8; b: uint8): int =
-    (palette[b].luminance() - palette[a].luminance())
+    (palette[a].luminance() > palette[b].luminance()).int
   )
 
 proc getDitherCache(palette: array[8, Rgb]): array[512, array[16, uint8]] =

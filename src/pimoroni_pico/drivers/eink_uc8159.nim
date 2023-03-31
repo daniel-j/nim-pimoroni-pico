@@ -175,19 +175,23 @@ proc updateUc8159*(self: var EinkDriver; graphics: var PicoGraphics) =
     discard spiWriteBlocking(self.spi, graphics.frameBuffer[0].addr, self.width * 24)
 
   let spiPtr = self.spi
+  let csPin = self.csPin
+  gpioPut(csPin, High)
   graphics.frameConvert(Pen_P4, (proc (buf: pointer; length: uint) =
     if length > 0:
+      gpioPut(csPin, Low)
       discard spiWriteBlocking(spiPtr, cast[ptr uint8](buf), length.csize_t)
+      gpioPut(csPin, High)
   ))
 
   gpioPut(self.csPin, High)
 
   self.busyWait()
 
-  self.command(Pon) ##  turn on
-  self.busyWait(100)
+  self.command(Pon, 0) ##  turn on
+  self.busyWait(170)
 
-  self.command(Drf) ##  start display refresh
+  self.command(Drf, 0) ##  start display refresh
 
   if self.blocking:
     self.busyWait(28 * 1000)

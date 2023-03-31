@@ -131,7 +131,7 @@ proc updateAc073tc1a*(self: var EinkDriver; graphics: var PicoGraphics) =
 
   let spiPtr = self.spi
   let csPin = self.csPin
-  gpioPut(csPin, High) # ???
+  gpioPut(csPin, High)
   graphics.frameConvert(Pen_P4, (proc (buf: pointer; length: uint) =
     if length > 0:
       gpioPut(csPin, Low)
