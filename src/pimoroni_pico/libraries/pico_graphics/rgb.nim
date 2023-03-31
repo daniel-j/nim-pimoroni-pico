@@ -168,7 +168,7 @@ func distanceInt*(self: Rgb; c: Rgb): int =
   let bx: int64 = (self.b - c.b)
   return int (((512 + rmean) * rx * rx) shr 8) + 4 * gx * gx + (((767 - rmean) * bx * bx) shr 8)
 
-func closest*(self: Rgb; palette: openArray[Rgb]; fallback: int = 0; whitepoint: Rgb = Rgb(r: 255, g: 255, b: 255)): int =
+func closest*(self: Rgb; palette: openArray[Rgb]; fallback: int = 0#[; whitepoint: Rgb = Rgb(r: 255, g: 255, b: 255)]#): int =
   assert(palette.len > 0)
   var
     d = int.high

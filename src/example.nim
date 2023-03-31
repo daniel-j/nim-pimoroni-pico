@@ -128,7 +128,7 @@ proc processErrorMatrix(drawY: int) =
       let oldPixel = (errorMatrix[y][x].rgbToVec3() / errorMultiplier)
 
       #inky.setPen(oldPixel.clamp(-0.2, 1.2).linearToSRGB(gamma=2.2).vec3ToRgb())  #  find closest color using a LUT
-      inky.setPenClosest(oldPixel.clamp(-0.2, 1.2).linearToSRGB(gamma=2.2).vec3ToRgb(), whitePoint)  # find closest color using distance function
+      inky.setPen(inky.createPenClosest(oldPixel.clamp(-0.2, 1.2).linearToSRGB(gamma=2.2).vec3ToRgb()#[, whitePoint]#))  # find closest color using distance function
       inky.setPixel(pos)
 
       let newPixel = inky.palette[inky.color.uint8].rgbToVec3().srgbToLinear()
@@ -437,6 +437,7 @@ proc inkyProc() =
       inky.circle(p, size)
 
       inky.setPen(inky.createPenHsl(rand(1.0), 0.5 + rand(0.5), 0.25 + rand(0.5)))
+      # inky.setPen(uint 2 + rand(4))
       inky.circle(p, size - 2)
 
     let endTime = getAbsoluteTime()

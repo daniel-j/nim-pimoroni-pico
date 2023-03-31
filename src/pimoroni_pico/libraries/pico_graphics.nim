@@ -581,18 +581,19 @@ proc getDitherCache(palette: array[8, Rgb]): array[512, array[16, uint8]] =
 
 proc getNearestCache(palette: openArray[Rgb]): array[512, uint8] =
   for i in 0 ..< 512:
-    let r = (uint i and 0x1c0) shr 1
-    let g = (uint i and 0x38) shl 2
-    let b = (uint i and 0x7) shl 5
-    let cacheCol = Rgb(
-      r: (r or (r shr 3) or (r shr 6)).int16,
-      g: (g or (g shr 3) or (g shr 6)).int16,
-      b: (b or (b shr 3) or (b shr 6)).int16
+    let r = (i.uint and 0x1c0) shr 1
+    let g = (i.uint and 0x38) shl 2
+    let b = (i.uint and 0x7) shl 5
+    let cacheCol = constructRgb(
+      (r or (r shr 3) or (r shr 6)).int16,
+      (g or (g shr 3) or (g shr 6)).int16,
+      (b or (b shr 3) or (b shr 6)).int16
     )
     result[i] = cacheCol.closest(palette).uint8
     # echo cacheCol, " ", palette[result[i]]
 
 # generate cache at compile time
+# can these be combined?
 const ditherCachePenP3 = getDitherCache(PicoGraphicsPenP3Palette)
 const closestCachePen3Bit = getNearestCache(PicoGraphicsPenP3Palette)
 
@@ -612,12 +613,12 @@ proc createPenHsv*(self: PicoGraphicsPen3Bit; h, s, v: float): Rgb =
 proc createPenHsl*(self: PicoGraphicsPen3Bit; h, s, l: float): Rgb =
   hslToRgb(h, s, l)
 
-proc setPenClosest*(self: var PicoGraphicsPen3Bit; c: Rgb; whitepoint: Rgb = Rgb(r: 255, g: 255, b: 255)) =
-  self.color = c.closest(self.palette, self.color.int, whitepoint).uint8
+proc createPenClosest*(self: var PicoGraphicsPen3Bit; c: Rgb#[; whitepoint: Rgb = Rgb(r: 255, g: 255, b: 255)]#): uint =
+  c.closest(self.palette, self.color.int).uint
 
-proc setPenClosestFast*(self: var PicoGraphicsPen3Bit; c: Rgb) =
+proc createPenClosestLut*(self: var PicoGraphicsPen3Bit; c: Rgb): uint =
   let cacheKey = (((c.r and 0xE0) shl 1) or ((c.g and 0xE0) shr 2) or ((c.b and 0xE0) shr 5))
-  self.color = closestCachePen3Bit[cacheKey]
+  closestCachePen3Bit[cacheKey]
 
 proc setPixelImpl(self: var PicoGraphicsPen3Bit; p: Point; col: uint) =
   if not self.bounds.contains(p) or not self.clip.contains(p):
