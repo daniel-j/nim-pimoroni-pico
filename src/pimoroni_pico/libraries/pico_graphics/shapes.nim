@@ -4,7 +4,7 @@
 ##
 
 type
-  Point* {.bycopy.} = object
+  Point* = object
     x*: int
     y*: int
 
@@ -12,29 +12,25 @@ func constructPoint*(x, y: int32): Point {.constructor.} =
   result.x = x
   result.y = y
 
-proc `-=`*(self: var Point; a: Point): var Point {.inline.} =
+func `-=`*(self: var Point; a: Point) {.inline.} =
   dec(self.x, a.x)
   dec(self.y, a.y)
-  return self
 
-proc `+=`*(self: var Point; a: Point): var Point {.inline.} =
+func `+=`*(self: var Point; a: Point) {.inline.} =
   inc(self.x, a.x)
   inc(self.y, a.y)
-  return self
 
-proc `/=`*(lhs: var Point; rhs: int32): var Point {.inline.} =
+func `/=`*(lhs: var Point; rhs: int32) {.inline.} =
   lhs.x = lhs.x div rhs
   lhs.y = lhs.y div rhs
-  return lhs
 
 func `==`*(lhs, rhs: Point): bool {.inline.} =
   return lhs.x == rhs.x and lhs.y == rhs.y
 
-func `!=`*(lhs, rhs: Point): bool {.inline.} =
-  return not (lhs == rhs)
-
-func `-`*(rhs: Point): Point {.inline.} =
-  return Point(x: -rhs.x, y: -rhs.y)
+func `-`*(lhs, rhs: Point): Point {.inline.} = Point(x: lhs.x - rhs.x, y: lhs.y - rhs.y)
+func `-`*(rhs: Point): Point {.inline.} = Point(x: -rhs.x, y: -rhs.y)
+func `+`*(lhs, rhs: Point): Point {.inline.} = Point(x: lhs.x + rhs.x, y: lhs.y + rhs.y)
+func `div`*(lhs: Point; rhs: int32): Point {.inline.} = Point(x: lhs.x div rhs, y: lhs.y div rhs)
 
 
 ##
@@ -42,7 +38,7 @@ func `-`*(rhs: Point): Point {.inline.} =
 ##
 
 type
-  Rect* {.bycopy.} = object
+  Rect* = object
     x*: int
     y*: int
     w*: int

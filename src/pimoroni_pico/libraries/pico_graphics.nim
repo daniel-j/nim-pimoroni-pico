@@ -12,7 +12,10 @@
 
 import std/algorithm, std/bitops
 import ./pico_graphics/[rgb, shapes, luts]
-import ../drivers/psram_display
+when not defined(mock):
+  import ../drivers/psram_display
+else:
+  import ../drivers/psram_display_mock
 
 export rgb, shapes, luts
 
@@ -514,17 +517,20 @@ method setPixelSpan*(self: var PicoGraphicsPen1BitY; p: Point; l: uint) =
 
 
 ##
-## Pico Graphics Pen P3
+## Pico Graphics Pen 3Bit
 ##
 
 type
   PicoGraphicsPen3Bit* = object of PicoGraphics
     color*: uint
-    palette*: array[8, Rgb]
-    # candidateCache*: array[512, array[16, uint8]]
-    # cacheBuilt*: bool
+    palette: array[8, Rgb]
+    paletteSize: uint16
+    cacheDither*: array[512, array[16, uint8]]
+    cacheDitherBuilt*: bool
+    cacheNearest*: array[512, uint8]
+    cacheNearestBuilt*: bool
 
-const PicoGraphicsPenP3Palette* = [
+const PicoGraphicsPen3BitPalette* = [
   Rgb(r:   1, g:  16, b:   2), ##  black
   Rgb(r: 238, g: 255, b: 246), ##  white
   Rgb(r:   0, g: 153, b:  28), ##  green
@@ -532,18 +538,21 @@ const PicoGraphicsPenP3Palette* = [
   Rgb(r: 223, g:  14, b:  19), ##  red
   Rgb(r: 238, g: 220, b:  16), ##  yellow
   Rgb(r: 255, g: 130, b:  35), ##  orange
-
-  Rgb(r: 238, g: 255, b: 246) # white copy
-  #Rgb(r: 245, g: 215, b: 191), ##  clean / taupe?!
+  Rgb(r: 245, g: 215, b: 191), ##  clean - not used on inky7
 ]
+
+const RGB_FLAG*: uint = 0x7f000000
 
 func bufferSize*(self: PicoGraphicsPen3Bit; w: uint; h: uint): uint =
   return (w * h div 8) * 3
 
 proc init*(self: var PicoGraphicsPen3Bit; width: uint16; height: uint16; backend: PicoGraphicsBackend = BackendMemory; frameBuffer: seq[uint8] = @[]) =
   PicoGraphics(self).init(width, height, backend, frameBuffer)
-  self.palette = PicoGraphicsPenP3Palette
+  self.palette = PicoGraphicsPen3BitPalette
   self.penType = Pen_3Bit
+  self.paletteSize = 8
+  self.cacheDitherBuilt = false
+  self.cacheNearestBuilt = false
   case self.backend:
   of BackendMemory:
     if self.frameBuffer.len == 0:
@@ -551,10 +560,27 @@ proc init*(self: var PicoGraphicsPen3Bit; width: uint16; height: uint16; backend
   of BackendPsram:
     self.fbPsram.init(width, height)
 
-# proc constructPicoGraphicsPenP3*(width: uint16; height: uint16; backend: PicoGraphicsBackend = BackendMemory; frameBuffer: seq[uint8] = @[]): PicoGraphicsPen3Bit {.constructor.} =
+# proc constructPicoGraphicsPen3Bit*(width: uint16; height: uint16; backend: PicoGraphicsBackend = BackendMemory; frameBuffer: seq[uint8] = @[]): PicoGraphicsPen3Bit {.constructor.} =
 #   result.init(width, height, frameBuffer)
 
-proc getDitherCandidates*(col: Rgb; palette: array[8, Rgb]; candidates: var array[16, uint8]) =
+func getPaletteSize*(self: PicoGraphicsPen3Bit): uint16 = self.paletteSize
+func setPaletteSize*(self: var PicoGraphicsPen3Bit; paletteSize: uint16) = self.paletteSize = paletteSize.clamp(1'u16, self.palette.len.uint16)
+func getRawPalette*(self: PicoGraphicsPen3Bit): auto {.inline.} = self.palette
+func getPalette*(self: PicoGraphicsPen3Bit): auto {.inline.} = self.palette[0..<self.paletteSize]
+
+iterator cacheColors*(): tuple[i: int, c: Rgb] =
+  for i in 0 ..< 512:
+    let r = (i.uint and 0x1c0) shr 1
+    let g = (i.uint and 0x38) shl 2
+    let b = (i.uint and 0x7) shl 5
+    let cacheCol = constructRgb(
+      (r or (r shr 3) or (r shr 6)).int16,
+      (g or (g shr 3) or (g shr 6)).int16,
+      (b or (b shr 3) or (b shr 6)).int16
+    )
+    yield (i, cacheCol)
+
+proc getDitherCandidates*(col: Rgb; palette: openArray[Rgb]; candidates: var array[16, uint8]) =
   var error: Rgb
   for i in 0 ..< candidates.len:
     candidates[i] = (col + error).closest(palette).uint8
@@ -563,41 +589,18 @@ proc getDitherCandidates*(col: Rgb; palette: array[8, Rgb]; candidates: var arra
   # sort by a rough approximation of luminance, this ensures that neighbouring
   # pixels in the dither matrix are at extreme opposites of luminence
   # giving a more balanced output
+  let pal = cast[ptr UncheckedArray[Rgb]](palette[0].unsafeAddr) # openArray workaround
   sort(candidates, func (a: uint8; b: uint8): int =
-    (palette[a].luminance() > palette[b].luminance()).int
+    (pal[a].luminance() > pal[b].luminance()).int
   )
 
-proc getDitherCache(palette: array[8, Rgb]): array[512, array[16, uint8]] =
-  for i in 0 ..< 512:
-    let r = (i.uint and 0x1c0) shr 1
-    let g = (i.uint and 0x38) shl 2
-    let b = (i.uint and 0x7) shl 5
-    let cacheCol = constructRgb(
-      (r or (r shr 3) or (r shr 6)).int16,
-      (g or (g shr 3) or (g shr 6)).int16,
-      (b or (b shr 3) or (b shr 6)).int16
-    )
-    getDitherCandidates(cacheCol, palette, result[i])
+proc generateDitherCache(cacheDither: var array[512, array[16, uint8]]; palette: openArray[Rgb]) =
+  for i, col in cacheColors():
+    getDitherCandidates(col, palette, cacheDither[i])
 
-proc getNearestCache(palette: openArray[Rgb]): array[512, uint8] =
-  for i in 0 ..< 512:
-    let r = (i.uint and 0x1c0) shr 1
-    let g = (i.uint and 0x38) shl 2
-    let b = (i.uint and 0x7) shl 5
-    let cacheCol = constructRgb(
-      (r or (r shr 3) or (r shr 6)).int16,
-      (g or (g shr 3) or (g shr 6)).int16,
-      (b or (b shr 3) or (b shr 6)).int16
-    )
-    result[i] = cacheCol.closest(palette).uint8
-    # echo cacheCol, " ", palette[result[i]]
-
-# generate cache at compile time
-# can these be combined?
-const ditherCachePenP3 = getDitherCache(PicoGraphicsPenP3Palette)
-const closestCachePen3Bit = getNearestCache(PicoGraphicsPenP3Palette)
-
-const RGB_FLAG*: uint = 0x7f000000
+proc generateNearestCache(cacheDither: var array[512, uint8]; palette: openArray[Rgb]) =
+  for i, col in cacheColors():
+    cacheDither[i] = col.closest(palette).uint8
 
 method setPen*(self: var PicoGraphicsPen3Bit; c: uint) =
   self.color = c
@@ -617,8 +620,11 @@ proc createPenClosest*(self: var PicoGraphicsPen3Bit; c: Rgb#[; whitepoint: Rgb 
   c.closest(self.palette, self.color.int).uint
 
 proc createPenClosestLut*(self: var PicoGraphicsPen3Bit; c: Rgb): uint =
+  if not self.cacheNearestBuilt:
+    self.cacheNearest.generateNearestCache(self.getPalette())
+    self.cacheNearestBuilt = true
   let cacheKey = (((c.r and 0xE0) shl 1) or ((c.g and 0xE0) shr 2) or ((c.b and 0xE0) shr 5))
-  closestCachePen3Bit[cacheKey]
+  return self.cacheNearest[cacheKey]
 
 proc setPixelImpl(self: var PicoGraphicsPen3Bit; p: Point; col: uint) =
   if not self.bounds.contains(p) or not self.clip.contains(p):
@@ -646,12 +652,26 @@ proc setPixelImpl(self: var PicoGraphicsPen3Bit; p: Point; col: uint) =
   of BackendPsram:
     self.fbPsram.writePixel(p, col.uint8)
 
+# method setPixelDither*(self: var PicoGraphicsPen3Bit; p: Point; c: Rgb) =
+#   if not self.cacheDitherBuilt:
+#     self.cacheDither.generateDitherCache(self.getPalette())
+#     self.cacheDitherBuilt = true
+#   let cacheKey = (((c.r and 0xE0) shl 1) or ((c.g and 0xE0) shr 2) or ((c.b and 0xE0) shr 5))
+#   ##  find the pattern coordinate offset
+#   let patternIndex = ((p.x and 0b11) or ((p.y and 0b11) shl 2))
+#   ##  set the pixel
+#   self.setPixelImpl(p, self.cacheDither[cacheKey][dither16Pattern[patternIndex]])
+
 method setPixelDither*(self: var PicoGraphicsPen3Bit; p: Point; c: Rgb) =
-  let cacheKey = (((c.r and 0xE0) shl 1) or ((c.g and 0xE0) shr 2) or ((c.b and 0xE0) shr 5))
-  ##  find the pattern coordinate offset
-  let patternIndex = ((p.x and 0b11) or ((p.y and 0b11) shl 2))
-  ##  set the pixel
-  self.setPixelImpl(p, ditherCachePenP3[cacheKey][dither16Pattern[patternIndex]])
+  var threshold = 0.77 #(p.y / self.bounds.h) * 0.3 + 0.4
+
+  let patternIndex = ((p.x and 0b111) or ((p.y and 0b111) shl 3))
+  let factor = dither64Pattern[patternIndex].int - dither64Pattern.len div 2
+  threshold *= 256 div dither64Pattern.len
+
+  let attempt = (c + (threshold * factor.float)).closest(self.getPalette()).uint8
+  self.setPixelImpl(p, attempt)
+
 
 method setPixel*(self: var PicoGraphicsPen3Bit; p: Point) =
   if (self.color and RGB_FLAG) == RGB_FLAG:
@@ -739,8 +759,8 @@ type
     color*: uint8
     palette*: array[PicoGraphicsPenP4PaletteSize, Rgb]
     used*: array[PicoGraphicsPenP4PaletteSize, bool]
-    candidateCache*: array[512, array[16, uint8]]
-    cacheBuilt*: bool
+    cacheDither*: array[512, array[16, uint8]]
+    cacheDitherBuilt*: bool
     candidates*: array[16, uint8]
 
 # proc constructPicoGraphicsPenP4*(width: uint16; height: uint16;
@@ -772,8 +792,8 @@ type
     color*: uint8
     palette*: array[PicoGraphicsPenP8PaletteSize, Rgb]
     used*: array[PicoGraphicsPenP8PaletteSize, bool]
-    candidateCache*: array[512, array[16, uint8]]
-    cacheBuilt*: bool
+    cacheDither*: array[512, array[16, uint8]]
+    cacheDitherBuilt*: bool
     candidates*: array[16, uint8]
 
 

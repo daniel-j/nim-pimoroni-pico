@@ -124,6 +124,9 @@ proc init*(self: var InkyFrame) =
     if self.kind == InkyFrame7_3: BackendPsram else: BackendMemory
   )
 
+  if self.kind == InkyFrame7_3:
+    self.setPaletteSize(7) # clean colour is a greenish gradient, so avoid it
+
   let pins = SpiPins(spi: PimoroniSpiDefaultInstance, cs: PinEinkCs, sck: PinClk, mosi: PinMosi, dc: PinEinkDc)
 
   self.einkDriver.kind = if self.kind == InkyFrame7_3: KindAc073tc1a else: KindUc8159

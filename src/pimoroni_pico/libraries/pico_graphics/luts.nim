@@ -1,3 +1,5 @@
+import std/bitops
+
 ##
 ## LUT
 ##
@@ -30,4 +32,27 @@ const rgb332ToRgb565Lut*: array[256, uint16] = [
     0x18e2, 0x00e3, 0x08e3, 0x10e3, 0x18e3, 0x00e4, 0x08e4, 0x10e4, 0x18e4, 0x00e5,
     0x08e5, 0x10e5, 0x18e5, 0x00e6, 0x08e6, 0x10e6, 0x18e6, 0x00e7, 0x08e7, 0x10e7, 0x18e7]
 
-const dither16Pattern*: array[16, uint8] = [uint8 0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5]
+# code from https://nelari.us/post/quick_and_dirty_dithering/#bayer-matrix
+proc bayerMatrix*[T](M: static[Natural]): array[1 shl M shl M, T] =
+  const dim = 1 shl M
+  var i = 0
+  for y in 0 ..< dim:
+    let yc = y
+    for x in 0 ..< dim:
+      var v = 0
+      var mask = M - 1
+      let xc = x xor y
+      var bit = 0
+      while bit < 2 * M:
+        v.setMask ((yc shr mask) and 1) shl bit
+        inc(bit)
+        v.setMask ((xc shr mask) and 1) shl bit
+        inc(bit)
+        dec(mask)
+      result[i] = T(v)
+      inc(i)
+
+const dither4Pattern* = bayerMatrix[uint8](1)
+const dither16Pattern* = bayerMatrix[uint8](2)
+const dither64Pattern* = bayerMatrix[uint16](3)
+const dither256Pattern* = bayerMatrix[uint16](4)

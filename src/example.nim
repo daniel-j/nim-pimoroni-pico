@@ -222,6 +222,12 @@ proc jpegdec_draw_callback(draw: ptr JPEGDRAW): cint {.cdecl.} =
       if sxmin >= draw.iWidth: continue
       let sxmax = min(floor((x + 1) * jpegDecodeOptions.jpegW / jpegDecodeOptions.w).int, draw.iWidth)
 
+      let pos = case jpeg.getOrientation():
+      of 3: Point(x: jpegDecodeOptions.x + jpegDecodeOptions.w - (dx + x), y: jpegDecodeOptions.y + jpegDecodeOptions.h - (dy + y))
+      of 6: Point(x: jpegDecodeOptions.x + jpegDecodeOptions.h - (dy + y), y: jpegDecodeOptions.y + (dx + x))
+      of 8: Point(x: jpegDecodeOptions.x + (dy + y), y: jpegDecodeOptions.y + jpegDecodeOptions.w - (dx + x))
+      else: Point(x: jpegDecodeOptions.x + dx + x, y: jpegDecodeOptions.y + dy + y)
+
       var color = Rgb()
 
       # linear interpolation
@@ -237,14 +243,9 @@ proc jpegdec_draw_callback(draw: ptr JPEGDRAW): cint {.cdecl.} =
         # fallback
         color = constructRgb(Rgb565(p[sxmin + symin * draw.iWidth]))
 
-      color = color.level(black=0.0, white=0.97).saturate(1.30)
+      color = color.level(black=0.0, white=0.97).saturate(1.20)
       #color = color.level(white=0.96)
 
-      let pos = case jpeg.getOrientation():
-      of 3: Point(x: jpegDecodeOptions.x + jpegDecodeOptions.w - (dx + x), y: jpegDecodeOptions.y + jpegDecodeOptions.h - (dy + y))
-      of 6: Point(x: jpegDecodeOptions.x + jpegDecodeOptions.h - (dy + y), y: jpegDecodeOptions.y + (dx + x))
-      of 8: Point(x: jpegDecodeOptions.x + (dy + y), y: jpegDecodeOptions.y + jpegDecodeOptions.w - (dx + x))
-      else: Point(x: jpegDecodeOptions.x + dx + x, y: jpegDecodeOptions.y + dy + y)
 
       inc(errorMatrix[y][dx + x], (color.rgbToVec3().srgbToLinear(gamma=2.1) * errorMultiplier).vec3ToRgb())
       # errorMatrix[y][dx + x] = (((errorMatrix[y][dx + x].rgbToVec3() / errorMultiplier) + color.rgbToVec3().srgbToLinear(gamma=2.1)) * errorMultiplier).vec3ToRgb()
@@ -286,9 +287,9 @@ proc drawJpeg(filename: string; x, y: int = 0; w, h: int; dither: bool = false; 
 
     # https://stackoverflow.com/questions/21961839/simulation-background-size-cover-in-canvas/45894506#45894506
     let contains = true
-    let boxRatio = w / h
+    let boxRatio = jpegDecodeOptions.w / jpegDecodeOptions.h
     let imgRatio = jpegDecodeOptions.jpegW / jpegDecodeOptions.jpegH
-    if (if contains: imgRatio > boxRatio else: imgRatio < boxRatio):
+    if (if contains: imgRatio > boxRatio else: imgRatio <= boxRatio):
       jpegDecodeOptions.h = (jpegDecodeOptions.w.float / imgRatio).int
     else:
       jpegDecodeOptions.w = (jpegDecodeOptions.h.float * imgRatio).int
@@ -464,6 +465,45 @@ proc inkyProc() =
     inky.rectangle(constructRect((inky.width div 8) * 6, 0, inky.width div 8, inky.height))
     inky.setPen(Clean)
     inky.rectangle(constructRect((inky.width div 8) * 7, 0, inky.width div 8, inky.height))
+    let endTime = getAbsoluteTime()
+    echo "Time: ", absoluteTimeDiffUs(startTime, endTime) div 1000, "ms"
+    echo "Updating..."
+    inky.update()
+
+  elif EvtBtnD in inky.getWakeUpEvents():
+    echo "Drawing triangles and lines..."
+    let startTime = getAbsoluteTime()
+    inky.setPen(White)
+    inky.clear()
+    const triCount = 50
+
+    for i in 0..<triCount:
+      echo i, " of ", triCount
+      let size = 50 + rand(50)
+      let x = rand(inky.bounds.w)
+      let y = rand(inky.bounds.h)
+      var p1 = Point(x: x, y: y)
+      var p2 = p1 + Point(x: size, y: size)
+      var p3 = p1 + Point(x: -size, y: size)
+
+      inky.setPen(inky.createPenHsl(rand(1.0), 0.5 + rand(0.5), 0.25 + rand(0.5)))
+      # inky.setPen(uint 2 + rand(4))
+      inky.triangle(p1, p2, p3)
+
+    const lineCount = 30
+    for i in 0..<lineCount:
+      echo i, " of ", lineCount
+      let x = rand(inky.bounds.w)
+      let y = rand(inky.bounds.h)
+      let size = 50 + rand(50)
+      let thickness = 5 + rand(8)
+      var p1 = Point(x: x - rand(size), y: y - rand(size))
+      var p2 = Point(x: x + rand(size), y: y + rand(size))
+
+      inky.setPen(inky.createPenHsl(rand(1.0), 0.5 + rand(0.5), 0.25 + rand(0.5)))
+      # inky.setPen(uint 2 + rand(4))
+      inky.thickLine(p1, p2, thickness)
+
     let endTime = getAbsoluteTime()
     echo "Time: ", absoluteTimeDiffUs(startTime, endTime) div 1000, "ms"
     echo "Updating..."

@@ -10,7 +10,7 @@ type
   Rgb332* = distinct uint8
   Rgb565* = distinct uint16
   Rgb888* = distinct uint32
-  Rgb* {.bycopy, packed.} = object
+  Rgb* {.packed.} = object
     r*: int16
     g*: int16
     b*: int16
@@ -106,6 +106,10 @@ func hslToRgb*(h, s, l: float): Rgb =
 
 func `+`*(self: Rgb; c: Rgb): Rgb =
   return constructRgb(self.r + c.r, self.g + c.g, self.b + c.b)
+func `+`*(self: Rgb; i: int16): Rgb =
+  return constructRgb(self.r + i, self.g + i, self.b + i)
+func `+`*(self: Rgb; i: float): Rgb =
+  return constructRgb(int16 self.r.float + i, int16 self.g.float + i, int16 self.b.float + i)
 
 func `*`*(self: Rgb; i: int16): Rgb =
   return Rgb(r: self.r * i, g: self.g * i, b: self.b * i)
@@ -149,18 +153,18 @@ func luminance*(self: Rgb): int =
   ##  weights based on https://www.johndcook.com/blog/2009/08/24/algorithms-convert-color-grayscale/
   self.r * 21 + self.g * 72 + self.b * 7
 
-func distance*(self: Rgb; c: Rgb; whitepoint: Rgb = Rgb(r: 255, g: 255, b: 255)): float =
-  let e1 = (self)
-  let e2 = (c)
-  ##  algorithm from https://www.compuphase.com/cmetric.htm
-  let rmean = ((e1.r.float + e2.r.float) / 2) * (whitepoint.r.float / 255)
-  let rx = (e1.r.float - e2.r.float) * (whitepoint.r.float / 255)
-  let gx = (e1.g.float - e2.g.float) * (whitepoint.g.float / 255)
-  let bx = (e1.b.float - e2.b.float) * (whitepoint.b.float / 255)
-  return ((((512 + rmean) * rx * rx).int64 shr 8).float + 4.0 * gx * gx + (((767 - rmean) * bx * bx).int64 shr 8).float).abs()
-  #return ((2 + (rmean / 256)) * rx * rx + 4 * gx * gx + (2 + (255 - rmean) / 256) * bx * bx).abs()
+# func distance*(self: Rgb; c: Rgb; whitepoint: Rgb = Rgb(r: 255, g: 255, b: 255)): float =
+#   let e1 = (self)
+#   let e2 = (c)
+#   ##  algorithm from https://www.compuphase.com/cmetric.htm
+#   let rmean = ((e1.r.float + e2.r.float) / 2) * (whitepoint.r.float / 255)
+#   let rx = (e1.r.float - e2.r.float) * (whitepoint.r.float / 255)
+#   let gx = (e1.g.float - e2.g.float) * (whitepoint.g.float / 255)
+#   let bx = (e1.b.float - e2.b.float) * (whitepoint.b.float / 255)
+#   return ((((512 + rmean) * rx * rx).int64 shr 8).float + 4.0 * gx * gx + (((767 - rmean) * bx * bx).int64 shr 8).float).abs()
+#   #return ((2 + (rmean / 256)) * rx * rx + 4 * gx * gx + (2 + (255 - rmean) / 256) * bx * bx).abs()
 
-func distanceInt*(self: Rgb; c: Rgb): int =
+func distance*(self: Rgb; c: Rgb): int =
   ##  algorithm from https://www.compuphase.com/cmetric.htm
   let rmean: int64 = (self.r + c.r) div 2
   let rx: int64 = (self.r - c.r)
@@ -170,11 +174,12 @@ func distanceInt*(self: Rgb; c: Rgb): int =
 
 func closest*(self: Rgb; palette: openArray[Rgb]; fallback: int = 0#[; whitepoint: Rgb = Rgb(r: 255, g: 255, b: 255)]#): int =
   assert(palette.len > 0)
+  let col = self.clamp()
   var
     d = int.high
     m = fallback
   for i in 0 ..< palette.len:
-    let dc = self.distanceInt(palette[i])
+    let dc = col.distance(palette[i])
     if dc < d:
       m = i
       d = dc
