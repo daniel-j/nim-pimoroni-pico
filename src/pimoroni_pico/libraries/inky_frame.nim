@@ -72,7 +72,7 @@ type
   InkyFrameKind* = enum
     InkyFrame4_0, InkyFrame5_7, InkyFrame7_3
 
-  InkyFrame* = object of PicoGraphicsPenP3
+  InkyFrame* = object of PicoGraphicsPen3Bit
     kind*: InkyFrameKind
     einkDriver: EinkDriver
     rtc: RtcPcf85063a
@@ -118,7 +118,7 @@ proc init*(self: var InkyFrame) =
     of InkyFrame5_7: (600, 448)
     of InkyFrame7_3: (800, 480)
 
-  PicoGraphicsPenP3(self).init(
+  PicoGraphicsPen3Bit(self).init(
     self.width.uint16,
     self.height.uint16,
     if self.kind == InkyFrame7_3: BackendPsram else: BackendMemory

@@ -114,8 +114,7 @@ proc powerOffAc073tc1a*(self: var EinkDriver) =
   self.command(Pof) ##  turn off
 
 proc updateAc073tc1a*(self: var EinkDriver; graphics: var PicoGraphics) =
-  if graphics.penType != Pen_P3:
-    return
+  assert(graphics.penType == Pen_3Bit, "Pen type must be 3Bit")
 
   if self.blocking:
     self.busyWait()

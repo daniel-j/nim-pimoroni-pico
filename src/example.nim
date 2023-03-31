@@ -398,6 +398,7 @@ proc inkyProc() =
 
   if EvtBtnA in inky.getWakeUpEvents():
     echo "Drawing HSL chart..."
+    let startTime = getAbsoluteTime()
     inky.setPen(White)
     inky.clear()
     var p = Point()
@@ -413,11 +414,14 @@ proc inkyProc() =
         inky.setPen(inky.createPenHsl(hue, 0.9, 1.0 - l))
         inky.setPixel(p)
 
+    let endTime = getAbsoluteTime()
+    echo "Time: ", absoluteTimeDiffUs(startTime, endTime) div 1000, "ms"
     echo "Updating..."
     inky.update()
 
   elif EvtBtnB in inky.getWakeUpEvents():
     echo "Drawing bubbles..."
+    let startTime = getAbsoluteTime()
     inky.setPen(White)
     inky.clear()
     const bubbleCount = 100
@@ -435,11 +439,14 @@ proc inkyProc() =
       inky.setPen(inky.createPenHsl(rand(1.0), 0.5 + rand(0.5), 0.25 + rand(0.5)))
       inky.circle(p, size - 2)
 
+    let endTime = getAbsoluteTime()
+    echo "Time: ", absoluteTimeDiffUs(startTime, endTime) div 1000, "ms"
     echo "Updating..."
     inky.update()
 
   elif EvtBtnC in inky.getWakeUpEvents():
     echo "Drawing palette stripes..."
+    let startTime = getAbsoluteTime()
     inky.setPen(Black)
     inky.rectangle(constructRect(0, 0, inky.width div 8, inky.height))
     inky.setPen(White)
@@ -456,6 +463,8 @@ proc inkyProc() =
     inky.rectangle(constructRect((inky.width div 8) * 6, 0, inky.width div 8, inky.height))
     inky.setPen(Clean)
     inky.rectangle(constructRect((inky.width div 8) * 7, 0, inky.width div 8, inky.height))
+    let endTime = getAbsoluteTime()
+    echo "Time: ", absoluteTimeDiffUs(startTime, endTime) div 1000, "ms"
     echo "Updating..."
     inky.update()
 
@@ -463,7 +472,10 @@ proc inkyProc() =
     echo "Cleaning..."
     inky.setPen(Clean)
     inky.setBorder(Orange)
+    let startTime = getAbsoluteTime()
     inky.clear()
+    let endTime = getAbsoluteTime()
+    echo "Time to clear: ", absoluteTimeDiffUs(startTime, endTime) div 1000, "ms"
     echo "First update..."
     inky.update()
     inky.setBorder(White)
