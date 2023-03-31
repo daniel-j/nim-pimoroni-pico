@@ -526,7 +526,6 @@ type
     palette*: array[8, Rgb]
     # candidateCache*: array[512, array[16, uint8]]
     # cacheBuilt*: bool
-    # candidates*: array[16, uint8]
 
 const PicoGraphicsPenP3Palette* = [
   Rgb(r:   1, g:  16, b:   2), ##  black
@@ -562,24 +561,24 @@ proc getDitherCandidates*(col: Rgb; palette: array[8, Rgb]; candidates: var arra
   var error: Rgb
   for i in 0 ..< candidates.len:
     candidates[i] = (col + error).closest(palette).uint8
-    inc(error, (col - palette[candidates[i]]))
+    error += (col - palette[candidates[i]])
 
-  ##  sort by a rough approximation of luminance, this ensures that neighbouring
-  ##  pixels in the dither matrix are at extreme opposites of luminence
-  ##  giving a more balanced output
+  # sort by a rough approximation of luminance, this ensures that neighbouring
+  # pixels in the dither matrix are at extreme opposites of luminence
+  # giving a more balanced output
   sort(candidates, func (a: uint8; b: uint8): int =
-    (palette[a].luminance() > palette[b].luminance()).int
+    (palette[b].luminance() - palette[a].luminance())
   )
 
 proc getDitherCache(palette: array[8, Rgb]): array[512, array[16, uint8]] =
   for i in 0 ..< 512:
-    let r = (uint i and 0x1c0) shr 1
-    let g = (uint i and 0x38) shl 2
-    let b = (uint i and 0x7) shl 5
-    let cacheCol = Rgb(
-      r: (r or (r shr 3) or (r shr 6)).int16,
-      g: (g or (g shr 3) or (g shr 6)).int16,
-      b: (b or (b shr 3) or (b shr 6)).int16
+    let r = (i.uint and 0x1c0) shr 1
+    let g = (i.uint and 0x38) shl 2
+    let b = (i.uint and 0x7) shl 5
+    let cacheCol = constructRgb(
+      (r or (r shr 3) or (r shr 6)).int16,
+      (g or (g shr 3) or (g shr 6)).int16,
+      (b or (b shr 3) or (b shr 6)).int16
     )
     getDitherCandidates(cacheCol, palette, result[i])
 
@@ -607,13 +606,14 @@ method setPen*(self: var PicoGraphicsPenP3; c: uint) =
 
 method setPen*(self: var PicoGraphicsPenP3; c: Rgb) =
   self.color = c.toRgb888().uint or RGB_FLAG
-  echo "setting rgb color! ", c
 
 proc createPen*(self: PicoGraphicsPenP3; c: Rgb): uint =
   c.toRgb888().uint or RGB_FLAG
 
-proc createPenHsv*(self: PicoGraphicsPenP3; h, s, v: float): uint =
-  hsvToRgb(h, s,v).toRgb888().uint or RGB_FLAG
+proc createPenHsv*(self: PicoGraphicsPenP3; h, s, v: float): Rgb =
+  hsvToRgb(h, s, v)
+proc createPenHsl*(self: PicoGraphicsPenP3; h, s, l: float): Rgb =
+  hslToRgb(h, s, l)
 
 proc setPenClosest*(self: var PicoGraphicsPenP3; c: Rgb; whitepoint: Rgb = Rgb(r: 255, g: 255, b: 255)) =
   self.color = c.closest(self.palette, self.color.int, whitepoint).uint8
@@ -640,11 +640,21 @@ proc setPixelImpl(self: var PicoGraphicsPenP3; p: Point; col: uint) =
   of BackendPsram:
     self.fbPsram.writePixel(p, col.uint8)
 
+method setPixelDither*(self: var PicoGraphicsPenP3; p: Point; c: Rgb) =
+  if not self.bounds.contains(p) or not self.clip.contains(p):
+    return
+
+  let cacheKey = (((c.r and 0xE0) shl 1) or ((c.g and 0xE0) shr 2) or ((c.b and 0xE0) shr 5))
+  ##  find the pattern coordinate offset
+  let patternIndex = ((p.x and 0b11) or ((p.y and 0b11) shl 2))
+  ##  set the pixel
+  self.setPixelImpl(p, ditherCachePenP3[cacheKey][dither16Pattern[patternIndex]])
+
 method setPixel*(self: var PicoGraphicsPenP3; p: Point) =
   if not self.bounds.contains(p) or not self.clip.contains(p):
     return
   if (self.color and RGB_FLAG) == RGB_FLAG:
-    self.setPixelDither(p, constructRgb(self.color.Rgb888))
+    self.setPixelDither(p, constructRgb(Rgb888(self.color)))
   else:
     self.setPixelImpl(p, self.color)
 
@@ -680,16 +690,6 @@ method setPixelSpan*(self: var PicoGraphicsPenP3; p: Point; l: uint) =
     self.setPixel(lp)
     inc(lp.x)
     dec(length)
-
-method setPixelDither*(self: var PicoGraphicsPenP3; p: Point; c: Rgb) =
-  if not self.bounds.contains(p) or not self.clip.contains(p):
-    return
-
-  let cacheKey = (((c.r and 0xE0) shl 1) or ((c.g and 0xE0) shr 2) or ((c.b and 0xE0) shr 5)).uint
-  ##  find the pattern coordinate offset
-  let patternIndex = ((p.x and 0b11) or ((p.y and 0b11) shl 2)).uint
-  ##  set the pixel
-  self.setPixelImpl(p, ditherCachePenP3[cacheKey][dither16Pattern[patternIndex]])
 
 method frameConvert*(self: var PicoGraphicsPenP3; `type`: PicoGraphicsPenType; callback: PicoGraphicsConversionCallbackFunc) =
   if `type` == Pen_P4:
