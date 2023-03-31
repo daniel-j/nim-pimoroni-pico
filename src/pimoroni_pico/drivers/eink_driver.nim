@@ -2,7 +2,7 @@ import picostdlib/hardware/gpio
 import picostdlib/pico/platform
 import ../common/pimoroni_common
 import ../common/pimoroni_bus
-import ../libraries/pico_graphics/display_driver
+import ./display_driver
 
 export gpio, platform
 export pimoroni_common, pimoroni_bus, display_driver

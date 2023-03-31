@@ -94,8 +94,8 @@ type
     BreakoutGarden, PicoExplorer, PlasmaStick, Plasma2040, Interstate75,
     Servo2040, Motor2040
 
-  # Rotation* {.pure.} = enum
-  #   Rotate_0 = 0, Rotate_90 = 90, Rotate_180 = 180, Rotate_270 = 270
+  Rotation* {.pure.} = enum
+    Rotate_0 = 0, Rotate_90 = 90, Rotate_180 = 180, Rotate_270 = 270
 
   Polarity* {.pure.} = enum
     ActiveLow = 0, ActiveHigh = 1
