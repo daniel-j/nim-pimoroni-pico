@@ -5,7 +5,6 @@ import picostdlib/pico/rand
 import pimoroni_pico/libraries/jpegdec
 import pimoroni_pico/libraries/inky_frame
 import std/random
-import vmath
 
 import std/math
 
@@ -42,7 +41,6 @@ type
     x, y, w, h: int
     jpegW, jpegH: int
     progress: int
-    dither: bool
     lastY: int
     chunkHeight: int
 
@@ -77,10 +75,10 @@ proc processErrorMatrix(drawY: int) =
       let oldPixel = (errorMatrix[y][x].rgbToVec3() / errorMultiplier)
 
       #inky.setPen(oldPixel.clamp(-0.2, 1.2).linearToSRGB(gamma=2.2).vec3ToRgb())  #  find closest color using a LUT
-      inky.setPen(inky.createPenClosest(oldPixel.clamp(-0.2, 1.2).linearToSRGB(gamma=2.2).vec3ToRgb()#[, whitePoint]#))  # find closest color using distance function
+      inky.setPen(inky.createPenNearest(oldPixel.clamp(-0.2, 1.2).linearToSRGB(gamma=2.2).vec3ToRgb()#[, whitePoint]#))  # find closest color using distance function
       inky.setPixel(pos)
 
-      let newPixel = inky.palette[inky.color.uint8].rgbToVec3().srgbToLinear()
+      let newPixel = inky.getRawPalette()[inky.color.uint8].rgbToVec3().srgbToLinear()
 
       let quantError = oldPixel.clamp(0, 1) - newPixel
 
@@ -123,42 +121,28 @@ proc jpegdec_draw_callback(draw: ptr JPEGDRAW): cint {.cdecl.} =
   let dw = ((draw.x + draw.iWidth) * jpegDecodeOptions.w div jpegDecodeOptions.jpegW) - dx
   let dh = ((draw.y + draw.iHeight) * jpegDecodeOptions.h div jpegDecodeOptions.jpegH) - dy
 
-  if draw.x == 0 and draw.y == 0:
-    echo draw[]
-    jpegDecodeOptions.chunkHeight = dh
+  # if draw.x == 0 and draw.y == 0:
+  #   echo "Free heap before errorMatrix: ", getFreeHeap()
+  #   echo draw[]
+  #   jpegDecodeOptions.chunkHeight = dh
 
-    errorMatrix.setLen(jpegDecodeOptions.chunkHeight + 1)
+  #   errorMatrix.setLen(jpegDecodeOptions.chunkHeight + 1)
 
-    for i in 0 .. jpegDecodeOptions.chunkHeight:
-      errorMatrix[i] = newSeq[Rgb](jpegDecodeOptions.w)
+  #   for i in 0 .. jpegDecodeOptions.chunkHeight:
+  #     errorMatrix[i] = newSeq[Rgb](jpegDecodeOptions.w)
+  #   echo "Free heap after errorMatrix alloc: ", getFreeHeap()
 
-  if jpegDecodeOptions.lastY != draw.y:
-    processErrorMatrix(jpegDecodeOptions.lastY)
-    swap(errorMatrix[0], errorMatrix[jpegDecodeOptions.chunkHeight])
+  # if jpegDecodeOptions.lastY != draw.y:
+  #   processErrorMatrix(jpegDecodeOptions.lastY)
+  #   swap(errorMatrix[0], errorMatrix[jpegDecodeOptions.chunkHeight])
 
-    jpegDecodeOptions.chunkHeight = dh
-    errorMatrix.setLen(jpegDecodeOptions.chunkHeight + 1)
+  #   jpegDecodeOptions.chunkHeight = dh
+  #   errorMatrix.setLen(jpegDecodeOptions.chunkHeight + 1)
 
-    for i in 1 .. jpegDecodeOptions.chunkHeight:
-      errorMatrix[i] = newSeq[Rgb](jpegDecodeOptions.w)
+  #   for i in 1 .. jpegDecodeOptions.chunkHeight:
+  #     errorMatrix[i] = newSeq[Rgb](jpegDecodeOptions.w)
 
-  jpegDecodeOptions.lastY = draw.y
-
-  # var lastDx = -1
-  # var lastDy = -1
-  # for y in 0 ..< draw.iHeight:
-  #   let dy = y # (y * jpegDecodeOptions.h) div jpegDecodeOptions.jpegH
-  #   if lastDy == dy: continue
-  #   lastDy = dy
-  #   for x in 0 ..< draw.iWidth:
-  #     let dx = ((draw.x + x) * jpegDecodeOptions.w) div jpegDecodeOptions.jpegW
-  #     if lastDx == dx: continue
-  #     lastDx = dx
-  #     if dx >= 0 and dx < jpegDecodeOptions.w and dy >= 0 and dy < jpegDecodeOptions.chunkHeight:
-  #       inc(errorMatrix[dy][dx], constructRgb(RGB565(p[x + y * draw.iWidth])))
-  #       # echo "set pixel ", Point(x: dx + jpegDecodeOptions.x, y: dy + draw.y + jpegDecodeOptions.y)
-  #       #inky.setPixel(Point(x: dx + jpegDecodeOptions.x, y: dy + jpegDecodeOptions.y), constructRgb(RGB565(p[x + y * draw.iWidth])))  ##  find closest color using a LUT
-  #     let color = constructRgb(RGB565(p[x + y * draw.iWidth]))
+  # jpegDecodeOptions.lastY = draw.y
 
   for y in 0 ..< dh:
     if dy + y < 0 or dy + y >= jpegDecodeOptions.h: continue
@@ -180,36 +164,39 @@ proc jpegdec_draw_callback(draw: ptr JPEGDRAW): cint {.cdecl.} =
       var color = Rgb()
 
       # linear interpolation
-      var colorv = Vec3()
-      var divider = 0
-      for sx in sxmin..<sxmax:
-        for sy in symin..<symax:
-          colorv += constructRgb(Rgb565(p[sx + sy * draw.iWidth])).rgbToVec3().srgbToLinear()
-          inc(divider)
-      if divider > 0:
-        color = (colorv / divider.float).linearToSRGB().vec3ToRgb()
-      else:
-        # fallback
-        color = constructRgb(Rgb565(p[sxmin + symin * draw.iWidth]))
+      # var colorv = Vec3()
+      # var divider = 0
+      # for sx in sxmin..<sxmax:
+      #   for sy in symin..<symax:
+      #     colorv += constructRgb(Rgb565(p[sx + sy * draw.iWidth])).rgbToVec3().srgbToLinear()
+      #     inc(divider)
+      # if divider > 0:
+      #   color = (colorv / divider.float).linearToSRGB().vec3ToRgb()
+      # else:
+      #   # fallback
+      #   color = constructRgb(Rgb565(p[sxmin + symin * draw.iWidth]))
+      color = constructRgb(Rgb565(p[sxmin + symin * draw.iWidth]))
 
-      color = color.level(black=0.0, white=0.97).saturate(1.20)
-      #color = color.level(white=0.96)
+      color = color.level(black=0.00, white=0.97).saturate(1.30)
 
+      inky.setPen(color)
+      inky.setPixel(pos)
 
-      inc(errorMatrix[y][dx + x], (color.rgbToVec3().srgbToLinear(gamma=2.1) * errorMultiplier).vec3ToRgb())
+      #######inc(errorMatrix[y][dx + x], (color.rgbToVec3().srgbToLinear(gamma=2.1) * errorMultiplier).vec3ToRgb())
       # errorMatrix[y][dx + x] = (((errorMatrix[y][dx + x].rgbToVec3() / errorMultiplier) + color.rgbToVec3().srgbToLinear(gamma=2.1)) * errorMultiplier).vec3ToRgb()
       jpegDecodeOptions.progress.inc()
+
+  echo (jpegDecodeOptions.progress * 100) div (jpegDecodeOptions.w * jpegDecodeOptions.h), "%"
 
   return 1
 
 
-proc drawJpeg(filename: string; x, y: int = 0; w, h: int; dither: bool = false; gravity: tuple[x, y: float] = (0.0, 0.0)): int =
+proc drawJpeg(filename: string; x, y: int = 0; w, h: int; gravity: tuple[x, y: float] = (0.0, 0.0)): int =
   jpegDecodeOptions.x = x
   jpegDecodeOptions.y = y
   jpegDecodeOptions.w = w
   jpegDecodeOptions.h = h
   jpegDecodeOptions.progress = 0
-  jpegDecodeOptions.dither = dither
   jpegDecodeOptions.lastY = 0
 
   echo "- opening jpeg file ", filename
@@ -284,7 +271,7 @@ proc drawJpeg(filename: string; x, y: int = 0; w, h: int; dither: bool = false; 
       return jpegErr
 
     jpeg.close()
-    processErrorMatrix(jpegDecodeOptions.lastY)
+    # processErrorMatrix(jpegDecodeOptions.lastY)
     errorMatrix.setLen(0)
 
   else:
@@ -321,7 +308,7 @@ proc drawFile(filename: string) =
     of InkyFrame5_7: (0, -1, 600, 450)
     of InkyFrame7_3: (-27, 0, 854, 480)
 
-  if drawJpeg(filename, x, y, w, h, dither=false, gravity=(0.5, 0.5)) == 1:
+  if drawJpeg(filename, x, y, w, h, gravity=(0.5, 0.5)) == 1:
     inky.led(LedActivity, 100)
     inky.update()
     inky.led(LedActivity, 0)
@@ -361,7 +348,10 @@ proc inkyProc() =
         p.x = x
         let xd = x / inky.width
         let hue = xd
-        inky.setPen(inky.createPenHsl(hue, 0.9, 1.0 - l))
+        inky.setPen(inky.createPenHsl(hue, 1.0, 1.0 - l))
+        # let col = constructRgb(int16 hue * 255, 255, int16 255 - l / 255)
+        # let hslCacheKey = (((col.r and 0xE0) shl 1) or ((col.g and 0xE0) shr 2) or ((col.b and 0xE0) shr 5))
+        # inky.setPen(hslCache[hslCacheKey].rgb565ToRgb())
         inky.setPixel(p)
 
     let endTime = getAbsoluteTime()

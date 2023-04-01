@@ -531,14 +531,14 @@ type
     cacheNearestBuilt*: bool
 
 const PicoGraphicsPen3BitPalette* = [
-  Rgb(r:   1, g:  16, b:   2), ##  black
+  Rgb(r:   1, g:  17, b:  10), ##  black
   Rgb(r: 238, g: 255, b: 246), ##  white
-  Rgb(r:   0, g: 153, b:  28), ##  green
-  Rgb(r:  57, g:  41, b: 185), ##  blue
-  Rgb(r: 223, g:  14, b:  19), ##  red
-  Rgb(r: 238, g: 220, b:  16), ##  yellow
-  Rgb(r: 255, g: 130, b:  35), ##  orange
-  Rgb(r: 245, g: 215, b: 191), ##  clean - not used on inky7
+  Rgb(r:   0, g: 120, b:  10), ##  green
+  Rgb(r:  40, g:  35, b: 175), ##  blue
+  Rgb(r: 235, g:  60, b:  50), ##  red
+  Rgb(r: 250, g: 210, b:  30), ##  yellow
+  Rgb(r: 240, g: 125, b:   5), ##  orange
+  Rgb(r: 245, g: 215, b: 191), ##  clean - do not use on inky7 as colour
 ]
 
 const RGB_FLAG*: uint = 0x7f000000
@@ -568,40 +568,6 @@ func setPaletteSize*(self: var PicoGraphicsPen3Bit; paletteSize: uint16) = self.
 func getRawPalette*(self: PicoGraphicsPen3Bit): auto {.inline.} = self.palette
 func getPalette*(self: PicoGraphicsPen3Bit): auto {.inline.} = self.palette[0..<self.paletteSize]
 
-iterator cacheColors*(): tuple[i: int, c: Rgb] =
-  for i in 0 ..< 512:
-    let r = (i.uint and 0x1c0) shr 1
-    let g = (i.uint and 0x38) shl 2
-    let b = (i.uint and 0x7) shl 5
-    let cacheCol = constructRgb(
-      (r or (r shr 3) or (r shr 6)).int16,
-      (g or (g shr 3) or (g shr 6)).int16,
-      (b or (b shr 3) or (b shr 6)).int16
-    )
-    yield (i, cacheCol)
-
-proc getDitherCandidates*(col: Rgb; palette: openArray[Rgb]; candidates: var array[16, uint8]) =
-  var error: Rgb
-  for i in 0 ..< candidates.len:
-    candidates[i] = (col + error).closest(palette).uint8
-    error += (col - palette[candidates[i]])
-
-  # sort by a rough approximation of luminance, this ensures that neighbouring
-  # pixels in the dither matrix are at extreme opposites of luminence
-  # giving a more balanced output
-  let pal = cast[ptr UncheckedArray[Rgb]](palette[0].unsafeAddr) # openArray workaround
-  sort(candidates, func (a: uint8; b: uint8): int =
-    (pal[a].luminance() > pal[b].luminance()).int
-  )
-
-proc generateDitherCache(cacheDither: var array[512, array[16, uint8]]; palette: openArray[Rgb]) =
-  for i, col in cacheColors():
-    getDitherCandidates(col, palette, cacheDither[i])
-
-proc generateNearestCache(cacheDither: var array[512, uint8]; palette: openArray[Rgb]) =
-  for i, col in cacheColors():
-    cacheDither[i] = col.closest(palette).uint8
-
 method setPen*(self: var PicoGraphicsPen3Bit; c: uint) =
   self.color = c
 
@@ -616,14 +582,15 @@ proc createPenHsv*(self: PicoGraphicsPen3Bit; h, s, v: float): Rgb =
 proc createPenHsl*(self: PicoGraphicsPen3Bit; h, s, l: float): Rgb =
   hslToRgb(h, s, l)
 
-proc createPenClosest*(self: var PicoGraphicsPen3Bit; c: Rgb#[; whitepoint: Rgb = Rgb(r: 255, g: 255, b: 255)]#): uint =
-  c.closest(self.palette, self.color.int).uint
+proc createPenNearest*(self: var PicoGraphicsPen3Bit; c: Rgb#[; whitepoint: Rgb = Rgb(r: 255, g: 255, b: 255)]#): uint =
+  c.closest(self.getPalette()).uint
 
-proc createPenClosestLut*(self: var PicoGraphicsPen3Bit; c: Rgb): uint =
+proc createPenNearestLut*(self: var PicoGraphicsPen3Bit; c: Rgb): uint =
   if not self.cacheNearestBuilt:
     self.cacheNearest.generateNearestCache(self.getPalette())
     self.cacheNearestBuilt = true
-  let cacheKey = (((c.r and 0xE0) shl 1) or ((c.g and 0xE0) shr 2) or ((c.b and 0xE0) shr 5))
+  let col = c.clamp()
+  let cacheKey = (((col.r and 0xE0) shl 1) or ((col.g and 0xE0) shr 2) or ((col.b and 0xE0) shr 5))
   return self.cacheNearest[cacheKey]
 
 proc setPixelImpl(self: var PicoGraphicsPen3Bit; p: Point; col: uint) =
@@ -663,15 +630,23 @@ proc setPixelImpl(self: var PicoGraphicsPen3Bit; p: Point; col: uint) =
 #   self.setPixelImpl(p, self.cacheDither[cacheKey][dither16Pattern[patternIndex]])
 
 method setPixelDither*(self: var PicoGraphicsPen3Bit; p: Point; c: Rgb) =
-  # let patternIndex = ((p.x and 0b11) or ((p.y and 0b11) shl 2))
-  # let factor = ditherPattern4x4Rgb[patternIndex]
-  # let patternIndex = ((p.x and 0b111) or ((p.y and 0b111) shl 3))
-  # let factor = ditherPattern8x8Rgb[patternIndex]
-  let patternIndex = ((p.x and 0b1111) or ((p.y and 0b1111) shl 4))
-  let error = ditherPattern16x16Rgb[patternIndex]
+  const patternSize = 3
+  const mask = (2 shl patternSize) - 1
+  let patternIndex = ((p.x and mask) or ((p.y and mask) shl (patternSize + 1)))
+  when patternSize == 1:
+    let error = ditherPattern4x4Rgb[patternIndex]
+  elif patternSize == 2:
+    let error = ditherPattern8x8Rgb[patternIndex]
+  elif patternSize == 3:
+    #let error = ditherPattern16x16Rgb[patternIndex]
+    let error = bnDitherPattern16x16Rgb[patternIndex]
+  else:
+    let error = 0'i16
 
-  let attempt = (c + error).closest(self.getPalette()).uint8
-  self.setPixelImpl(p, attempt)
+  # let patternIndex = ((p.x and 0b11111) or ((p.y and 0b11111) shl 5))
+  # let error = bnDitherPattern32x32Rgb[patternIndex]
+
+  self.setPixelImpl(p, self.createPenNearest(c + error))
 
 
 method setPixel*(self: var PicoGraphicsPen3Bit; p: Point) =
