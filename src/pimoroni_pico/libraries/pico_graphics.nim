@@ -663,13 +663,14 @@ proc setPixelImpl(self: var PicoGraphicsPen3Bit; p: Point; col: uint) =
 #   self.setPixelImpl(p, self.cacheDither[cacheKey][dither16Pattern[patternIndex]])
 
 method setPixelDither*(self: var PicoGraphicsPen3Bit; p: Point; c: Rgb) =
-  var threshold = 0.77 #(p.y / self.bounds.h) * 0.3 + 0.4
+  # let patternIndex = ((p.x and 0b11) or ((p.y and 0b11) shl 2))
+  # let factor = ditherPattern4x4Rgb[patternIndex]
+  # let patternIndex = ((p.x and 0b111) or ((p.y and 0b111) shl 3))
+  # let factor = ditherPattern8x8Rgb[patternIndex]
+  let patternIndex = ((p.x and 0b1111) or ((p.y and 0b1111) shl 4))
+  let error = ditherPattern16x16Rgb[patternIndex]
 
-  let patternIndex = ((p.x and 0b111) or ((p.y and 0b111) shl 3))
-  let factor = dither64Pattern[patternIndex].int - dither64Pattern.len div 2
-  threshold *= 256 div dither64Pattern.len
-
-  let attempt = (c + (threshold * factor.float)).closest(self.getPalette()).uint8
+  let attempt = (c + error).closest(self.getPalette()).uint8
   self.setPixelImpl(p, attempt)
 
 
