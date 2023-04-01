@@ -531,13 +531,13 @@ type
     cacheNearestBuilt*: bool
 
 const PicoGraphicsPen3BitPalette* = [
-  Rgb(r:   1, g:  20, b:   5), ##  black
-  Rgb(r: 250, g: 235, b: 245), ##  white
-  Rgb(r:  10, g: 115, b:  25), ##  green
-  Rgb(r:  60, g:  10, b: 150), ##  blue
-  Rgb(r: 255, g:  55, b:  40), ##  red
-  Rgb(r: 255, g: 245, b:  50), ##  yellow
-  Rgb(r: 245, g: 110, b:   5), ##  orange
+  Rgb(r:   1, g:   5, b:   5), ##  black
+  Rgb(r: 255, g: 235, b: 245), ##  white
+  Rgb(r:   5, g: 120, b:  25), ##  green
+  Rgb(r:  15, g:  10, b: 150), ##  blue
+  Rgb(r: 255, g:  55, b:  65), ##  red
+  Rgb(r: 255, g: 245, b:  70), ##  yellow
+  Rgb(r: 240, g: 115, b:   5), ##  orange
   Rgb(r: 245, g: 215, b: 191), ##  clean - do not use on inky7 as colour
 ]
 

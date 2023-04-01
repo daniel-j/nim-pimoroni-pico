@@ -90,7 +90,7 @@ func bayerMatrix*[T](M: static[Natural]; mutliplier: float = 1 shl M shl M; offs
 
 
 const threshold = 0.5
-const gamma = 2.0
+const gamma = 1.8
 const mutliplier = pow(threshold, 1/gamma) * 255
 
 # bayer matrix dither luts
