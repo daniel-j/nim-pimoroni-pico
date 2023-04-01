@@ -531,13 +531,13 @@ type
     cacheNearestBuilt*: bool
 
 const PicoGraphicsPen3BitPalette* = [
-  Rgb(r:   1, g:  17, b:  10), ##  black
-  Rgb(r: 238, g: 255, b: 246), ##  white
-  Rgb(r:   0, g: 120, b:  10), ##  green
-  Rgb(r:  40, g:  35, b: 175), ##  blue
-  Rgb(r: 235, g:  60, b:  50), ##  red
-  Rgb(r: 250, g: 210, b:  30), ##  yellow
-  Rgb(r: 240, g: 125, b:   5), ##  orange
+  Rgb(r:   1, g:  20, b:   5), ##  black
+  Rgb(r: 250, g: 235, b: 245), ##  white
+  Rgb(r:  10, g: 115, b:  25), ##  green
+  Rgb(r:  60, g:  10, b: 150), ##  blue
+  Rgb(r: 255, g:  55, b:  40), ##  red
+  Rgb(r: 255, g: 245, b:  50), ##  yellow
+  Rgb(r: 245, g: 110, b:   5), ##  orange
   Rgb(r: 245, g: 215, b: 191), ##  clean - do not use on inky7 as colour
 ]
 
@@ -551,7 +551,6 @@ proc init*(self: var PicoGraphicsPen3Bit; width: uint16; height: uint16; backend
   self.palette = PicoGraphicsPen3BitPalette
   self.penType = Pen_3Bit
   self.paletteSize = 8
-  self.cacheDitherBuilt = false
   self.cacheNearestBuilt = false
   case self.backend:
   of BackendMemory:
@@ -619,34 +618,39 @@ proc setPixelImpl(self: var PicoGraphicsPen3Bit; p: Point; col: uint) =
   of BackendPsram:
     self.fbPsram.writePixel(p, col.uint8)
 
-# method setPixelDither*(self: var PicoGraphicsPen3Bit; p: Point; c: Rgb) =
-#   if not self.cacheDitherBuilt:
-#     self.cacheDither.generateDitherCache(self.getPalette())
-#     self.cacheDitherBuilt = true
-#   let cacheKey = (((c.r and 0xE0) shl 1) or ((c.g and 0xE0) shr 2) or ((c.b and 0xE0) shr 5))
-#   ##  find the pattern coordinate offset
-#   let patternIndex = ((p.x and 0b11) or ((p.y and 0b11) shl 2))
-#   ##  set the pixel
-#   self.setPixelImpl(p, self.cacheDither[cacheKey][dither16Pattern[patternIndex]])
-
 method setPixelDither*(self: var PicoGraphicsPen3Bit; p: Point; c: Rgb) =
-  const patternSize = 3
-  const mask = (2 shl patternSize) - 1
-  let patternIndex = ((p.x and mask) or ((p.y and mask) shl (patternSize + 1)))
-  when patternSize == 1:
+  ## Set pixel using an ordered dither (using look-up-tables, see luts.nim)
+
+  # 0 = off | 1 = 2x2   | 2 = 4x4
+  # 3 = 8x8 | 4 = 16x16 | 5 = 32x32
+  const patternSize = 5
+  const preferBlueNoise = true
+
+  const mask = (1 shl patternSize) - 1
+  # find the pattern coordinate offset
+  let patternIndex = (p.x and mask) or ((p.y and mask) shl patternSize)
+
+  when patternSize == 1: # 2x2
+    let error = ditherPattern2x2Rgb[patternIndex]
+  elif patternSize == 2: # 4x4
     let error = ditherPattern4x4Rgb[patternIndex]
-  elif patternSize == 2:
+  elif patternSize == 3: # 8x8
     let error = ditherPattern8x8Rgb[patternIndex]
-  elif patternSize == 3:
-    #let error = ditherPattern16x16Rgb[patternIndex]
-    let error = bnDitherPattern16x16Rgb[patternIndex]
-  else:
+  elif patternSize == 4: # 16x16
+    when preferBlueNoise:
+      let error = bnDitherPattern16x16Rgb[patternIndex]
+    else:
+      let error = ditherPattern16x16Rgb[patternIndex]
+  elif patternSize == 5: # 32x32
+    when preferBlueNoise:
+      let error = bnDitherPattern32x32Rgb[patternIndex]
+    else:
+      let error = ditherPattern32x32Rgb[patternIndex]
+  else: # fallback to nearest colour
     let error = 0'i16
 
-  # let patternIndex = ((p.x and 0b11111) or ((p.y and 0b11111) shl 5))
-  # let error = bnDitherPattern32x32Rgb[patternIndex]
-
-  self.setPixelImpl(p, self.createPenNearest(c + error))
+  # set the pixel
+  self.setPixelImpl(p, self.createPenNearestLut(c + error))
 
 
 method setPixel*(self: var PicoGraphicsPen3Bit; p: Point) =
@@ -735,7 +739,6 @@ type
     color*: uint8
     palette*: array[PicoGraphicsPenP4PaletteSize, Rgb]
     used*: array[PicoGraphicsPenP4PaletteSize, bool]
-    cacheDither*: array[512, array[16, uint8]]
     cacheDitherBuilt*: bool
     candidates*: array[16, uint8]
 

@@ -1,4 +1,4 @@
-import std/math, std/bitops, std/algorithm
+import std/math, std/bitops
 
 import ./rgb
 export rgb
@@ -43,9 +43,9 @@ const blueNoise32x32Tweaked*: array[1024, uint8] = [uint8 148, 140, 215, 251, 13
 
 iterator cacheColors*(): tuple[i: int, c: Rgb] =
   for i in 0 ..< 512:
-    let r = (i.uint and 0x1c0) shr 1
-    let g = (i.uint and 0x38) shl 2
-    let b = (i.uint and 0x7) shl 5
+    let r = (i.uint and 0b111000000) shr 1
+    let g = (i.uint and 0b000111000) shl 2
+    let b = (i.uint and 0b000000111) shl 5
     let cacheCol = constructRgb(
       (r or (r shr 3) or (r shr 6)).int16,
       (g or (g shr 3) or (g shr 6)).int16,
@@ -53,29 +53,11 @@ iterator cacheColors*(): tuple[i: int, c: Rgb] =
     )
     yield (i, cacheCol)
 
-proc getDitherCandidates(col: Rgb; palette: openArray[Rgb]; candidates: var array[16, uint8]) =
-  var error: Rgb
-  for i in 0 ..< candidates.len:
-    candidates[i] = (col + error).closest(palette).uint8
-    error += (col - palette[candidates[i]])
-
-  # sort by a rough approximation of luminance, this ensures that neighbouring
-  # pixels in the dither matrix are at extreme opposites of luminence
-  # giving a more balanced output
-  let pal = cast[ptr UncheckedArray[Rgb]](palette[0].unsafeAddr) # openArray workaround
-  sort(candidates, func (a: uint8; b: uint8): int =
-    (pal[a].luminance() > pal[b].luminance()).int
-  )
-
-proc generateDitherCache*(cache: var array[512, array[16, uint8]]; palette: openArray[Rgb]) =
-  for i, col in cacheColors():
-    getDitherCandidates(col, palette, cache[i])
-
-proc generateNearestCache*(cache: var array[512, uint8]; palette: openArray[Rgb]) =
+func generateNearestCache*(cache: var array[512, uint8]; palette: openArray[Rgb]) =
   for i, col in cacheColors():
     cache[i] = col.closest(palette).uint8
 
-proc generateHslCache*(): array[512, Rgb565] =
+func generateHslCache*(): array[512, Rgb565] =
   for i, col in cacheColors():
     let h = col.r / 255
     let s = col.g / 255
@@ -86,7 +68,7 @@ proc generateHslCache*(): array[512, Rgb565] =
 const hslCache* = generateHslCache()
 
 # code from https://nelari.us/post/quick_and_dirty_dithering/#bayer-matrix
-proc bayerMatrix*[T](M: static[Natural]; mutliplier: float = 1 shl M shl M; offset: float = 0.0): array[1 shl M shl M, T] =
+func bayerMatrix*[T](M: static[Natural]; mutliplier: float = 1 shl M shl M; offset: float = 0.0): array[1 shl M shl M, T] =
   const length = 1 shl M shl M
   const dim = 1 shl M
   var i = 0
@@ -103,11 +85,9 @@ proc bayerMatrix*[T](M: static[Natural]; mutliplier: float = 1 shl M shl M; offs
         v.setMask ((xc shr mask) and 1) shl bit
         inc(bit)
         dec(mask)
-      result[i] = T(mutliplier * (v / (length - 1) - offset))
+      result[i] = T(mutliplier * (v / length - offset))
       inc(i)
 
-# backwards compatability
-const dither16Pattern* = bayerMatrix[uint8](2)
 
 const threshold = 0.5
 const gamma = 2.0
@@ -118,6 +98,10 @@ const ditherPattern2x2Rgb* = bayerMatrix[int16](1, mutliplier, 0.5)
 const ditherPattern4x4Rgb* = bayerMatrix[int16](2, mutliplier, 0.5)
 const ditherPattern8x8Rgb* = bayerMatrix[int16](3, mutliplier, 0.5)
 const ditherPattern16x16Rgb* = bayerMatrix[int16](4, mutliplier, 0.5)
+const ditherPattern32x32Rgb* = bayerMatrix[int16](5, mutliplier, 0.5)
+
+# backwards compatability
+const dither16Pattern* = bayerMatrix[uint8](2)
 
 # blue noise dither luts
 const bnDitherPattern16x16Rgb* = static:

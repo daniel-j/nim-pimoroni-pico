@@ -55,6 +55,7 @@ const whitePoint = constructRgb(255, 255, 255)
 
 proc processErrorMatrix(drawY: int) =
   # echo "processing errorMatrix ", drawY
+
   let imgW = jpegDecodeOptions.w
   let imgH = jpegDecodeOptions.chunkHeight + 1
 
