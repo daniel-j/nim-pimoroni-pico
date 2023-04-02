@@ -525,19 +525,17 @@ type
     color*: uint
     palette: array[8, Rgb]
     paletteSize: uint16
-    cacheDither*: array[512, array[16, uint8]]
-    cacheDitherBuilt*: bool
-    cacheNearest*: array[512, uint8]
+    cacheNearest*: array[colorCacheSize, uint8]
     cacheNearestBuilt*: bool
 
 const PicoGraphicsPen3BitPalette* = [
-  Rgb(r:   1, g:   5, b:   5), ##  black
-  Rgb(r: 255, g: 235, b: 245), ##  white
-  Rgb(r:   5, g: 120, b:  25), ##  green
-  Rgb(r:  15, g:  10, b: 150), ##  blue
-  Rgb(r: 255, g:  55, b:  65), ##  red
-  Rgb(r: 255, g: 245, b:  70), ##  yellow
-  Rgb(r: 240, g: 115, b:   5), ##  orange
+  Rgb(r:   0, g:  20, b:   0), ##  black
+  Rgb(r: 255, g: 255, b: 255), ##  white
+  Rgb(r:  10, g: 155, b:  20), ##  green
+  Rgb(r:  40, g:  15, b: 165), ##  blue
+  Rgb(r: 255, g:  95, b:  45), ##  red
+  Rgb(r: 255, g: 245, b:  60), ##  yellow
+  Rgb(r: 255, g: 180, b:  11), ##  orange
   Rgb(r: 245, g: 215, b: 191), ##  clean - do not use on inky7 as colour
 ]
 
@@ -581,15 +579,14 @@ proc createPenHsv*(self: PicoGraphicsPen3Bit; h, s, v: float): Rgb =
 proc createPenHsl*(self: PicoGraphicsPen3Bit; h, s, l: float): Rgb =
   hslToRgb(h, s, l)
 
-proc createPenNearest*(self: var PicoGraphicsPen3Bit; c: Rgb#[; whitepoint: Rgb = Rgb(r: 255, g: 255, b: 255)]#): uint =
-  c.closest(self.getPalette()).uint
+proc createPenNearest*(self: var PicoGraphicsPen3Bit; c: Rgb; whitepoint: Rgb = Rgb(r: 255, g: 255, b: 255)): uint =
+  c.closest(self.getPalette(), whitepoint=whitepoint).uint
 
-proc createPenNearestLut*(self: var PicoGraphicsPen3Bit; c: Rgb): uint =
+proc createPenNearestLut*(self: var PicoGraphicsPen3Bit; c: Rgb; whitepoint: Rgb = Rgb(r: 255, g: 255, b: 255)): uint =
   if not self.cacheNearestBuilt:
-    self.cacheNearest.generateNearestCache(self.getPalette())
+    self.cacheNearest.generateNearestCache(self.getPalette(), whitepoint)
     self.cacheNearestBuilt = true
-  let col = c.clamp()
-  let cacheKey = (((col.r and 0xE0) shl 1) or ((col.g and 0xE0) shr 2) or ((col.b and 0xE0) shr 5))
+  let cacheKey = c.getCacheKey()
   return self.cacheNearest[cacheKey]
 
 proc setPixelImpl(self: var PicoGraphicsPen3Bit; p: Point; col: uint) =
@@ -619,38 +616,40 @@ proc setPixelImpl(self: var PicoGraphicsPen3Bit; p: Point; col: uint) =
     self.fbPsram.writePixel(p, col.uint8)
 
 method setPixelDither*(self: var PicoGraphicsPen3Bit; p: Point; c: Rgb) =
-  ## Set pixel using an ordered dither (using look-up-tables, see luts.nim)
+  ## Set pixel using an ordered dither (using lookup tables, see luts.nim)
 
-  # 0 = off | 1 = 2x2   | 2 = 4x4
-  # 3 = 8x8 | 4 = 16x16 | 5 = 32x32
-  const patternSize = 5
-  const preferBlueNoise = true
+  # Pattern size:
+  # 0 = off (nearest colour)
+  # 1 = 2x2
+  # 2 = 4x4
+  # 3 = 8x8
+  # 4 = 16x16
+  # 5 = 32x32
+  # 6 = 64x64
+  const patternSize = 6
+  const kind = DitherKind.BlueNoise
+
+  # optimize black and white
+  # if c.r <= 0 and c.g <= 0 and c.b <= 0:
+  #   self.setPixelImpl(p, 0)
+  #   return
+  if c.r >= 255 and c.g >= 255 and c.b >= 255:
+    self.setPixelImpl(p, 1)
+    return
 
   const mask = (1 shl patternSize) - 1
   # find the pattern coordinate offset
   let patternIndex = (p.x and mask) or ((p.y and mask) shl patternSize)
 
-  when patternSize == 1: # 2x2
-    let error = ditherPattern2x2Rgb[patternIndex]
-  elif patternSize == 2: # 4x4
-    let error = ditherPattern4x4Rgb[patternIndex]
-  elif patternSize == 3: # 8x8
-    let error = ditherPattern8x8Rgb[patternIndex]
-  elif patternSize == 4: # 16x16
-    when preferBlueNoise:
-      let error = bnDitherPattern16x16Rgb[patternIndex]
-    else:
-      let error = ditherPattern16x16Rgb[patternIndex]
-  elif patternSize == 5: # 32x32
-    when preferBlueNoise:
-      let error = bnDitherPattern32x32Rgb[patternIndex]
-    else:
-      let error = ditherPattern32x32Rgb[patternIndex]
-  else: # fallback to nearest colour
-    let error = 0'i16
+  let error = getDitherError(kind, patternSize, patternIndex)
+
+
+  # apply error using gamma correction
+  let col = (c.rgbToVec3().srgbToLinear(2.4) + (error / 255)).linearToSRGB(2.1).vec3ToRgb()
+  # let col = (c + error)
 
   # set the pixel
-  self.setPixelImpl(p, self.createPenNearestLut(c + error))
+  self.setPixelImpl(p, self.createPenNearestLut(col, constructRgb(255, 255, 255)))
 
 
 method setPixel*(self: var PicoGraphicsPen3Bit; p: Point) =

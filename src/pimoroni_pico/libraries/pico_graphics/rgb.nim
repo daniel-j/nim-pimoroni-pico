@@ -60,6 +60,11 @@ func constructRgb*(r, g, b: float): Rgb {.constructor.} =
   result.g = int16 g * 255
   result.b = int16 b * 255
 
+func constructRgb*(l: int16): Rgb {.constructor.} =
+  result.r = l
+  result.g = l
+  result.b = l
+
 func hsvToRgb*(h, s, v: float): Rgb =
   ## Converts from HSV to RGB
   ## HSV values are between 0.0 and 1.0
@@ -172,14 +177,14 @@ func distance*(self: Rgb; c: Rgb): int =
   let bx: int64 = (self.b - c.b)
   return int (((512 + rmean) * rx * rx) shr 8) + 4 * gx * gx + (((767 - rmean) * bx * bx) shr 8)
 
-func closest*(self: Rgb; palette: openArray[Rgb]; fallback: int = 0#[; whitepoint: Rgb = Rgb(r: 255, g: 255, b: 255)]#): int =
+func closest*(self: Rgb; palette: openArray[Rgb]; fallback: int = 0; whitepoint: Rgb = Rgb(r: 255, g: 255, b: 255)): int =
   assert(palette.len > 0)
   let col = self.clamp()
   var
     d = int.high
     m = fallback
   for i in 0 ..< palette.len:
-    let dc = col.distance(palette[i])
+    let dc = col.distance(palette[i]) # whitepoint
     if dc < d:
       m = i
       d = dc
