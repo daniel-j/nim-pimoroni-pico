@@ -140,6 +140,8 @@ proc jpegdec_draw_callback(draw: ptr JPEGDRAW): cint {.cdecl.} =
 
   jpegDecodeOptions.lastY = draw.y
 
+  let lastProgress = (jpegDecodeOptions.progress * 100) div (jpegDecodeOptions.w * jpegDecodeOptions.h)
+
   for y in 0 ..< dh:
     if dy + y < 0 or dy + y >= jpegDecodeOptions.h: continue
     let symin = floor(y * jpegDecodeOptions.jpegH / jpegDecodeOptions.h).int
@@ -182,7 +184,9 @@ proc jpegdec_draw_callback(draw: ptr JPEGDRAW): cint {.cdecl.} =
       # errorMatrix[y][dx + x] = (((errorMatrix[y][dx + x].rgbToVec3() / errorMultiplier) + color.rgbToVec3().srgbToLinear(gamma=2.1)) * errorMultiplier).vec3ToRgb()
       jpegDecodeOptions.progress.inc()
 
-  echo (jpegDecodeOptions.progress * 100) div (jpegDecodeOptions.w * jpegDecodeOptions.h), "%"
+  let currentProgress = (jpegDecodeOptions.progress * 100) div (jpegDecodeOptions.w * jpegDecodeOptions.h)
+  if lastProgress != currentProgress:
+    echo currentProgress, "%"
 
   return 1
 
