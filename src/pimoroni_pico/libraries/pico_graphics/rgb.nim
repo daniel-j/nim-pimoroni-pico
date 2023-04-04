@@ -134,7 +134,7 @@ func `+`*(c: RgbU16; i: int): RgbU16 =
     b: roundClamp c.b.int + i
   )
 
-const defaultGamma*: float = 2.2
+const defaultGamma*: float = 2.0
 
 # From https://github.com/makew0rld/dither/blob/master/color_spaces.go
 func linearize1*(v: float; gamma = defaultGamma): float =

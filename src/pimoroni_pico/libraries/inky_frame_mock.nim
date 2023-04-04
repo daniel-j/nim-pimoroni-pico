@@ -2,6 +2,19 @@ import pixie
 import ./pico_graphics
 export pixie, pico_graphics
 
+const paletteGamma = 2.0
+
+const palette = [
+  hslToRgbU16(      0, 1.00, 0.00).toLinear(paletteGamma), ##  black
+  hslToRgbU16(      0, 1.00, 1.00).toLinear(paletteGamma), ##  white
+  hslToRgbU16(125/360, 0.75, 0.40).toLinear(paletteGamma), ##  green
+  hslToRgbU16(260/360, 0.98, 0.45).toLinear(paletteGamma), ##  blue
+  hslToRgbU16( 10/360, 1.00, 0.50).toLinear(paletteGamma), ##  red
+  hslToRgbU16( 60/360, 0.98, 0.60).toLinear(paletteGamma), ##  yellow
+  hslToRgbU16( 29/360, 1.00, 0.50).toLinear(paletteGamma), ##  orange
+  hslToRgbU16(      0, 1.00, 1.00).toLinear(paletteGamma), ##  clean - do not use on inky7 as colour
+]
+
 type
   Colour* = enum
     Black
@@ -36,7 +49,7 @@ proc init*(self: var InkyFrame) =
 
 proc update*(self: var InkyFrame) =
   let image = self.image
-  let palette = self.getRawPalette()
+  # let palette = self.getRawPalette()
   var y = 0
   self.frameConvert(Pen_P4, (proc (buf: pointer; length: uint) =
     if length > 0:

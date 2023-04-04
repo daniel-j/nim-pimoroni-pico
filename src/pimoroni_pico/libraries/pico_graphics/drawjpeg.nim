@@ -176,7 +176,7 @@ proc jpegdec_draw_callback(draw: ptr JPEGDRAW): cint {.cdecl.} =
       #   color = constructRgb(Rgb565(p[sxmin + symin * draw.iWidth]))
       color = constructRgb(Rgb565(p[sxmin + symin * draw.iWidth]))
 
-      color = color.level(black=0.00, white=0.97, gamma=2.0).saturate(1.30)
+      color = color.level(black=0.00, white=0.97, gamma=1.0).saturate(1.20)
 
       case jpegDecodeOptions.drawMode:
       of Default:
@@ -184,9 +184,9 @@ proc jpegdec_draw_callback(draw: ptr JPEGDRAW): cint {.cdecl.} =
         graphics[].setPen(pen)
         graphics[].setPixel(pos)
       of OrderedDither:
-        graphics[].setPixelDither(pos, color.toLinear(defaultGamma * 0.80)) # value from multiplier in luts.nim
+        graphics[].setPixelDither(pos, color.toLinear(defaultGamma)) # value from multiplier in luts.nim
       of ErrorDiffusion:
-        inc(errorMatrix[y][dx + x], (color.rgbToVec3().srgbToLinear(gamma=defaultGamma) * errorMultiplier).vec3ToRgb())
+        inc(errorMatrix[y][dx + x], (color.rgbToVec3().srgbToLinear(defaultGamma) * errorMultiplier).vec3ToRgb())
 
       # errorMatrix[y][dx + x] = (((errorMatrix[y][dx + x].rgbToVec3() / errorMultiplier) + color.rgbToVec3().srgbToLinear(gamma=2.1)) * errorMultiplier).vec3ToRgb()
       jpegDecodeOptions.progress.inc()
