@@ -46,7 +46,7 @@ proc drawFile(filename: string) =
         for i in 0..<length * 2:
           let x = i div 2
           let offset = (i mod 2)
-          let color = inky.getRawPalette()[if offset == 0: (arr[x] shr 4) else: (arr[x] and 0b1111)].fromLinear(gamma=0.5, cheat=true)
+          let color = inky.getPaletteColor(if offset == 0: (arr[x] shr 4) else: (arr[x] and 0b1111)).fromLinear(gamma=0.5, cheat=true)
           image[i.int, y] = ColorRGB(
             r: color.r.uint8,
             g: color.g.uint8,
