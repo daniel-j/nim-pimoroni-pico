@@ -580,7 +580,8 @@ proc init*(self: var PicoGraphicsPen3Bit; width: uint16; height: uint16; backend
 #   result.init(width, height, frameBuffer)
 
 func getPaletteSize*(self: PicoGraphicsPen3Bit): uint16 = self.paletteSize
-func setPaletteSize*(self: var PicoGraphicsPen3Bit; paletteSize: uint16) = self.paletteSize = paletteSize.clamp(1'u16, self.palette.len.uint16)
+func setPaletteSize*(self: var PicoGraphicsPen3Bit; paletteSize: uint16) =
+  self.paletteSize = paletteSize.clamp(1'u16, self.palette.len.uint16)
 func getRawPalette*(self: PicoGraphicsPen3Bit): auto {.inline.} = self.palette
 func getPalette*(self: PicoGraphicsPen3Bit): auto {.inline.} = self.palette[0..<self.paletteSize]
 
@@ -598,7 +599,7 @@ proc createPenHsv*(self: PicoGraphics; h, s, v: float): Rgb =
 proc createPenHsl*(self: PicoGraphics; h, s, l: float): Rgb =
   hslToRgbU16(h, s, l).fromLinear(1.0)
 method createPenNearest*(self: PicoGraphicsPen3Bit; c: RgbU16): uint =
-  c.closest(self.palette[0..<self.paletteSize]).uint
+  c.closest(self.getPalette()).uint
 
 proc createPenNearestLut*(self: var PicoGraphicsPen3Bit; c: RgbU16): uint =
   if not self.cacheNearestBuilt:

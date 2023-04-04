@@ -26,9 +26,9 @@ const inkyKind {.strdefine.} = "Unknown inkyKind"
 let inkyKindEnum = parseEnum[InkyFrameKind](inkyKind, m.get())
 var inky = InkyFrame(kind: inkyKindEnum)
 
-
 inky.init()
 echo "Wake Up Events: ", inky.getWakeUpEvents()
+
 
 proc drawFile(filename: string) =
   inky.led(LedActivity, 50)

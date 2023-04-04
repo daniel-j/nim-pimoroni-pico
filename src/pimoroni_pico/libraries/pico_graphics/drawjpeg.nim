@@ -21,9 +21,10 @@ var errorMatrix: seq[seq[Rgb]]
 # multiply the rgb values this many times when storing them in the error matrix (int16 per channel)
 const errorMultiplier = 20.0
 #const whitePoint = constructRgb(255, 227, 227)
-const whitePoint = constructRgb(255, 255, 255)
+# const whitePoint = constructRgb(255, 255, 255)
 
 proc processErrorMatrix(drawY: int) =
+  return
   # echo "processing errorMatrix ", drawY
   var graphics = jpegDecodeOptions.graphics
   let imgW = jpegDecodeOptions.w
@@ -172,8 +173,8 @@ proc jpegdec_draw_callback(draw: ptr JPEGDRAW): cint {.cdecl.} =
 
       color = color.level(black=0.00, white=0.97).saturate(1.30)
 
-      # inky.setPen(color)
-      # inky.setPixel(pos)
+      jpegDecodeOptions.graphics.setPen(color)
+      jpegDecodeOptions.graphics.setPixel(pos)
 
       inc(errorMatrix[y][dx + x], (color.rgbToVec3().srgbToLinear(gamma=2.1) * errorMultiplier).vec3ToRgb())
       # errorMatrix[y][dx + x] = (((errorMatrix[y][dx + x].rgbToVec3() / errorMultiplier) + color.rgbToVec3().srgbToLinear(gamma=2.1)) * errorMultiplier).vec3ToRgb()

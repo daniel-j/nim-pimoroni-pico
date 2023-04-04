@@ -13,14 +13,22 @@ type
     kind*: InkyFrameKind
     width*, height*: int
 
-proc init(self: var InkyFrame) = PicoGraphicsPen3Bit(self).init(self.width.uint16, self.height.uint16, BackendMemory)
+proc init(self: var InkyFrame) =
+  (self.width, self.height) =
+    case self.kind:
+    of InkyFrame4_0: (640, 400)
+    of InkyFrame5_7: (600, 448)
+    of InkyFrame7_3: (800, 480)
+  PicoGraphicsPen3Bit(self).init(self.width.uint16, self.height.uint16, BackendMemory)
+  if self.kind == InkyFrame7_3:
+    self.setPaletteSize(7)
 
-var inky = InkyFrame(width: 800, height: 480, kind: InkyFrame7_3)
-
+var inky = InkyFrame(kind: InkyFrame7_3)
 inky.init()
-#echo "Wake Up Events: ", inky.getWakeUpEvents()
 
 proc drawFile(filename: string) =
+  inky.setPen(1)
+  inky.clear()
 
   let (x, y, w, h) = case inky.kind:
     of InkyFrame4_0: (0, 0, inky.width, inky.height)
