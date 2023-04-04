@@ -25,9 +25,10 @@ const errorMultiplier = 20.0
 
 proc processErrorMatrix(drawY: int) =
   # echo "processing errorMatrix ", drawY
-  let graphics = jpegDecodeOptions.graphics
   let imgW = jpegDecodeOptions.w
   let imgH = jpegDecodeOptions.chunkHeight + 1
+
+  let graphics = jpegDecodeOptions.graphics
 
   let ox = jpegDecodeOptions.x
   let oy = jpegDecodeOptions.y
@@ -46,10 +47,11 @@ proc processErrorMatrix(drawY: int) =
       let oldPixel = (errorMatrix[y][x].rgbToVec3() / errorMultiplier)
 
       #inky.setPen(oldPixel.clamp(-0.20, 1.2).linearToSRGB(gamma=2.2).vec3ToRgb())  #  find closest color using a LUT
-      graphics[].setPen(graphics[].createPenNearest(oldPixel.clamp(-0.20, 1.2).vec3ToRgb().toLinear()#[, whitePoint]#))  # find closest color using distance function
+      let color = graphics[].createPenNearest(oldPixel.clamp(-0.20, 1.2).vec3ToRgb().toLinear()#[, whitePoint]#)
+      graphics[].setPen(color)  # find closest color using distance function
       graphics[].setPixel(pos)
 
-      let newPixel = graphics[].getPaletteColor().fromLinear(cheat=true).rgbToVec3().srgbToLinear()
+      let newPixel = graphics[].getPaletteColor(color).fromLinear(cheat=true).rgbToVec3().srgbToLinear()
 
       let quantError = oldPixel.clamp(0, 1) - newPixel
 
@@ -108,6 +110,7 @@ proc jpegdec_seek_callback(jpeg: ptr JPEGFILE, p: int32): int32 {.cdecl.} =
 
 proc jpegdec_draw_callback(draw: ptr JPEGDRAW): cint {.cdecl.} =
   let p = cast[ptr UncheckedArray[uint16]](draw.pPixels)
+  let graphics = jpegDecodeOptions.graphics
 
   let dx = (draw.x * jpegDecodeOptions.w div jpegDecodeOptions.jpegW)
   let dy = (draw.y * jpegDecodeOptions.h div jpegDecodeOptions.jpegH)
@@ -172,8 +175,8 @@ proc jpegdec_draw_callback(draw: ptr JPEGDRAW): cint {.cdecl.} =
 
       color = color.level(black=0.00, white=0.97).saturate(1.30)
 
-      #jpegDecodeOptions.graphics[].setPen(color)
-      #jpegDecodeOptions.graphics[].setPixel(pos)
+      graphics[].setPen(color)
+      graphics[].setPixel(pos)
 
       inc(errorMatrix[y][dx + x], (color.rgbToVec3().srgbToLinear(gamma=2.1) * errorMultiplier).vec3ToRgb())
       # errorMatrix[y][dx + x] = (((errorMatrix[y][dx + x].rgbToVec3() / errorMultiplier) + color.rgbToVec3().srgbToLinear(gamma=2.1)) * errorMultiplier).vec3ToRgb()
@@ -265,7 +268,7 @@ proc drawJpeg*(self: var PicoGraphics; filename: string; x, y: int = 0; w, h: in
       return jpegErr
 
     jpeg.close()
-    # processErrorMatrix(jpegDecodeOptions.lastY)
+    processErrorMatrix(jpegDecodeOptions.lastY)
     errorMatrix.setLen(0)
 
   else:

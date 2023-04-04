@@ -79,10 +79,10 @@ method setPixel*(self: var PicoGraphics; p: Point) {.base.} = discard
 method setPixelSpan*(self: var PicoGraphics; p: Point; l: uint) {.base.} = discard
 func setThickness*(self: var PicoGraphics; thickness: Positive) = self.thickness = thickness
 method createPen*(self: var PicoGraphics; r: uint8; g: uint8; b: uint8): int {.base.} = discard
-method createPenNearest*(self: var PicoGraphics; c: RgbU16): uint {.base.} = discard
+method createPenNearest*(self: PicoGraphics; c: RgbU16): uint {.base.} = discard
 method updatePen*(self: var PicoGraphics; i: uint8; r: uint8; g: uint8; b: uint8): int {.base.} = discard
 method resetPen*(self: var PicoGraphics; i: uint8): int {.base.} = discard
-method getPaletteColor*(self: PicoGraphics): RgbU16 {.base.} = discard
+method getPaletteColor*(self: PicoGraphics; color: uint = 0): RgbU16 {.base, inline.} = discard
 method setPixelDither*(self: var PicoGraphics; p: Point; c: Rgb) {.base.} = discard
 method setPixelDither*(self: var PicoGraphics; p: Point; c: Rgb565) {.base.} = discard
 method setPixelDither*(self: var PicoGraphics; p: Point; c: uint8) {.base.} = discard
@@ -608,7 +608,7 @@ proc createPenNearestLut*(self: var PicoGraphicsPen3Bit; c: RgbU16): uint =
   let cacheKey = c.getCacheKey()
   return self.cacheNearest[cacheKey]
 
-method getPaletteColor*(self: PicoGraphicsPen3Bit): RgbU16 = self.palette[self.color]
+method getPaletteColor*(self: PicoGraphicsPen3Bit; color: uint = self.color): RgbU16 {.inline.} = self.palette[color]
 
 proc setPixelImpl(self: var PicoGraphicsPen3Bit; p: Point; col: uint) =
   if not self.bounds.contains(p) or not self.clip.contains(p):
