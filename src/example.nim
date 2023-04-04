@@ -123,7 +123,7 @@ proc jpegdec_draw_callback(draw: ptr JPEGDRAW): cint {.cdecl.} =
   let dh = ((draw.y + draw.iHeight) * jpegDecodeOptions.h div jpegDecodeOptions.jpegH) - dy
 
   if draw.x == 0 and draw.y == 0:
-    echo "Free heap before errorMatrix: ", getFreeHeap()
+    # echo "Free heap before errorMatrix: ", getFreeHeap()
     echo draw[]
     jpegDecodeOptions.chunkHeight = dh
 
@@ -131,7 +131,7 @@ proc jpegdec_draw_callback(draw: ptr JPEGDRAW): cint {.cdecl.} =
 
     for i in 0 .. jpegDecodeOptions.chunkHeight:
       errorMatrix[i] = newSeq[Rgb](jpegDecodeOptions.w)
-    echo "Free heap after errorMatrix alloc: ", getFreeHeap()
+    # echo "Free heap after errorMatrix alloc: ", getFreeHeap()
 
   if jpegDecodeOptions.lastY != draw.y:
     processErrorMatrix(jpegDecodeOptions.lastY)
