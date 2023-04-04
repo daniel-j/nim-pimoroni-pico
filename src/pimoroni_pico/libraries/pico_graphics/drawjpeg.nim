@@ -6,6 +6,9 @@ when not defined(mock):
 var jpeg: JPEGDEC
 
 type
+  DrawMode* = enum
+    Default, OrderedDither, ErrorDiffusion
+
   JpegDecodeOptions = object
     x, y, w, h: int
     jpegW, jpegH: int
@@ -13,9 +16,9 @@ type
     lastY: int
     chunkHeight: int
     graphics: ptr PicoGraphics
+    drawMode: DrawMode
 
 var jpegDecodeOptions: JpegDecodeOptions
-
 var errorMatrix: seq[seq[Rgb]]
 
 # multiply the rgb values this many times when storing them in the error matrix (int16 per channel)
@@ -46,12 +49,11 @@ proc processErrorMatrix(drawY: int) =
 
       let oldPixel = (errorMatrix[y][x].rgbToVec3() / errorMultiplier)
 
-      #inky.setPen(oldPixel.clamp(-0.20, 1.2).linearToSRGB(gamma=2.2).vec3ToRgb())  #  find closest color using a LUT
-      let color = graphics[].createPenNearest(oldPixel.clamp(-0.20, 1.2).vec3ToRgb().toLinear()#[, whitePoint]#)
+      let color = graphics[].createPenNearest(oldPixel.clamp(0, 1).vec3ToRgb().toLinear(2.0))
       graphics[].setPen(color)  # find closest color using distance function
       graphics[].setPixel(pos)
 
-      let newPixel = graphics[].getPaletteColor(color).fromLinear(cheat=true).rgbToVec3().srgbToLinear()
+      let newPixel = graphics[].getPenColor(color).fromLinear(cheat=true).rgbToVec3()
 
       let quantError = oldPixel.clamp(0, 1) - newPixel
 
@@ -64,8 +66,6 @@ proc processErrorMatrix(drawY: int) =
         errorMatrix[y + 1][x] = (((errorMatrix[y + 1][x].rgbToVec3() / errorMultiplier) + quantError * 5 / 16) * errorMultiplier).vec3ToRgb()
         if x + 1 < imgW:
           errorMatrix[y + 1][x + 1] = (((errorMatrix[y + 1][x + 1].rgbToVec3() / errorMultiplier) + quantError * 1 / 16) * errorMultiplier).vec3ToRgb()
-
-  # echo (jpegDecodeOptions.progress * 100) div (jpegDecodeOptions.w * jpegDecodeOptions.h), "%"
 
 proc jpegdec_open_callback(filename: cstring, size: ptr int32): pointer {.cdecl.} =
   when not defined(mock):
@@ -117,28 +117,29 @@ proc jpegdec_draw_callback(draw: ptr JPEGDRAW): cint {.cdecl.} =
   let dw = ((draw.x + draw.iWidth) * jpegDecodeOptions.w div jpegDecodeOptions.jpegW) - dx
   let dh = ((draw.y + draw.iHeight) * jpegDecodeOptions.h div jpegDecodeOptions.jpegH) - dy
 
-  if draw.x == 0 and draw.y == 0:
-    # echo "Free heap before errorMatrix: ", getFreeHeap()
-    echo draw[]
-    jpegDecodeOptions.chunkHeight = dh
+  if jpegDecodeOptions.drawMode == ErrorDiffusion:
+    if draw.x == 0 and draw.y == 0:
+      # echo "Free heap before errorMatrix: ", getFreeHeap()
+      echo draw[]
+      jpegDecodeOptions.chunkHeight = dh
 
-    errorMatrix.setLen(jpegDecodeOptions.chunkHeight + 1)
+      errorMatrix.setLen(jpegDecodeOptions.chunkHeight + 1)
 
-    for i in 0 .. jpegDecodeOptions.chunkHeight:
-      errorMatrix[i] = newSeq[Rgb](jpegDecodeOptions.w)
-    # echo "Free heap after errorMatrix alloc: ", getFreeHeap()
+      for i in 0 .. jpegDecodeOptions.chunkHeight:
+        errorMatrix[i] = newSeq[Rgb](jpegDecodeOptions.w)
+      # echo "Free heap after errorMatrix alloc: ", getFreeHeap()
 
-  if jpegDecodeOptions.lastY != draw.y:
-    processErrorMatrix(jpegDecodeOptions.lastY)
-    swap(errorMatrix[0], errorMatrix[jpegDecodeOptions.chunkHeight])
+    if jpegDecodeOptions.lastY != draw.y:
+      processErrorMatrix(jpegDecodeOptions.lastY)
+      swap(errorMatrix[0], errorMatrix[jpegDecodeOptions.chunkHeight])
 
-    jpegDecodeOptions.chunkHeight = dh
-    errorMatrix.setLen(jpegDecodeOptions.chunkHeight + 1)
+      jpegDecodeOptions.chunkHeight = dh
+      errorMatrix.setLen(jpegDecodeOptions.chunkHeight + 1)
 
-    for i in 1 .. jpegDecodeOptions.chunkHeight:
-      errorMatrix[i] = newSeq[Rgb](jpegDecodeOptions.w)
+      for i in 1 .. jpegDecodeOptions.chunkHeight:
+        errorMatrix[i] = newSeq[Rgb](jpegDecodeOptions.w)
 
-  jpegDecodeOptions.lastY = draw.y
+    jpegDecodeOptions.lastY = draw.y
 
   let lastProgress = (jpegDecodeOptions.progress * 100) div (jpegDecodeOptions.w * jpegDecodeOptions.h)
 
@@ -175,12 +176,18 @@ proc jpegdec_draw_callback(draw: ptr JPEGDRAW): cint {.cdecl.} =
       #   color = constructRgb(Rgb565(p[sxmin + symin * draw.iWidth]))
       color = constructRgb(Rgb565(p[sxmin + symin * draw.iWidth]))
 
-      color = color.level(black=0.00, white=0.97).saturate(1.30)
+      color = color.level(black=0.00, white=0.97, gamma=2.0).saturate(1.30)
 
-      graphics[].setPen(color)
-      graphics[].setPixel(pos)
+      case jpegDecodeOptions.drawMode:
+      of Default:
+        let pen = graphics[].createPenNearest(color.toLinear(defaultGamma))
+        graphics[].setPen(pen)
+        graphics[].setPixel(pos)
+      of OrderedDither:
+        graphics[].setPixelDither(pos, color.toLinear(defaultGamma * 0.80)) # value from multiplier in luts.nim
+      of ErrorDiffusion:
+        inc(errorMatrix[y][dx + x], (color.rgbToVec3().srgbToLinear(gamma=defaultGamma) * errorMultiplier).vec3ToRgb())
 
-      inc(errorMatrix[y][dx + x], (color.rgbToVec3().srgbToLinear(gamma=2.1) * errorMultiplier).vec3ToRgb())
       # errorMatrix[y][dx + x] = (((errorMatrix[y][dx + x].rgbToVec3() / errorMultiplier) + color.rgbToVec3().srgbToLinear(gamma=2.1)) * errorMultiplier).vec3ToRgb()
       jpegDecodeOptions.progress.inc()
 
@@ -191,7 +198,7 @@ proc jpegdec_draw_callback(draw: ptr JPEGDRAW): cint {.cdecl.} =
   return 1
 
 
-proc drawJpeg*(self: var PicoGraphics; filename: string; x, y: int = 0; w, h: int; gravity: tuple[x, y: float] = (0.0, 0.0)): int =
+proc drawJpeg*(self: var PicoGraphics; filename: string; x, y: int = 0; w, h: int; gravity: tuple[x, y: float] = (0.0, 0.0); drawMode: DrawMode = Default): int =
   jpegDecodeOptions.x = x
   jpegDecodeOptions.y = y
   jpegDecodeOptions.w = w
@@ -199,6 +206,7 @@ proc drawJpeg*(self: var PicoGraphics; filename: string; x, y: int = 0; w, h: in
   jpegDecodeOptions.progress = 0
   jpegDecodeOptions.lastY = 0
   jpegDecodeOptions.graphics = self.addr
+  jpegDecodeOptions.drawMode = drawMode
 
   echo "- opening jpeg file ", filename
   var jpegErr = jpeg.open(
@@ -272,7 +280,8 @@ proc drawJpeg*(self: var PicoGraphics; filename: string; x, y: int = 0; w, h: in
       return jpegErr
 
     jpeg.close()
-    processErrorMatrix(jpegDecodeOptions.lastY)
+    if jpegDecodeOptions.drawMode == ErrorDiffusion:
+      processErrorMatrix(jpegDecodeOptions.lastY)
     errorMatrix.setLen(0)
 
   else:

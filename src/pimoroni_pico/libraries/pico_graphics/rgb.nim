@@ -134,7 +134,7 @@ func `+`*(c: RgbU16; i: int): RgbU16 =
     b: roundClamp c.b.int + i
   )
 
-const defaultGamma*: float = 2.4
+const defaultGamma*: float = 2.2
 
 # From https://github.com/makew0rld/dither/blob/master/color_spaces.go
 func linearize1*(v: float; gamma = defaultGamma): float =
@@ -151,9 +151,9 @@ func delinearize1*(v: float; gamma = defaultGamma): float =
 func toLinear*(c: Rgb; gamma = defaultGamma; cheat = false): RgbU16 =
   # # 257 = 65535 / 255
   if cheat:
-    result.r = uint16 round(c.r.float * 257.0)
-    result.g = uint16 round(c.g.float * 257.0)
-    result.b = uint16 round(c.b.float * 257.0)
+    result.r = uint16 round(c.r.clamp(0, 255).float * 257.0)
+    result.g = uint16 round(c.g.clamp(0, 255).float * 257.0)
+    result.b = uint16 round(c.b.clamp(0, 255).float * 257.0)
   else:
     result.r = uint16 round((c.r.float / 255.0).clamp(0, 1).linearize1(gamma) * 65535.0)
     result.g = uint16 round((c.g.float / 255.0).clamp(0, 1).linearize1(gamma) * 65535.0)

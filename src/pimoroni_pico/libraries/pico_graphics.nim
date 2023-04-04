@@ -79,12 +79,13 @@ method setPixel*(self: var PicoGraphics; p: Point) {.base.} = discard
 method setPixelSpan*(self: var PicoGraphics; p: Point; l: uint) {.base.} = discard
 func setThickness*(self: var PicoGraphics; thickness: Positive) = self.thickness = thickness
 method createPen*(self: var PicoGraphics; r: uint8; g: uint8; b: uint8): int {.base.} = discard
-method createPenNearest*(self: PicoGraphics; c: RgbU16): uint {.base.} = discard
+method createPenNearest*(self: var PicoGraphics; c: RgbU16): uint {.base.} = discard
 method updatePen*(self: var PicoGraphics; i: uint8; r: uint8; g: uint8; b: uint8): int {.base.} = discard
 method resetPen*(self: var PicoGraphics; i: uint8): int {.base.} = discard
-method getPaletteColor*(self: PicoGraphics; color: uint = 0): RgbU16 {.base, inline.} = discard
+method getPenColor*(self: PicoGraphics; color: uint = 0): RgbU16 {.base, inline.} = discard
 method setPixelDither*(self: var PicoGraphics; p: Point; c: Rgb) {.base.} = discard
 method setPixelDither*(self: var PicoGraphics; p: Point; c: Rgb565) {.base.} = discard
+method setPixelDither*(self: var PicoGraphics; p: Point; c: RgbU16) {.base.} = discard
 method setPixelDither*(self: var PicoGraphics; p: Point; c: uint8) {.base.} = discard
 method frameConvert*(self: var PicoGraphics; `type`: PicoGraphicsPenType; callback: PicoGraphicsConversionCallbackFunc) {.base.} = discard
 method sprite*(self: var PicoGraphics; data: pointer; sprite: Point; dest: Point; scale: int; transparent: int) {.base.} = discard
@@ -530,7 +531,7 @@ type
     cacheNearest*: array[colorCacheSize, uint8]
     cacheNearestBuilt*: bool
 
-const paletteGamma = defaultGamma
+const paletteGamma = 1.6
 
 # const PicoGraphicsPen3BitPalette* = [
 #   Rgb(r:   0, g:   0, b:   0).toLinear(paletteGamma), ##  black
@@ -546,12 +547,12 @@ const paletteGamma = defaultGamma
 const PicoGraphicsPen3BitPalette* = [
   hslToRgbU16(      0, 1.00, 0.00).toLinear(paletteGamma), ##  black
   hslToRgbU16(      0, 1.00, 1.00).toLinear(paletteGamma), ##  white
-  hslToRgbU16(120/360, 1.00, 0.24).toLinear(paletteGamma), ##  green
-  hslToRgbU16(260/360, 1.00, 0.45).toLinear(paletteGamma), ##  blue
-  hslToRgbU16( 25/360, 1.00, 0.53).toLinear(paletteGamma), ##  red
+  hslToRgbU16(125/360, 1.00, 0.38).toLinear(paletteGamma), ##  green
+  hslToRgbU16(260/360, 0.98, 0.45).toLinear(paletteGamma), ##  blue
+  hslToRgbU16( 19/360, 1.00, 0.48).toLinear(paletteGamma), ##  red
   hslToRgbU16( 60/360, 0.98, 0.60).toLinear(paletteGamma), ##  yellow
-  hslToRgbU16( 35/360, 0.98, 0.60).toLinear(paletteGamma), ##  orange
-  Rgb(r: 255, g: 255, b: 255).toLinear(paletteGamma), ##  clean - do not use on inky7 as colour
+  hslToRgbU16( 35/360, 0.98, 0.50).toLinear(paletteGamma), ##  orange
+  hslToRgbU16(      0, 1.00, 1.00).toLinear(paletteGamma), ##  clean - do not use on inky7 as colour
 ]
 
 static:
@@ -598,8 +599,6 @@ proc createPenHsv*(self: PicoGraphics; h, s, v: float): Rgb =
   hsvToRgb(h, s, v)
 proc createPenHsl*(self: PicoGraphics; h, s, l: float): Rgb =
   hslToRgbU16(h, s, l).fromLinear(1.0)
-method createPenNearest*(self: PicoGraphicsPen3Bit; c: RgbU16): uint =
-  c.closest(self.getPalette()).uint
 
 proc createPenNearestLut*(self: var PicoGraphicsPen3Bit; c: RgbU16): uint =
   if not self.cacheNearestBuilt:
@@ -608,7 +607,11 @@ proc createPenNearestLut*(self: var PicoGraphicsPen3Bit; c: RgbU16): uint =
   let cacheKey = c.getCacheKey()
   return self.cacheNearest[cacheKey]
 
-method getPaletteColor*(self: PicoGraphicsPen3Bit; color: uint = self.color): RgbU16 {.inline.} = self.palette[color]
+method createPenNearest*(self: var PicoGraphicsPen3Bit; c: RgbU16): uint =
+  return self.createPenNearestLut(c)
+  # c.closest(self.getPalette()).uint
+
+method getPenColor*(self: PicoGraphicsPen3Bit; color: uint = self.color): RgbU16 {.inline.} = self.palette[color]
 
 proc setPixelImpl(self: var PicoGraphicsPen3Bit; p: Point; col: uint) =
   if not self.bounds.contains(p) or not self.clip.contains(p):
@@ -650,14 +653,6 @@ method setPixelDither*(self: var PicoGraphicsPen3Bit; p: Point; c: RgbU16) =
   const patternSize = 6
   const kind = DitherKind.BlueNoise
 
-  # optimize black and white
-  # if c.r <= 0 and c.g <= 0 and c.b <= 0:
-  #   self.setPixelImpl(p, 0)
-  #   return
-  # if c.r >= 255 and c.g >= 255 and c.b >= 255:
-  #   self.setPixelImpl(p, 1)
-  #   return
-
   const mask = (1 shl patternSize) - 1
   # find the pattern coordinate offset
   let patternIndex = (p.x and mask) or ((p.y and mask) shl patternSize)
@@ -666,8 +661,7 @@ method setPixelDither*(self: var PicoGraphicsPen3Bit; p: Point; c: RgbU16) =
 
   # apply error using gamma correction
   # let col = (c.rgbToVec3().srgbToLinear(2.0) + (error / 255)).linearToSRGB(2.0).vec3ToRgb()
-  let col = (c + error).fromLinearU16(2.2) #.fromLinear().toLinear(cheat=true)
-  # let col = (c + error)
+  let col = (c + error)
 
   let paletteCol = self.createPenNearest(col)
 

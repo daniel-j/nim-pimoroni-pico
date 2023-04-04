@@ -44,7 +44,8 @@ proc update*(self: var InkyFrame) =
       for i in 0..<length.int * 2:
         let x = i div 2
         let offset = (i mod 2)
-        let color = palette[if offset == 0: (arr[x] shr 4) else: (arr[x] and 0b1111)].fromLinear(gamma=0.5, cheat=true)
+        let pen = if offset == 0: (arr[x] shr 4) else: (arr[x] and 0b1111)
+        let color = palette[pen].fromLinear(cheat=true)
         image[i, y] = ColorRGB(
           r: color.r.uint8,
           g: color.g.uint8,
