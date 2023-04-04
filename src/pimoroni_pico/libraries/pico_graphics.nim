@@ -79,8 +79,10 @@ method setPixel*(self: var PicoGraphics; p: Point) {.base.} = discard
 method setPixelSpan*(self: var PicoGraphics; p: Point; l: uint) {.base.} = discard
 func setThickness*(self: var PicoGraphics; thickness: Positive) = self.thickness = thickness
 method createPen*(self: var PicoGraphics; r: uint8; g: uint8; b: uint8): int {.base.} = discard
+method createPenNearest*(self: var PicoGraphics; c: RgbU16): uint {.base.} = discard
 method updatePen*(self: var PicoGraphics; i: uint8; r: uint8; g: uint8; b: uint8): int {.base.} = discard
 method resetPen*(self: var PicoGraphics; i: uint8): int {.base.} = discard
+method getPaletteColor*(self: PicoGraphics): RgbU16 {.base.} = discard
 method setPixelDither*(self: var PicoGraphics; p: Point; c: Rgb) {.base.} = discard
 method setPixelDither*(self: var PicoGraphics; p: Point; c: Rgb565) {.base.} = discard
 method setPixelDither*(self: var PicoGraphics; p: Point; c: uint8) {.base.} = discard
@@ -591,13 +593,12 @@ method setPen*(self: var PicoGraphicsPen3Bit; c: Rgb) =
 proc createPen*(self: PicoGraphicsPen3Bit; c: Rgb): uint =
   c.toRgb888().uint or RGB_FLAG
 
-proc createPenHsv*(self: PicoGraphicsPen3Bit; h, s, v: float): Rgb =
+proc createPenHsv*(self: PicoGraphics; h, s, v: float): Rgb =
   hsvToRgb(h, s, v)
-proc createPenHsl*(self: PicoGraphicsPen3Bit; h, s, l: float): Rgb =
+proc createPenHsl*(self: PicoGraphics; h, s, l: float): Rgb =
   hslToRgbU16(h, s, l).fromLinear(1.0)
-
-proc createPenNearest*(self: var PicoGraphicsPen3Bit; c: RgbU16): uint =
-  c.closest(self.getPalette()).uint
+method createPenNearest*(self: PicoGraphicsPen3Bit; c: RgbU16): uint =
+  c.closest(self.palette[0..<self.paletteSize]).uint
 
 proc createPenNearestLut*(self: var PicoGraphicsPen3Bit; c: RgbU16): uint =
   if not self.cacheNearestBuilt:
@@ -605,6 +606,8 @@ proc createPenNearestLut*(self: var PicoGraphicsPen3Bit; c: RgbU16): uint =
     self.cacheNearestBuilt = true
   let cacheKey = c.getCacheKey()
   return self.cacheNearest[cacheKey]
+
+method getPaletteColor*(self: PicoGraphicsPen3Bit): RgbU16 = self.palette[self.color]
 
 proc setPixelImpl(self: var PicoGraphicsPen3Bit; p: Point; col: uint) =
   if not self.bounds.contains(p) or not self.clip.contains(p):
