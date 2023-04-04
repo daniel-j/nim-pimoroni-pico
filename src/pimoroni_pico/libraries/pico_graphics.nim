@@ -544,8 +544,8 @@ const paletteGamma = defaultGamma
 const PicoGraphicsPen3BitPalette* = [
   hslToRgbU16(      0, 1.00, 0.00).toLinear(paletteGamma), ##  black
   hslToRgbU16(      0, 1.00, 1.00).toLinear(paletteGamma), ##  white
-  hslToRgbU16(123/360, 1.00, 0.35).toLinear(paletteGamma), ##  green
-  hslToRgbU16(270/360, 1.00, 0.45).toLinear(paletteGamma), ##  blue
+  hslToRgbU16(120/360, 1.00, 0.24).toLinear(paletteGamma), ##  green
+  hslToRgbU16(260/360, 1.00, 0.45).toLinear(paletteGamma), ##  blue
   hslToRgbU16( 25/360, 1.00, 0.53).toLinear(paletteGamma), ##  red
   hslToRgbU16( 60/360, 0.98, 0.60).toLinear(paletteGamma), ##  yellow
   hslToRgbU16( 35/360, 0.98, 0.60).toLinear(paletteGamma), ##  orange
