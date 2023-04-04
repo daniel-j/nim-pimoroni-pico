@@ -36,7 +36,7 @@ proc drawFile(filename: string) =
     of InkyFrame7_3: (-27, 0, 854, 480)
 
   if inky.drawJpeg(filename, x, y, w, h, gravity=(0.5, 0.5)) == 1:
-    echo "jpeg update"
+    echo "writing image..."
 
     let image = newImage(inky.bounds.w, inky.bounds.h)
     var y = 0

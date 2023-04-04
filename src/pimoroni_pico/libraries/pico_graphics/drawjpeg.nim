@@ -12,7 +12,7 @@ type
     progress: int
     lastY: int
     chunkHeight: int
-    graphics: PicoGraphics
+    graphics: ptr PicoGraphics
 
 var jpegDecodeOptions: JpegDecodeOptions
 
@@ -24,9 +24,8 @@ const errorMultiplier = 20.0
 # const whitePoint = constructRgb(255, 255, 255)
 
 proc processErrorMatrix(drawY: int) =
-  return
   # echo "processing errorMatrix ", drawY
-  var graphics = jpegDecodeOptions.graphics
+  let graphics = jpegDecodeOptions.graphics
   let imgW = jpegDecodeOptions.w
   let imgH = jpegDecodeOptions.chunkHeight + 1
 
@@ -47,10 +46,10 @@ proc processErrorMatrix(drawY: int) =
       let oldPixel = (errorMatrix[y][x].rgbToVec3() / errorMultiplier)
 
       #inky.setPen(oldPixel.clamp(-0.20, 1.2).linearToSRGB(gamma=2.2).vec3ToRgb())  #  find closest color using a LUT
-      graphics.setPen(graphics.createPenNearest(oldPixel.clamp(-0.20, 1.2).vec3ToRgb().toLinear()#[, whitePoint]#))  # find closest color using distance function
-      graphics.setPixel(pos)
+      graphics[].setPen(graphics[].createPenNearest(oldPixel.clamp(-0.20, 1.2).vec3ToRgb().toLinear()#[, whitePoint]#))  # find closest color using distance function
+      graphics[].setPixel(pos)
 
-      let newPixel = graphics.getPaletteColor().fromLinear(cheat=true).rgbToVec3().srgbToLinear()
+      let newPixel = graphics[].getPaletteColor().fromLinear(cheat=true).rgbToVec3().srgbToLinear()
 
       let quantError = oldPixel.clamp(0, 1) - newPixel
 
@@ -173,8 +172,8 @@ proc jpegdec_draw_callback(draw: ptr JPEGDRAW): cint {.cdecl.} =
 
       color = color.level(black=0.00, white=0.97).saturate(1.30)
 
-      jpegDecodeOptions.graphics.setPen(color)
-      jpegDecodeOptions.graphics.setPixel(pos)
+      #jpegDecodeOptions.graphics[].setPen(color)
+      #jpegDecodeOptions.graphics[].setPixel(pos)
 
       inc(errorMatrix[y][dx + x], (color.rgbToVec3().srgbToLinear(gamma=2.1) * errorMultiplier).vec3ToRgb())
       # errorMatrix[y][dx + x] = (((errorMatrix[y][dx + x].rgbToVec3() / errorMultiplier) + color.rgbToVec3().srgbToLinear(gamma=2.1)) * errorMultiplier).vec3ToRgb()
@@ -192,7 +191,7 @@ proc drawJpeg*(self: var PicoGraphics; filename: string; x, y: int = 0; w, h: in
   jpegDecodeOptions.h = h
   jpegDecodeOptions.progress = 0
   jpegDecodeOptions.lastY = 0
-  jpegDecodeOptions.graphics = self
+  jpegDecodeOptions.graphics = self.addr
 
   echo "- opening jpeg file ", filename
   var jpegErr = jpeg.open(
