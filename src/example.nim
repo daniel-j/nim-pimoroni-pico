@@ -75,11 +75,11 @@ proc processErrorMatrix(drawY: int) =
 
       let oldPixel = (errorMatrix[y][x].rgbToVec3() / errorMultiplier)
 
-      #inky.setPen(oldPixel.clamp(-0.2, 1.2).linearToSRGB(gamma=2.2).vec3ToRgb())  #  find closest color using a LUT
-      inky.setPen(inky.createPenNearest(oldPixel.clamp(-0.2, 1.2).linearToSRGB(gamma=2.2).vec3ToRgb()#[, whitePoint]#))  # find closest color using distance function
+      #inky.setPen(oldPixel.clamp(-0.20, 1.2).linearToSRGB(gamma=2.2).vec3ToRgb())  #  find closest color using a LUT
+      inky.setPen(inky.createPenNearest(oldPixel.clamp(-0.20, 1.2).vec3ToRgb().toLinear()#[, whitePoint]#))  # find closest color using distance function
       inky.setPixel(pos)
 
-      let newPixel = inky.getRawPalette()[inky.color.uint8].rgbToVec3().srgbToLinear()
+      let newPixel = inky.getRawPalette()[inky.color.uint8].fromLinear(cheat=true).rgbToVec3().srgbToLinear()
 
       let quantError = oldPixel.clamp(0, 1) - newPixel
 
@@ -93,7 +93,7 @@ proc processErrorMatrix(drawY: int) =
         if x + 1 < imgW:
           errorMatrix[y + 1][x + 1] = (((errorMatrix[y + 1][x + 1].rgbToVec3() / errorMultiplier) + quantError * 1 / 16) * errorMultiplier).vec3ToRgb()
 
-  echo (jpegDecodeOptions.progress * 100) div (jpegDecodeOptions.w * jpegDecodeOptions.h), "%"
+  # echo (jpegDecodeOptions.progress * 100) div (jpegDecodeOptions.w * jpegDecodeOptions.h), "%"
 
 proc jpegdec_open_callback(filename: cstring, size: ptr int32): pointer {.cdecl.} =
   let fil = create(FIL)
@@ -122,28 +122,28 @@ proc jpegdec_draw_callback(draw: ptr JPEGDRAW): cint {.cdecl.} =
   let dw = ((draw.x + draw.iWidth) * jpegDecodeOptions.w div jpegDecodeOptions.jpegW) - dx
   let dh = ((draw.y + draw.iHeight) * jpegDecodeOptions.h div jpegDecodeOptions.jpegH) - dy
 
-  # if draw.x == 0 and draw.y == 0:
-  #   echo "Free heap before errorMatrix: ", getFreeHeap()
-  #   echo draw[]
-  #   jpegDecodeOptions.chunkHeight = dh
+  if draw.x == 0 and draw.y == 0:
+    echo "Free heap before errorMatrix: ", getFreeHeap()
+    echo draw[]
+    jpegDecodeOptions.chunkHeight = dh
 
-  #   errorMatrix.setLen(jpegDecodeOptions.chunkHeight + 1)
+    errorMatrix.setLen(jpegDecodeOptions.chunkHeight + 1)
 
-  #   for i in 0 .. jpegDecodeOptions.chunkHeight:
-  #     errorMatrix[i] = newSeq[Rgb](jpegDecodeOptions.w)
-  #   echo "Free heap after errorMatrix alloc: ", getFreeHeap()
+    for i in 0 .. jpegDecodeOptions.chunkHeight:
+      errorMatrix[i] = newSeq[Rgb](jpegDecodeOptions.w)
+    echo "Free heap after errorMatrix alloc: ", getFreeHeap()
 
-  # if jpegDecodeOptions.lastY != draw.y:
-  #   processErrorMatrix(jpegDecodeOptions.lastY)
-  #   swap(errorMatrix[0], errorMatrix[jpegDecodeOptions.chunkHeight])
+  if jpegDecodeOptions.lastY != draw.y:
+    processErrorMatrix(jpegDecodeOptions.lastY)
+    swap(errorMatrix[0], errorMatrix[jpegDecodeOptions.chunkHeight])
 
-  #   jpegDecodeOptions.chunkHeight = dh
-  #   errorMatrix.setLen(jpegDecodeOptions.chunkHeight + 1)
+    jpegDecodeOptions.chunkHeight = dh
+    errorMatrix.setLen(jpegDecodeOptions.chunkHeight + 1)
 
-  #   for i in 1 .. jpegDecodeOptions.chunkHeight:
-  #     errorMatrix[i] = newSeq[Rgb](jpegDecodeOptions.w)
+    for i in 1 .. jpegDecodeOptions.chunkHeight:
+      errorMatrix[i] = newSeq[Rgb](jpegDecodeOptions.w)
 
-  # jpegDecodeOptions.lastY = draw.y
+  jpegDecodeOptions.lastY = draw.y
 
   for y in 0 ..< dh:
     if dy + y < 0 or dy + y >= jpegDecodeOptions.h: continue
@@ -180,10 +180,10 @@ proc jpegdec_draw_callback(draw: ptr JPEGDRAW): cint {.cdecl.} =
 
       color = color.level(black=0.00, white=0.97).saturate(1.30)
 
-      inky.setPen(color)
-      inky.setPixel(pos)
+      # inky.setPen(color)
+      # inky.setPixel(pos)
 
-      #######inc(errorMatrix[y][dx + x], (color.rgbToVec3().srgbToLinear(gamma=2.1) * errorMultiplier).vec3ToRgb())
+      inc(errorMatrix[y][dx + x], (color.rgbToVec3().srgbToLinear(gamma=2.1) * errorMultiplier).vec3ToRgb())
       # errorMatrix[y][dx + x] = (((errorMatrix[y][dx + x].rgbToVec3() / errorMultiplier) + color.rgbToVec3().srgbToLinear(gamma=2.1)) * errorMultiplier).vec3ToRgb()
       jpegDecodeOptions.progress.inc()
 

@@ -11,7 +11,7 @@ type
   DitherKind* = enum
     NoDither, Bayer, BlueNoise, Cluster
 
-const mutliplier = 255 * 0.82
+const multiplier = 65535 * 0.99
 
 # How many bits for each colour in cache
 const cacheRedSize = 3
@@ -62,46 +62,46 @@ const cacheRedMask = ((1 shl cacheRedSize) - 1)
 const cacheGreenMask = ((1 shl cacheGreenSize) - 1)
 const cacheBlueMask = ((1 shl cacheBlueSize) - 1)
 
-iterator cacheColors*(): tuple[i: int, c: Rgb] =
+iterator cacheColors*(): tuple[i: int, c: RgbU16] =
   for i in 0 ..< colorCacheSize:
-    let r = (i.uint and cacheRedMask shl (cacheGreenSize + cacheBlueSize)) shr (cacheGreenSize + cacheBlueSize) shl (8 - cacheRedSize)
-    let g = (i.uint and cacheGreenMask shl cacheBlueSize) shr cacheBlueSize shl (8 - cacheGreenSize)
-    let b = (i.uint and cacheBlueMask) shl (8 - cacheBlueSize)
-    let cacheCol = constructRgb(
-      int16 r or (r shr cacheBlueSize) or (r shr (cacheGreenSize + cacheBlueSize)),
-      int16 g or (g shr cacheBlueSize) or (g shr (cacheGreenSize + cacheBlueSize)),
-      int16 b or (b shr cacheBlueSize) or (b shr (cacheGreenSize + cacheBlueSize))
+    let r = (i.uint and cacheRedMask shl (cacheGreenSize + cacheBlueSize)) shr (cacheGreenSize + cacheBlueSize) shl (16 - cacheRedSize)
+    let g = (i.uint and cacheGreenMask shl cacheBlueSize) shr cacheBlueSize shl (16 - cacheGreenSize)
+    let b = (i.uint and cacheBlueMask) shl (16 - cacheBlueSize)
+    let cacheCol = RgbU16(
+      r: uint16 r or (r shr cacheBlueSize) or (r shr (cacheGreenSize + cacheBlueSize)),
+      g: uint16 g or (g shr cacheBlueSize) or (g shr (cacheGreenSize + cacheBlueSize)),
+      b: uint16 b or (b shr cacheBlueSize) or (b shr (cacheGreenSize + cacheBlueSize))
     )
     yield (i, cacheCol)
 
-func generateNearestCache*(cache: var array[colorCacheSize, uint8]; palette: openArray[Rgb]; whitepoint: Rgb = Rgb(r: 255, g: 255, b: 255)) =
+func generateNearestCache*(cache: var array[colorCacheSize, uint8]; palette: openArray[RgbU16]) =
   for i, col in cacheColors():
-    cache[i] = col.closest(palette, whitepoint=whitepoint).uint8
+    cache[i] = col.closest(palette).uint8
 
-func getCacheKey*(c: Rgb): uint =
+func getCacheKey*(c: RgbU16): uint =
   # let col = Rgb(
   #   r: (round(c.r / (1 shl (8 - cacheRedSize))).int16 * (1 shl (8 - cacheRedSize))).clamp(0, 255),
   #   g: (round(c.g / (1 shl (8 - cacheGreenSize))).int16 * (1 shl (8 - cacheGreenSize))).clamp(0, 255),
   #   b: (round(c.b / (1 shl (8 - cacheBlueSize))).int16 * (1 shl (8 - cacheBlueSize))).clamp(0, 255)
   # )
-  let col = c.clamp()
+  let col = c
   let cacheKey = (
-    (((col.r.uint and cacheRedMask shl (8 - cacheRedSize)) shr (8 - cacheRedSize)) shl (cacheGreenSize + cacheBlueSize)) or
-    ((col.g.uint and cacheGreenMask shl (8 - cacheGreenSize)) shr (8 - cacheGreenSize) shl cacheBlueSize) or
-    ((col.b.uint and cacheBlueMask shl (8 - cacheBlueSize)) shr (8 - cacheBlueSize))
+    (((col.r.uint and cacheRedMask shl (16 - cacheRedSize)) shr (16 - cacheRedSize)) shl (cacheGreenSize + cacheBlueSize)) or
+    ((col.g.uint and cacheGreenMask shl (16 - cacheGreenSize)) shr (16 - cacheGreenSize) shl cacheBlueSize) or
+    ((col.b.uint and cacheBlueMask shl (16 - cacheBlueSize)) shr (16 - cacheBlueSize))
   )
   return cacheKey
 
 func generateHslCache*(): array[colorCacheSize, Rgb565] =
   for i, col in cacheColors():
-    let h = col.r / 255
-    let s = col.g / 255
-    let l = col.b / 255
-    let hslColor = hslToRgb(h, s, l)
+    let h = col.r.float / 65535.0
+    let s = col.g.float / 65535.0
+    let l = col.b.float / 65535.0
+    let hslColor = hslToRgbU16(h, s, l).fromLinear(cheat=true)
     result[i] = hslColor.toRgb565()
 
 # code from https://nelari.us/post/quick_and_dirty_dithering/#bayer-matrix
-func bayerMatrix*[T](M: static[Natural]; mutliplier: float = 1 shl M shl M; offset: float = 0.0): array[1 shl M shl M, T] {.compileTime.} =
+func bayerMatrix*[T](M: static[Natural]; multiplier: float = 1 shl M shl M; offset: float = 0.0): array[1 shl M shl M, T] {.compileTime.} =
   const length = 1 shl M shl M
   const dim = 1 shl M
   static: echo "Generating Bayer matrix " & $dim & "x" & $dim
@@ -119,61 +119,63 @@ func bayerMatrix*[T](M: static[Natural]; mutliplier: float = 1 shl M shl M; offs
         v.setMask ((xc shr mask) and 1) shl bit
         inc(bit)
         dec(mask)
-      result[i] = T(mutliplier * ((v + 1) / length - offset))
+      result[i] = T(multiplier * ((v + 1) / length - offset))
       inc(i)
 
-func convertPattern*(pattern: static[openArray[uint8]]; mutliplier: float; divider: int = 256): array[pattern.len, int16] {.compileTime.} =
+# https://github.com/makew0rld/dither/blob/master/pixelmappers.go
+# See convThresholdToAddition()
+func convertPattern*(pattern: static[openArray[uint8]]; scale: float; max: int = 256): array[pattern.len, int] {.compileTime.} =
   ## Convert threshold pattern to be used for adding to a Rgb() value
   static: echo "Converting dither pattern " & $pattern.len
-  for i, c in pattern:
-    result[i] = int16 mutliplier * ((c.int + 1) / divider - 0.5)
+  for i, value in pattern:
+    result[i] = int scale * (float32(value + 1) / float32(max) - 0.50000006'f32)
 
 
 # Simple HSL lookup table
 const hslCache* = generateHslCache()
 
 # Bayer matrix dither luts
-# const ditherPattern2x2Rgb* = bayerMatrix[int16](1, mutliplier, 0.5)
-# const ditherPattern4x4Rgb* = bayerMatrix[int16](2, mutliplier, 0.5)
-# const ditherPattern8x8Rgb* = bayerMatrix[int16](3, mutliplier, 0.5)
-# const ditherPattern16x16Rgb* = bayerMatrix[int16](4, mutliplier, 0.5)
-# const ditherPattern32x32Rgb* = bayerMatrix[int16](5, mutliplier, 0.5)
+# const ditherPattern2x2Rgb* = bayerMatrix[int16](1, multiplier, 0.5)
+# const ditherPattern4x4Rgb* = bayerMatrix[int16](2, multiplier, 0.5)
+# const ditherPattern8x8Rgb* = bayerMatrix[int16](3, multiplier, 0.5)
+# const ditherPattern16x16Rgb* = bayerMatrix[int16](4, multiplier, 0.5)
+# const ditherPattern32x32Rgb* = bayerMatrix[int16](5, multiplier, 0.5)
 
 # For backwards compatability
 const dither16Pattern* = bayerMatrix[uint8](2)
 
 # Blue noise dither luts
-# const bnDitherPattern16x16Rgb* = convertPattern(blueNoise16x16, mutliplier, 256)
-# const bnDitherPattern32x32Rgb* = convertPattern(blueNoise32x32, mutliplier, 256)
-# const bnDitherPattern64x64Rgb* = convertPattern(blueNoise64x64, mutliplier, 256)
+# const bnDitherPattern16x16Rgb* = convertPattern(blueNoise16x16, multiplier, 256)
+# const bnDitherPattern32x32Rgb* = convertPattern(blueNoise32x32, multiplier, 256)
+# const bnDitherPattern64x64Rgb* = convertPattern(blueNoise64x64, multiplier, 256)
 
 # Cluster dither luts
-# const clusterPattern4x4Rgb* = convertPattern(clusterMatrix4x4, mutliplier, clusterMatrix4x4.len)
-# const clusterPattern8x8Rgb* = convertPattern(clusterMatrix8x8, mutliplier, clusterMatrix8x8.len)
+# const clusterPattern4x4Rgb* = convertPattern(clusterMatrix4x4, multiplier, clusterMatrix4x4.len)
+# const clusterPattern8x8Rgb* = convertPattern(clusterMatrix8x8, multiplier, clusterMatrix8x8.len)
 
-proc getDitherError*(kind: static[DitherKind]; dim: static[Natural]; index: int): int16 =
+proc getDitherError*(kind: static[DitherKind]; dim: static[Natural]; index: int): int =
   when dim <= 0: return 0
 
   when kind == Bayer:
-    const p = bayerMatrix[int16](dim, mutliplier, 0.5)
+    const p = bayerMatrix[int](dim, multiplier, 0.5)
     return p[index]
 
   when kind == BlueNoise:
     const p = when dim == 4:
-        convertPattern(blueNoise16x16, mutliplier, 256)
+        convertPattern(blueNoise16x16, multiplier, 256)
       elif dim == 5:
-        convertPattern(blueNoise32x32, mutliplier, 256)
+        convertPattern(blueNoise32x32, multiplier, 256)
       elif dim == 6:
-        convertPattern(blueNoise64x64, mutliplier, 256)
+        convertPattern(blueNoise64x64, multiplier, 256)
       else:
         static: {.error: "getDitherError: No blue noise dither pattern with dim " & $dim.}
     return p[index]
 
   when kind == Cluster:
     const p = when dim == 2:
-      convertPattern(clusterMatrix4x4, mutliplier, clusterMatrix4x4.len)
+      convertPattern(clusterMatrix4x4, multiplier, clusterMatrix4x4.len)
     elif dim == 3:
-      convertPattern(clusterMatrix8x8, mutliplier, clusterMatrix8x8.len)
+      convertPattern(clusterMatrix8x8, multiplier, clusterMatrix8x8.len)
     else:
       static: {.error: "getDitherError: No cluster dither pattern with dim " & $dim.}
     return p[index]

@@ -14,6 +14,8 @@ type
     r*: int16
     g*: int16
     b*: int16
+  RgbU16* {.packed.} = object
+    r*, g*, b*: uint16
 
 func clamp*(self: Rgb): Rgb =
   result.r = self.r.clamp(0, 255)
@@ -56,58 +58,14 @@ func constructRgb*(r, g, b: int16): Rgb {.constructor.} =
   result.b = b
 
 func constructRgb*(r, g, b: float): Rgb {.constructor.} =
-  result.r = int16 r * 255
-  result.g = int16 g * 255
-  result.b = int16 b * 255
+  result.r = int16 round(r * 255)
+  result.g = int16 round(g * 255)
+  result.b = int16 round(b * 255)
 
 func constructRgb*(l: int16): Rgb {.constructor.} =
   result.r = l
   result.g = l
   result.b = l
-
-func hsvToRgb*(h, s, v: float): Rgb =
-  ## Converts from HSV to RGB
-  ## HSV values are between 0.0 and 1.0
-  if s <= 0.0:
-    return constructRgb(v, v, v)
-
-  let i = int(h * 6.0)
-  let f = h * 6.0 - float(i)
-  let p = v * (1.0 - s)
-  let q = v * (1.0 - f * s)
-  let t = v * (1.0 - (1.0 - f) * s)
-
-  case i mod 6:
-    of 0: return constructRgb(v, t, p)
-    of 1: return constructRgb(q, v, p)
-    of 2: return constructRgb(p, v, t)
-    of 3: return constructRgb(p, q, v)
-    of 4: return constructRgb(t, p, v)
-    of 5: return constructRgb(v, p, q)
-    else: return constructRgb(0, 0, 0)
-
-func hslToRgb*(h, s, l: float): Rgb =
-  ## Converts from HSL to RGB
-  ## HSL values are between 0.0 and 1.0
-  if s <= 0.0:
-    return constructRgb(l, l, l)
-
-  proc hue2rgb(p, q, t: float): float =
-    var t2 = t
-    if t2 < 0.0: t2 += 1.0
-    if t2 > 1.0: t2 -= 1.0
-    if t2 < 1/6: return p + (q - p) * 6 * t2
-    if t2 < 1/2: return q
-    if t2 < 2/3: return p + (q - p) * (2/3 - t2) * 6
-    return p
-
-  let q = if l < 0.5: l * (1 + s) else: l + s - l * s
-  let p = 2 * l - q
-
-  result.r = int16 round(hue2rgb(p, q, h + 1/3) * 255.0)
-  result.g = int16 round(hue2rgb(p, q, h) * 255.0)
-  result.b = int16 round(hue2rgb(p, q, h - 1/3) * 255.0)
-
 
 func `+`*(self: Rgb; c: Rgb): Rgb =
   return constructRgb(self.r + c.r, self.g + c.g, self.b + c.b)
@@ -158,6 +116,109 @@ func luminance*(self: Rgb): int =
   ##  weights based on https://www.johndcook.com/blog/2009/08/24/algorithms-convert-color-grayscale/
   self.r * 21 + self.g * 72 + self.b * 7
 
+const luminanceMax* = constructRgb(255, 255, 255).luminance()
+
+func roundClamp(i: int): uint16 =
+  if i < 0:
+    return 0
+
+  if i > 65535:
+    return 65535
+
+  return uint16(i)
+
+func `+`*(c: RgbU16; i: int): RgbU16 =
+  return RgbU16(
+    r: roundClamp c.r.int + i,
+    g: roundClamp c.g.int + i,
+    b: roundClamp c.b.int + i
+  )
+
+const defaultGamma*: float = 2.4
+
+# From https://github.com/makew0rld/dither/blob/master/color_spaces.go
+func linearize1*(v: float; gamma = defaultGamma): float =
+  if v <= 0.04045:
+    return v / 12.92
+  return ((v+0.055)/1.055).pow(gamma)
+
+func delinearize1*(v: float; gamma = defaultGamma): float =
+  if v <= 0.0031308:
+    return v * 12.92
+  return (v * 1.055).pow(1 / gamma) - 0.055
+
+# From https://github.com/makew0rld/dither/blob/master/color_spaces.go
+func toLinear*(c: Rgb; gamma = defaultGamma; cheat = false): RgbU16 =
+  # # 257 = 65535 / 255
+  if cheat:
+    result.r = uint16 round(c.r.float * 257.0)
+    result.g = uint16 round(c.g.float * 257.0)
+    result.b = uint16 round(c.b.float * 257.0)
+  else:
+    result.r = uint16 round((c.r.float / 255.0).clamp(0, 1).linearize1(gamma) * 65535.0)
+    result.g = uint16 round((c.g.float / 255.0).clamp(0, 1).linearize1(gamma) * 65535.0)
+    result.b = uint16 round((c.b.float / 255.0).clamp(0, 1).linearize1(gamma) * 65535.0)
+
+func toLinear*(c: RgbU16; gamma = defaultGamma): RgbU16 =
+  result.r = uint16 round((c.r.float / 65535.0).linearize1(gamma).clamp(0, 1) * 65535.0)
+  result.g = uint16 round((c.g.float / 65535.0).linearize1(gamma).clamp(0, 1) * 65535.0)
+  result.b = uint16 round((c.b.float / 65535.0).linearize1(gamma).clamp(0, 1) * 65535.0)
+
+func fromLinear*(c: RgbU16; gamma = defaultGamma; cheat = false): Rgb =
+  # 257 = 65535 / 255
+  if cheat:
+    result.r = int16 round(c.r.float / 257.0)
+    result.g = int16 round(c.g.float / 257.0)
+    result.b = int16 round(c.b.float / 257.0)
+  else:
+    result.r = int16 round((c.r.float / 65535.0).delinearize1(gamma).clamp(0, 1) * 255.0)
+    result.g = int16 round((c.g.float / 65535.0).delinearize1(gamma).clamp(0, 1) * 255.0)
+    result.b = int16 round((c.b.float / 65535.0).delinearize1(gamma).clamp(0, 1) * 255.0)
+
+func fromLinearU16*(c: RgbU16; gamma = defaultGamma): RgbU16 =
+  result.r = uint16 round((c.r.float / 65535.0).delinearize1(gamma).clamp(0, 1) * 65535.0)
+  result.g = uint16 round((c.g.float / 65535.0).delinearize1(gamma).clamp(0, 1) * 65535.0)
+  result.b = uint16 round((c.b.float / 65535.0).delinearize1(gamma).clamp(0, 1) * 65535.0)
+
+
+# From https://github.com/makew0rld/dither/blob/master/dither.go
+func sqDiff(v1, v2: uint16): uint32 =
+  let d = uint32(v1) - uint32(v2)
+  return (d * d) shr 2
+
+# From https://github.com/makew0rld/dither/blob/master/dither.go
+func distance*(c1, c2: RgbU16): uint32 =
+  ## Euclidean distance, but the square root part is removed
+  ## Weight by luminance value to approximate radiant power / luminance
+  ## as humans perceive it.
+  ##
+  ## These values were taken from Wikipedia:
+  ## https://en.wikipedia.org/wiki/Grayscale#Colorimetric_(perceptual_luminance-preserving)_conversion_to_grayscale
+  ## 0.2126, 0.7152, 0.0722
+  ## The are changed to fractions here to keep everything in integer math:
+  ##     1063/5000, 447/625, 361/5000
+  ## Unfortunately this requires promoting them to uint64 to prevent overflow
+  return uint32(
+    1063 * uint64(sqDiff(c1.r, c2.r)) div 5000 +
+    447 * uint64(sqDiff(c1.g, c2.g)) div 625 +
+    361 * uint64(sqDiff(c1.b, c2.b)) div 5000
+  )
+
+func closest*(self: RgbU16; palette: openArray[RgbU16]): int =
+  ## closest() returns the index of the color in the palette that's closest to
+  ## the provided one, using Euclidean distance in linear RGB space. The provided
+  ## RGB values must be linear RGB.
+  # Go through each color and find the closest one
+  var best = uint32.high
+  for i, c in palette:
+    let dist = self.distance(c)
+
+    if dist < best:
+      if dist == 0:
+        return i
+      result = i
+      best = dist
+
 # func distance*(self: Rgb; c: Rgb; whitepoint: Rgb = Rgb(r: 255, g: 255, b: 255)): float =
 #   let e1 = (self)
 #   let e2 = (c)
@@ -168,6 +229,9 @@ func luminance*(self: Rgb): int =
 #   let bx = (e1.b.float - e2.b.float) * (whitepoint.b.float / 255)
 #   return ((((512 + rmean) * rx * rx).int64 shr 8).float + 4.0 * gx * gx + (((767 - rmean) * bx * bx).int64 shr 8).float).abs()
 #   #return ((2 + (rmean / 256)) * rx * rx + 4 * gx * gx + (2 + (255 - rmean) / 256) * bx * bx).abs()
+
+func distanceLinear*(a, b: Rgb): int =
+  return (b.r - a.r).int * (b.r - a.r).int + (b.g - a.g).int * (b.g - a.g).int + (b.b - a.b).int * (b.b - a.b).int
 
 func distance*(self: Rgb; c: Rgb): int =
   ##  algorithm from https://www.compuphase.com/cmetric.htm
@@ -244,6 +308,51 @@ func level*(self: Rgb; black: float = 0; white: float = 1; gamma: float = 1): Rg
   result.g = (g * 255).int16
   result.b = (b * 255).int16
 
+func hsvToRgb*(h, s, v: float): Rgb =
+  ## Converts from HSV to RGB
+  ## HSV values are between 0.0 and 1.0
+  if s <= 0.0:
+    return constructRgb(v, v, v)
+
+  let i = int(h * 6.0)
+  let f = h * 6.0 - float(i)
+  let p = v * (1.0 - s)
+  let q = v * (1.0 - f * s)
+  let t = v * (1.0 - (1.0 - f) * s)
+
+  case i mod 6:
+    of 0: return constructRgb(v, t, p)
+    of 1: return constructRgb(q, v, p)
+    of 2: return constructRgb(p, v, t)
+    of 3: return constructRgb(p, q, v)
+    of 4: return constructRgb(t, p, v)
+    of 5: return constructRgb(v, p, q)
+    else: return constructRgb(0, 0, 0)
+
+func hslToRgbU16*(h, s, l: float): RgbU16 =
+  ## Converts from HSL to RGB
+  ## HSL values are between 0.0 and 1.0
+  if s <= 0.0:
+    return constructRgb(l, l, l).toLinear(cheat=true)
+
+  proc hue2rgb(p, q, t: float): float =
+    var t2 = t
+    if t2 < 0.0: t2 += 1.0
+    if t2 > 1.0: t2 -= 1.0
+    if t2 < 1/6: return p + (q - p) * 6 * t2
+    if t2 < 1/2: return q
+    if t2 < 2/3: return p + (q - p) * (2/3 - t2) * 6
+    return p
+
+  let q = if l < 0.5: l * (1 + s) else: l + s - l * s
+  let p = 2 * l - q
+
+  result.r = uint16 round(hue2rgb(p, q, h + 1/3).clamp(0, 1) * 65535.0)
+  result.g = uint16 round(hue2rgb(p, q, h).clamp(0, 1) * 65535.0)
+  result.b = uint16 round(hue2rgb(p, q, h - 1/3).clamp(0, 1) * 65535.0)
+
+
+
 func toRgb565*(self: Rgb): Rgb565 =
   let c = self.clamp()
   result = Rgb565(
@@ -299,7 +408,6 @@ func rgbToRgb565*(r, g, b: uint8): Rgb565 =
 func rgb332ToRgb*(c: Rgb332): Rgb = constructRgb(c)
 
 func rgb565ToRgb*(c: Rgb565): Rgb = constructRgb(c)
-
 
 # Vector helpers
 import pkg/vmath
