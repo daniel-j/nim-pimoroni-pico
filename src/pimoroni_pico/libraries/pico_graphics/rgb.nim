@@ -6,16 +6,18 @@ proc builtinBswap16(a: uint16): uint16 {.importc: "__builtin_bswap16", nodecl, n
 ## RGB
 ##
 
+const rgbBits* = 10
+const rgbMultiplier* = (1 shl rgbBits) - 1
+
 type
   Rgb332* = distinct uint8
   Rgb565* = distinct uint16
   Rgb888* = distinct uint32
   Rgb* {.packed.} = object
-    r*: int16
-    g*: int16
-    b*: int16
-  RgbU16* {.packed.} = object
-    r*, g*, b*: uint16
+    r*, g*, b*: int16
+  RgbLinear* {.packed.} = object
+    r*, g*, b*: int16
+    # r* {.bitsize: rgbBits+1.}, g* {.bitsize: rgbBits+1.}, b* {.bitsize: rgbBits+1.}: int16
 
 func clamp*(self: Rgb): Rgb =
   result.r = self.r.clamp(0, 255)
@@ -118,17 +120,22 @@ func luminance*(self: Rgb): int =
 
 const luminanceMax* = constructRgb(255, 255, 255).luminance()
 
-func roundClamp(i: int): uint16 =
+func clamp*(self: RgbLinear): RgbLinear =
+  result.r = self.r.clamp(0, rgbMultiplier)
+  result.g = self.g.clamp(0, rgbMultiplier)
+  result.b = self.b.clamp(0, rgbMultiplier)
+
+func roundClamp(i: int): int16 =
   if i < 0:
     return 0
 
-  if i > 65535:
-    return 65535
+  if i > rgbMultiplier.int:
+    return rgbMultiplier.int16
 
-  return uint16(i)
+  return int16(i)
 
-func `+`*(c: RgbU16; i: int): RgbU16 =
-  return RgbU16(
+func `+`*(c: RgbLinear; i: int): RgbLinear =
+  return RgbLinear(
     r: roundClamp c.r.int + i,
     g: roundClamp c.g.int + i,
     b: roundClamp c.b.int + i
@@ -148,46 +155,46 @@ func delinearize1*(v: float; gamma = defaultGamma): float =
   return (v * 1.055).pow(1 / gamma) - 0.055
 
 # From https://github.com/makew0rld/dither/blob/master/color_spaces.go
-func toLinear*(c: Rgb; gamma = defaultGamma; cheat = false): RgbU16 =
+func toLinear*(c: Rgb; gamma = defaultGamma; cheat = false): RgbLinear =
   # # 257 = 65535 / 255
   if cheat:
-    result.r = uint16 round(c.r.clamp(0, 255).float * 257.0)
-    result.g = uint16 round(c.g.clamp(0, 255).float * 257.0)
-    result.b = uint16 round(c.b.clamp(0, 255).float * 257.0)
+    result.r = int16 round(c.r.clamp(0, 255).float * (rgbMultiplier.float / 255))
+    result.g = int16 round(c.g.clamp(0, 255).float * (rgbMultiplier.float / 255))
+    result.b = int16 round(c.b.clamp(0, 255).float * (rgbMultiplier.float / 255))
   else:
-    result.r = uint16 round((c.r.float / 255.0).clamp(0, 1).linearize1(gamma) * 65535.0)
-    result.g = uint16 round((c.g.float / 255.0).clamp(0, 1).linearize1(gamma) * 65535.0)
-    result.b = uint16 round((c.b.float / 255.0).clamp(0, 1).linearize1(gamma) * 65535.0)
+    result.r = int16 round((c.r.float / 255.0).clamp(0, 1).linearize1(gamma) * rgbMultiplier)
+    result.g = int16 round((c.g.float / 255.0).clamp(0, 1).linearize1(gamma) * rgbMultiplier)
+    result.b = int16 round((c.b.float / 255.0).clamp(0, 1).linearize1(gamma) * rgbMultiplier)
 
-func toLinear*(c: RgbU16; gamma = defaultGamma): RgbU16 =
-  result.r = uint16 round((c.r.float / 65535.0).linearize1(gamma).clamp(0, 1) * 65535.0)
-  result.g = uint16 round((c.g.float / 65535.0).linearize1(gamma).clamp(0, 1) * 65535.0)
-  result.b = uint16 round((c.b.float / 65535.0).linearize1(gamma).clamp(0, 1) * 65535.0)
+func toLinear*(c: RgbLinear; gamma = defaultGamma): RgbLinear =
+  result.r = int16 round((c.r.float / rgbMultiplier).linearize1(gamma).clamp(0, 1) * rgbMultiplier)
+  result.g = int16 round((c.g.float / rgbMultiplier).linearize1(gamma).clamp(0, 1) * rgbMultiplier)
+  result.b = int16 round((c.b.float / rgbMultiplier).linearize1(gamma).clamp(0, 1) * rgbMultiplier)
 
-func fromLinear*(c: RgbU16; gamma = defaultGamma; cheat = false): Rgb =
+func fromLinear*(c: RgbLinear; gamma = defaultGamma; cheat = false): Rgb =
   # 257 = 65535 / 255
   if cheat:
-    result.r = int16 round(c.r.float / 257.0)
-    result.g = int16 round(c.g.float / 257.0)
-    result.b = int16 round(c.b.float / 257.0)
+    result.r = int16 round(c.r.float / (rgbMultiplier.float / 255))
+    result.g = int16 round(c.g.float / (rgbMultiplier.float / 255))
+    result.b = int16 round(c.b.float / (rgbMultiplier.float / 255))
   else:
-    result.r = int16 round((c.r.float / 65535.0).delinearize1(gamma).clamp(0, 1) * 255.0)
-    result.g = int16 round((c.g.float / 65535.0).delinearize1(gamma).clamp(0, 1) * 255.0)
-    result.b = int16 round((c.b.float / 65535.0).delinearize1(gamma).clamp(0, 1) * 255.0)
+    result.r = int16 round((c.r.float / rgbMultiplier).delinearize1(gamma).clamp(0, 1) * 255.0)
+    result.g = int16 round((c.g.float / rgbMultiplier).delinearize1(gamma).clamp(0, 1) * 255.0)
+    result.b = int16 round((c.b.float / rgbMultiplier).delinearize1(gamma).clamp(0, 1) * 255.0)
 
-func fromLinearU16*(c: RgbU16; gamma = defaultGamma): RgbU16 =
-  result.r = uint16 round((c.r.float / 65535.0).delinearize1(gamma).clamp(0, 1) * 65535.0)
-  result.g = uint16 round((c.g.float / 65535.0).delinearize1(gamma).clamp(0, 1) * 65535.0)
-  result.b = uint16 round((c.b.float / 65535.0).delinearize1(gamma).clamp(0, 1) * 65535.0)
+func fromLinearToLinear*(c: RgbLinear; gamma = defaultGamma): RgbLinear =
+  result.r = int16 round((c.r.float / rgbMultiplier).delinearize1(gamma).clamp(0, 1) * rgbMultiplier)
+  result.g = int16 round((c.g.float / rgbMultiplier).delinearize1(gamma).clamp(0, 1) * rgbMultiplier)
+  result.b = int16 round((c.b.float / rgbMultiplier).delinearize1(gamma).clamp(0, 1) * rgbMultiplier)
 
 
 # From https://github.com/makew0rld/dither/blob/master/dither.go
-func sqDiff(v1, v2: uint16): uint32 =
+func sqDiff(v1, v2: int16): uint32 =
   let d = uint32(v1) - uint32(v2)
   return (d * d) shr 2
 
 # From https://github.com/makew0rld/dither/blob/master/dither.go
-func distance*(c1, c2: RgbU16): uint32 =
+func distance*(c1, c2: RgbLinear): uint32 =
   ## Euclidean distance, but the square root part is removed
   ## Weight by luminance value to approximate radiant power / luminance
   ## as humans perceive it.
@@ -204,7 +211,7 @@ func distance*(c1, c2: RgbU16): uint32 =
     361 * uint64(sqDiff(c1.b, c2.b)) div 5000
   )
 
-func closest*(self: RgbU16; palette: openArray[RgbU16]): int =
+func closest*(self: RgbLinear; palette: openArray[RgbLinear]): int =
   ## closest() returns the index of the color in the palette that's closest to
   ## the provided one, using Euclidean distance in linear RGB space. The provided
   ## RGB values must be linear RGB.
@@ -329,11 +336,11 @@ func hsvToRgb*(h, s, v: float): Rgb =
     of 5: return constructRgb(v, p, q)
     else: return constructRgb(0, 0, 0)
 
-func hslToRgbU16*(h, s, l: float): RgbU16 =
+func hslToRgb*(h, s, l: float): Rgb =
   ## Converts from HSL to RGB
   ## HSL values are between 0.0 and 1.0
   if s <= 0.0:
-    return constructRgb(l, l, l).toLinear(cheat=true)
+    return constructRgb(l, l, l)
 
   proc hue2rgb(p, q, t: float): float =
     var t2 = t
@@ -347,9 +354,9 @@ func hslToRgbU16*(h, s, l: float): RgbU16 =
   let q = if l < 0.5: l * (1 + s) else: l + s - l * s
   let p = 2 * l - q
 
-  result.r = uint16 round(hue2rgb(p, q, h + 1/3).clamp(0, 1) * 65535.0)
-  result.g = uint16 round(hue2rgb(p, q, h).clamp(0, 1) * 65535.0)
-  result.b = uint16 round(hue2rgb(p, q, h - 1/3).clamp(0, 1) * 65535.0)
+  result.r = int16 round(hue2rgb(p, q, h + 1/3).clamp(0, 1) * 255.0)
+  result.g = int16 round(hue2rgb(p, q, h).clamp(0, 1) * 255.0)
+  result.b = int16 round(hue2rgb(p, q, h - 1/3).clamp(0, 1) * 255.0)
 
 
 

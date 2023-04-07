@@ -2,17 +2,28 @@ import pixie
 import ./pico_graphics
 export pixie, pico_graphics
 
-const paletteGamma = 2.0
+const paletteGamma = 1.0
+
+# const palette = [
+#   hslToRgb(      0, 1.00, 0.00).toLinear(paletteGamma), ##  black
+#   hslToRgb(      0, 1.00, 1.00).toLinear(paletteGamma), ##  white
+#   hslToRgb(120/360, 0.90, 0.37).toLinear(paletteGamma), ##  green
+#   hslToRgb(260/360, 0.98, 0.43).toLinear(paletteGamma), ##  blue
+#   hslToRgb( 10/360, 0.98, 0.45).toLinear(paletteGamma), ##  red
+#   hslToRgb( 60/360, 1.00, 0.60).toLinear(paletteGamma), ##  yellow
+#   hslToRgb( 29/360, 0.95, 0.45).toLinear(paletteGamma), ##  orange
+#   hslToRgb(      0, 1.00, 1.00).toLinear(paletteGamma), ##  clean - do not use on inky7 as colour
+# ]
 
 const palette = [
-  hslToRgbU16(      0, 1.00, 0.00).toLinear(paletteGamma), ##  black
-  hslToRgbU16(      0, 1.00, 1.00).toLinear(paletteGamma), ##  white
-  hslToRgbU16(125/360, 0.75, 0.40).toLinear(paletteGamma), ##  green
-  hslToRgbU16(260/360, 0.98, 0.45).toLinear(paletteGamma), ##  blue
-  hslToRgbU16( 10/360, 1.00, 0.50).toLinear(paletteGamma), ##  red
-  hslToRgbU16( 60/360, 0.98, 0.60).toLinear(paletteGamma), ##  yellow
-  hslToRgbU16( 29/360, 1.00, 0.50).toLinear(paletteGamma), ##  orange
-  hslToRgbU16(      0, 1.00, 1.00).toLinear(paletteGamma), ##  clean - do not use on inky7 as colour
+  hsvToRgb(      0, 0, 0).toLinear(paletteGamma), ##  black
+  hsvToRgb(      0, 0, 1).toLinear(paletteGamma), ##  white
+  hsvToRgb(120.7/360, 0.992, 0.455).toLinear(paletteGamma), ##  green
+  hsvToRgb(235.9/360, 0.953, 0.461).toLinear(paletteGamma), ##  blue
+  hsvToRgb(  0.0/360, 0.892, 0.651).toLinear(paletteGamma), ##  red
+  hsvToRgb( 56.0/360, 0.769, 1.000).toLinear(paletteGamma), ##  yellow
+  hsvToRgb( 27.0/360, 0.990, 0.808).toLinear(paletteGamma), ##  orange
+  hsvToRgb(      0, 0, 1.00).toLinear(paletteGamma), ##  clean - do not use on inky7 as colour
 ]
 
 type

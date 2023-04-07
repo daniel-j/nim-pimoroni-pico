@@ -11,12 +11,13 @@ type
   DitherKind* = enum
     NoDither, Bayer, BlueNoise, Cluster
 
-const multiplier = 65535 * 1.0
+const multiplier = rgbMultiplier * 1.0
 
 # How many bits for each colour in cache
-const cacheRedSize = 3
-const cacheGreenSize = 3
-const cacheBlueSize = 3
+const
+  cacheRedBits = 3
+  cacheGreenBits = 3
+  cacheBlueBits = 3
 
 
 const rgb332ToRgb565Lut*: array[256, uint16] = [
@@ -57,47 +58,47 @@ const clusterMatrix4x4*: array[16, uint8] = [uint8 12, 5, 6, 13, 4, 0, 1, 7, 11,
 const clusterMatrix8x8*: array[64, uint8] = [uint8 24, 10, 12, 26, 35, 47, 49, 37, 8, 0, 2, 14, 45, 59, 61, 51, 22, 6, 4, 16, 43, 57, 63, 53, 30, 20, 18, 28, 33, 41, 55, 39, 34, 46, 48, 36, 25, 11, 13, 27, 44, 57, 60, 50, 9, 1, 3, 15, 42, 56, 62, 52, 23, 7, 5, 17, 32, 40, 54, 38, 31, 21, 19, 29]
 
 
-const colorCacheSize* = 1 shl (cacheRedSize + cacheGreenSize + cacheBlueSize)
-const cacheRedMask = ((1 shl cacheRedSize) - 1)
-const cacheGreenMask = ((1 shl cacheGreenSize) - 1)
-const cacheBlueMask = ((1 shl cacheBlueSize) - 1)
+const colorCacheSize* = 1 shl (cacheRedBits + cacheGreenBits + cacheBlueBits)
+const cacheRedMask = ((1 shl cacheRedBits) - 1)
+const cacheGreenMask = ((1 shl cacheGreenBits) - 1)
+const cacheBlueMask = ((1 shl cacheBlueBits) - 1)
 
-iterator cacheColors*(): tuple[i: int, c: RgbU16] =
+iterator cacheColors*(): tuple[i: int, c: RgbLinear] =
   for i in 0 ..< colorCacheSize:
-    let r = (i.uint and cacheRedMask shl (cacheGreenSize + cacheBlueSize)) shr (cacheGreenSize + cacheBlueSize) shl (16 - cacheRedSize)
-    let g = (i.uint and cacheGreenMask shl cacheBlueSize) shr cacheBlueSize shl (16 - cacheGreenSize)
-    let b = (i.uint and cacheBlueMask) shl (16 - cacheBlueSize)
-    let cacheCol = RgbU16(
-      r: uint16 r or (r shr cacheBlueSize) or (r shr (cacheGreenSize + cacheBlueSize)),
-      g: uint16 g or (g shr cacheBlueSize) or (g shr (cacheGreenSize + cacheBlueSize)),
-      b: uint16 b or (b shr cacheBlueSize) or (b shr (cacheGreenSize + cacheBlueSize))
+    let r = (i.uint and cacheRedMask shl (cacheGreenBits + cacheBlueBits)) shr (cacheGreenBits + cacheBlueBits) shl (rgbBits - cacheRedBits)
+    let g = (i.uint and cacheGreenMask shl cacheBlueBits) shr cacheBlueBits shl (rgbBits - cacheGreenBits)
+    let b = (i.uint and cacheBlueMask) shl (rgbBits - cacheBlueBits)
+    let cacheCol = RgbLinear(
+      r: int16 r or (r shr cacheBlueBits) or (r shr (cacheGreenBits + cacheBlueBits)),
+      g: int16 g or (g shr cacheBlueBits) or (g shr (cacheGreenBits + cacheBlueBits)),
+      b: int16 b or (b shr cacheBlueBits) or (b shr (cacheGreenBits + cacheBlueBits))
     )
     yield (i, cacheCol)
 
-func generateNearestCache*(cache: var array[colorCacheSize, uint8]; palette: openArray[RgbU16]) =
+func generateNearestCache*(cache: var array[colorCacheSize, uint8]; palette: openArray[RgbLinear]) =
   for i, col in cacheColors():
     cache[i] = col.closest(palette).uint8
 
-func getCacheKey*(c: RgbU16): uint =
+func getCacheKey*(c: RgbLinear): uint =
   # let col = Rgb(
-  #   r: (round(c.r / (1 shl (8 - cacheRedSize))).int16 * (1 shl (8 - cacheRedSize))).clamp(0, 255),
-  #   g: (round(c.g / (1 shl (8 - cacheGreenSize))).int16 * (1 shl (8 - cacheGreenSize))).clamp(0, 255),
-  #   b: (round(c.b / (1 shl (8 - cacheBlueSize))).int16 * (1 shl (8 - cacheBlueSize))).clamp(0, 255)
+  #   r: (round(c.r / (1 shl (8 - cacheRedBits))).int16 * (1 shl (8 - cacheRedBits))).clamp(0, 255),
+  #   g: (round(c.g / (1 shl (8 - cacheGreenBits))).int16 * (1 shl (8 - cacheGreenBits))).clamp(0, 255),
+  #   b: (round(c.b / (1 shl (8 - cacheBlueBits))).int16 * (1 shl (8 - cacheBlueBits))).clamp(0, 255)
   # )
-  let col = c
+  let col = c.clamp()
   let cacheKey = (
-    (((col.r.uint and cacheRedMask shl (16 - cacheRedSize)) shr (16 - cacheRedSize)) shl (cacheGreenSize + cacheBlueSize)) or
-    ((col.g.uint and cacheGreenMask shl (16 - cacheGreenSize)) shr (16 - cacheGreenSize) shl cacheBlueSize) or
-    ((col.b.uint and cacheBlueMask shl (16 - cacheBlueSize)) shr (16 - cacheBlueSize))
+    (((col.r.uint and cacheRedMask shl (rgbBits - cacheRedBits)) shr (rgbBits - cacheRedBits)) shl (cacheGreenBits + cacheBlueBits)) or
+    ((col.g.uint and cacheGreenMask shl (rgbBits - cacheGreenBits)) shr (rgbBits - cacheGreenBits) shl cacheBlueBits) or
+    ((col.b.uint and cacheBlueMask shl (rgbBits - cacheBlueBits)) shr (rgbBits - cacheBlueBits))
   )
   return cacheKey
 
 func generateHslCache*(): array[colorCacheSize, Rgb565] =
   for i, col in cacheColors():
-    let h = col.r.float / 65535.0
-    let s = col.g.float / 65535.0
-    let l = col.b.float / 65535.0
-    let hslColor = hslToRgbU16(h, s, l).fromLinear(cheat=true)
+    let h = col.r.float / rgbMultiplier
+    let s = col.g.float / rgbMultiplier
+    let l = col.b.float / rgbMultiplier
+    let hslColor = hslToRgb(h, s, l)
     result[i] = hslColor.toRgb565()
 
 # code from https://nelari.us/post/quick_and_dirty_dithering/#bayer-matrix

@@ -98,9 +98,9 @@ proc inkyProc() =
         p.x = x
         let xd = x / inky.width
         let hue = xd
-        inky.setPen(inky.createPenHsl(hue, 1.0, 1.0 - l))
-        # let col = constructRgb(int16 hue * 255, 255, int16 255 - l / 255)
-        # let hslCacheKey = (((col.r and 0xE0) shl 1) or ((col.g and 0xE0) shr 2) or ((col.b and 0xE0) shr 5))
+        inky.setPen(inky.createPenHsl(hue, 1.0, 1.02 - l * 1.04))
+        # let col = constructRgb(int16 hue * 255, 255, int16 255 - l * 255)
+        # let hslCacheKey = getCacheKey(col)
         # inky.setPen(hslCache[hslCacheKey].rgb565ToRgb())
         inky.setPixel(p)
 
