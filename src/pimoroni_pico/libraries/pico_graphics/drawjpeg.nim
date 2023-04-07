@@ -34,9 +34,11 @@ proc processErrorMatrix(drawY: int) =
   let dx = 0
   let dy = drawY * jpegDecodeOptions.h div jpegDecodeOptions.jpegH
 
+  let jpegOrientation = jpeg.getOrientation()
+
   for y in 0 ..< imgH - 1:
     for x in 0 ..< imgW:
-      let pos = case jpeg.getOrientation():
+      let pos = case jpegOrientation:
       of 3: Point(x: ox + jpegDecodeOptions.w - (dx + x), y: oy + jpegDecodeOptions.h - (dy + y))
       of 6: Point(x: ox + jpegDecodeOptions.h - (dy + y), y: oy + (dx + x))
       of 8: Point(x: ox + (dy + y), y: oy + jpegDecodeOptions.w - (dx + x))
@@ -172,7 +174,7 @@ proc jpegdec_draw_callback(draw: ptr JPEGDRAW): cint {.cdecl.} =
       #   color = constructRgb(Rgb565(p[sxmin + symin * draw.iWidth]))
       color = constructRgb(Rgb565(p[sxmin + symin * draw.iWidth]))
 
-      color = color.level(black=0.01, white=0.97).saturate(1.10)
+      color = color.level(black=0.00, white=0.97).saturate(1.10)
 
       case jpegDecodeOptions.drawMode:
       of Default:
