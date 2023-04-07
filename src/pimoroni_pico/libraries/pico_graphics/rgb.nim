@@ -18,7 +18,6 @@ type
     r*, g*, b*: int16
   RgbLinear* {.packed.} = object
     r*, g*, b*: int16
-    #r* {.bitsize: rgbBits+4.}, g* {.bitsize: rgbBits+4.}, b* {.bitsize: rgbBits+4.}: int16
 
 func clamp*(self: Rgb): Rgb =
   result.r = self.r.clamp(0, 255)
