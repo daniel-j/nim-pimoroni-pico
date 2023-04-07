@@ -159,14 +159,14 @@ proc jpegdec_draw_callback(draw: ptr JPEGDRAW): cint {.cdecl.} =
       var color = Rgb()
 
       # linear interpolation
-      # var colorv = Vec3()
-      # var divider = 0
+      # var colorv = RgbLinear()
+      # var divider: int16 = 0
       # for sx in sxmin..<sxmax:
       #   for sy in symin..<symax:
-      #     colorv += constructRgb(Rgb565(p[sx + sy * draw.iWidth])).rgbToVec3().srgbToLinear()
+      #     colorv += constructRgb(Rgb565(p[sx + sy * draw.iWidth])).toLinear()
       #     inc(divider)
       # if divider > 0:
-      #   color = (colorv / divider.float).linearToSRGB().vec3ToRgb()
+      #   color = (colorv div divider).fromLinear()
       # else:
       #   # fallback
       #   color = constructRgb(Rgb565(p[sxmin + symin * draw.iWidth]))
