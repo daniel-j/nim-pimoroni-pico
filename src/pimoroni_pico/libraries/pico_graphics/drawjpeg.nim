@@ -172,7 +172,7 @@ proc jpegdec_draw_callback(draw: ptr JPEGDRAW): cint {.cdecl.} =
       #   color = constructRgb(Rgb565(p[sxmin + symin * draw.iWidth]))
       color = constructRgb(Rgb565(p[sxmin + symin * draw.iWidth]))
 
-      color = color.level(black=0.02, white=0.97).saturate(1.10)
+      color = color.level(black=0.01, white=0.97).saturate(1.10)
 
       case jpegDecodeOptions.drawMode:
       of Default:
