@@ -120,6 +120,29 @@ func luminance*(self: Rgb): int =
 
 const luminanceMax* = constructRgb(255, 255, 255).luminance()
 
+func `+`*(lhs: RgbLinear; rhs: RgbLinear): RgbLinear =
+  return RgbLinear(r: lhs.r + rhs.r, g: lhs.g + rhs.g, b: lhs.b + rhs.b)
+func `+`*(self: RgbLinear; i: float): RgbLinear =
+  return RgbLinear(r: int16 self.r.float + i, g: int16 self.g.float + i, b: int16 self.b.float + i)
+func `-`*(self: RgbLinear; c: RgbLinear): RgbLinear =
+  return RgbLinear(r: self.r - c.r, g: self.g - c.g, b: self.b - c.b)
+func `*`*(self: RgbLinear; i: int16): RgbLinear =
+  return RgbLinear(r: self.r * i, g: self.g * i, b: self.b * i)
+func `*`*(self: RgbLinear; i: float): RgbLinear =
+  return RgbLinear(r: int16 self.r.float * i, g: int16 self.g.float * i, b: int16 self.b.float * i)
+func `div`*(self: RgbLinear; i: int16): RgbLinear =
+  return RgbLinear(r: self.r div i, g: self.g div i, b: self.b div i)
+func `shr`*(self: RgbLinear; i: int16): RgbLinear =
+  return RgbLinear(r: self.r shr i, g: self.g shr i, b: self.b shr i)
+func `shl`*(self: RgbLinear; i: int16): RgbLinear =
+  return RgbLinear(r: self.r shl i, g: self.g shl i, b: self.b shl i)
+
+proc `+=`*(self: var RgbLinear; c: RgbLinear) =
+  self.r += c.r
+  self.g += c.g
+  self.b += c.b
+
+
 func clamp*(self: RgbLinear): RgbLinear =
   result.r = self.r.clamp(0, rgbMultiplier)
   result.g = self.g.clamp(0, rgbMultiplier)
@@ -415,58 +438,3 @@ func rgbToRgb565*(r, g, b: uint8): Rgb565 =
 func rgb332ToRgb*(c: Rgb332): Rgb = constructRgb(c)
 
 func rgb565ToRgb*(c: Rgb565): Rgb = constructRgb(c)
-
-# Vector helpers
-import pkg/vmath
-export vmath
-
-proc clamp*(v: Vec3; min, max: float): Vec3 =
-  return vec3(
-    clamp(v.x, min, max),
-    clamp(v.y, min, max),
-    clamp(v.z, min, max)
-  )
-
-proc `<=`*(f: Vec3, value: float): Vec3 =
-  return vec3(
-    if f.x <= value: 1.0 else: 0.0,
-    if f.y <= value: 1.0 else: 0.0,
-    if f.z <= value: 1.0 else: 0.0
-  )
-
-proc pow*(v: Vec3; f: float): Vec3 =
-  return vec3(
-    pow(v.x, f),
-    pow(v.y, f),
-    pow(v.z, f)
-  )
-
-proc rgbToVec3*(self: Rgb): Vec3 =
-  return vec3(
-    self.r / 255,
-    self.g / 255,
-    self.b / 255
-  )
-
-proc vec3ToRgb*(v: Vec3): Rgb =
-  return Rgb(
-    r: int16 v.x * 255,
-    g: int16 v.y * 255,
-    b: int16 v.z * 255
-  )
-
-proc linearToSRGB*(rgb: Vec3; gamma: float = 2.4): Vec3 =
-  let rgbClamped = clamp(rgb, 0.0, 1.0)
-  return mix(
-    pow(rgbClamped * 1.055, 1 / gamma) - 0.055,
-    rgbClamped * 12.92,
-    rgbClamped <= 0.0031308
-  )
-
-proc srgbToLinear*(rgb: Vec3; gamma: float = 2.4): Vec3 =
-  let rgbClamped = clamp(rgb, 0.0, 1.0)
-  return mix(
-    pow((rgbClamped + 0.055) / 1.055, gamma),
-    rgbClamped / 12.92,
-    rgbClamped <= 0.04045
-  )

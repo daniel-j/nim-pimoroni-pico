@@ -32,6 +32,7 @@ echo "Wake Up Events: ", inky.getWakeUpEvents()
 
 proc drawFile(filename: string) =
   inky.led(LedActivity, 50)
+  let startTime = getAbsoluteTime()
   inky.setPen(White)
   inky.setBorder(White)
   inky.clear()
@@ -59,7 +60,10 @@ proc drawFile(filename: string) =
     of InkyFrame7_3: (-27, 0, 854, 480)
 
   if inky.drawJpeg(filename, x, y, w, h, gravity=(0.5, 0.5), ErrorDiffusion) == 1:
+    let endTime = getAbsoluteTime()
+    echo "Time: ", absoluteTimeDiffUs(startTime, endTime) div 1000, "ms"
     inky.led(LedActivity, 100)
+    echo "Updating... (" & filename & ")"
     inky.update()
     inky.led(LedActivity, 0)
     sleepMs(1 * 60 * 1000)

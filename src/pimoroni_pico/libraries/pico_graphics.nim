@@ -547,9 +547,9 @@ const paletteGamma = 1.6
 const PicoGraphicsPen3BitPalette* = [
   hsvToRgb(      0, 0, 0).toLinear(paletteGamma), ##  black
   hsvToRgb(      0, 0, 1).toLinear(paletteGamma), ##  white
-  hsvToRgb(120.7/360, 0.992, 0.455).toLinear(paletteGamma), ##  green
+  hsvToRgb(120.7/360, 0.992, 0.420).toLinear(paletteGamma), ##  green
   hsvToRgb(235.9/360, 0.953, 0.461).toLinear(paletteGamma), ##  blue
-  hsvToRgb(  0.0/360, 0.892, 0.651).toLinear(paletteGamma), ##  red
+  hsvToRgb(  0.0/360, 0.950, 0.800).toLinear(paletteGamma), ##  red
   hsvToRgb( 56.0/360, 0.769, 1.000).toLinear(paletteGamma), ##  yellow
   hsvToRgb( 27.0/360, 0.990, 0.828).toLinear(paletteGamma), ##  orange
   hsvToRgb(      0, 0, 1.00).toLinear(paletteGamma), ##  clean - do not use on inky7 as colour

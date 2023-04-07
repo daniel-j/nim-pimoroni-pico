@@ -1,3 +1,4 @@
+import std/math
 import ../pico_graphics
 import ../jpegdec
 when not defined(mock):
@@ -19,12 +20,7 @@ type
     drawMode: DrawMode
 
 var jpegDecodeOptions: JpegDecodeOptions
-var errorMatrix: seq[seq[Rgb]]
-
-# multiply the rgb values this many times when storing them in the error matrix (int16 per channel)
-const errorMultiplier = 20.0
-#const whitePoint = constructRgb(255, 227, 227)
-# const whitePoint = constructRgb(255, 255, 255)
+var errorMatrix: seq[seq[RgbLinear]]
 
 proc processErrorMatrix(drawY: int) =
   # echo "processing errorMatrix ", drawY
@@ -47,25 +43,26 @@ proc processErrorMatrix(drawY: int) =
       of 8: Point(x: ox + (dy + y), y: oy + jpegDecodeOptions.w - (dx + x))
       else: Point(x: ox + dx + x, y: oy + dy + y)
 
-      let oldPixel = (errorMatrix[y][x].rgbToVec3() / errorMultiplier)
+      let oldPixel = errorMatrix[y][x]
 
-      let color = graphics[].createPenNearest(oldPixel.clamp(0, 1).vec3ToRgb().toLinear(2.0))
-      graphics[].setPen(color)  # find closest color using distance function
+      # find closest color using distance function
+      let color = graphics[].createPenNearest(oldPixel)
+      graphics[].setPen(color)
       graphics[].setPixel(pos)
 
-      let newPixel = graphics[].getPenColor(color).fromLinear(cheat=true).rgbToVec3()
+      let newPixel = graphics[].getPenColor(color)
 
-      let quantError = oldPixel.clamp(0, 1) - newPixel
+      let quantError = oldPixel.clamp() - newPixel
 
       if x + 1 < imgW:
-        errorMatrix[y][x + 1] = (((errorMatrix[y][x + 1].rgbToVec3() / errorMultiplier) + quantError * 7 / 16) * errorMultiplier).vec3ToRgb()
+        errorMatrix[y][x + 1] += (quantError * 7) shr 4  # 7/16
 
       if y + 1 < imgH:
         if x > 0:
-          errorMatrix[y + 1][x - 1] = (((errorMatrix[y + 1][x - 1].rgbToVec3() / errorMultiplier) + quantError * 3 / 16) * errorMultiplier).vec3ToRgb()
-        errorMatrix[y + 1][x] = (((errorMatrix[y + 1][x].rgbToVec3() / errorMultiplier) + quantError * 5 / 16) * errorMultiplier).vec3ToRgb()
+          errorMatrix[y + 1][x - 1] += (quantError * 3) shr 4  # 3/16
+        errorMatrix[y + 1][x] += (quantError * 5) shr 4  # 5/16
         if x + 1 < imgW:
-          errorMatrix[y + 1][x + 1] = (((errorMatrix[y + 1][x + 1].rgbToVec3() / errorMultiplier) + quantError * 1 / 16) * errorMultiplier).vec3ToRgb()
+          errorMatrix[y + 1][x + 1] += (quantError) shr 4  # 1/16
 
 proc jpegdec_open_callback(filename: cstring, size: ptr int32): pointer {.cdecl.} =
   when not defined(mock):
@@ -126,7 +123,7 @@ proc jpegdec_draw_callback(draw: ptr JPEGDRAW): cint {.cdecl.} =
       errorMatrix.setLen(jpegDecodeOptions.chunkHeight + 1)
 
       for i in 0 .. jpegDecodeOptions.chunkHeight:
-        errorMatrix[i] = newSeq[Rgb](jpegDecodeOptions.w)
+        errorMatrix[i] = newSeq[RgbLinear](jpegDecodeOptions.w)
       # echo "Free heap after errorMatrix alloc: ", getFreeHeap()
 
     if jpegDecodeOptions.lastY != draw.y:
@@ -137,7 +134,7 @@ proc jpegdec_draw_callback(draw: ptr JPEGDRAW): cint {.cdecl.} =
       errorMatrix.setLen(jpegDecodeOptions.chunkHeight + 1)
 
       for i in 1 .. jpegDecodeOptions.chunkHeight:
-        errorMatrix[i] = newSeq[Rgb](jpegDecodeOptions.w)
+        errorMatrix[i] = newSeq[RgbLinear](jpegDecodeOptions.w)
 
     jpegDecodeOptions.lastY = draw.y
 
@@ -186,7 +183,7 @@ proc jpegdec_draw_callback(draw: ptr JPEGDRAW): cint {.cdecl.} =
       of OrderedDither:
         graphics[].setPixelDither(pos, color.toLinear())
       of ErrorDiffusion:
-        inc(errorMatrix[y][dx + x], (color.rgbToVec3().srgbToLinear() * errorMultiplier).vec3ToRgb())
+        errorMatrix[y][dx + x] += color.toLinear()
 
       # errorMatrix[y][dx + x] = (((errorMatrix[y][dx + x].rgbToVec3() / errorMultiplier) + color.rgbToVec3().srgbToLinear(gamma=2.1)) * errorMultiplier).vec3ToRgb()
       jpegDecodeOptions.progress.inc()
