@@ -15,9 +15,9 @@ const multiplier = rgbMultiplier * 1.0
 
 # How many bits for each colour in cache
 const
-  cacheRedBits = 3
-  cacheGreenBits = 3
-  cacheBlueBits = 3
+  cacheRedBits = 4
+  cacheGreenBits = 4
+  cacheBlueBits = 4
 
 
 const rgb332ToRgb565Lut*: array[256, uint16] = [
