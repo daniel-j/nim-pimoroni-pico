@@ -197,14 +197,18 @@ proc sleep*(self: var InkyFrame; wakeInMinutes: int = -1) =
   # release the vsys hold pin so that inky can go to sleep
   gpioPut(PinHoldSysEn, Low)
   while true:
-    discard
+    tightLoopContents()
 
 proc sleepUntil*(self: var InkyFrame; second, minute, hour, day: int = -1) =
   if second != -1 or minute != -1 or hour != -1 or day != -1:
     # set an alarm to wake inky up at the specified time and day
     self.rtc.setAlarm(second, minute, hour, day)
     self.rtc.enableAlarmInterrupt(true)
+
+  # release the vsys hold pin so that inky can go to sleep
   gpioPut(PinHoldSysEn, Low)
+  while true:
+    tightLoopContents()
 
 proc getWakeUpEvents*(self: InkyFrame): set[WakeUpEvent] = self.wakeUpEvents
 
