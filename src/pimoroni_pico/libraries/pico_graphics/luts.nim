@@ -94,7 +94,7 @@ func getCacheKey*(c: RgbLinear): uint =
   return cacheKey
 
 # code from https://nelari.us/post/quick_and_dirty_dithering/#bayer-matrix
-func bayerMatrix*[T](M: static[Natural]; multiplier: float = 1 shl M shl M; offset: float = 0.0): array[1 shl M shl M, T] {.compileTime.} =
+func bayerMatrix*[T](M: static[Natural]; multiplier: float = 1 shl M shl M): array[1 shl M shl M, T] {.compileTime.} =
   const length = 1 shl M shl M
   const dim = 1 shl M
   static: echo "Generating Bayer matrix " & $dim & "x" & $dim
@@ -112,7 +112,7 @@ func bayerMatrix*[T](M: static[Natural]; multiplier: float = 1 shl M shl M; offs
         v.setMask ((xc shr mask) and 1) shl bit
         inc(bit)
         dec(mask)
-      result[i] = T(multiplier * ((v + 1) / length - offset))
+      result[i] = T(multiplier * ((v + 1) / length - 0.50000006'f32))
       inc(i)
 
 # https://github.com/makew0rld/dither/blob/master/pixelmappers.go
@@ -123,31 +123,15 @@ func convertPattern*(pattern: static[openArray[uint8]]; scale: float; max: int =
   for i, value in pattern:
     result[i] = int16 scale * (float32(value + 1) / float32(max) - 0.50000006'f32)
 
-# Bayer matrix dither luts
-# const ditherPattern2x2Rgb* = bayerMatrix[int16](1, multiplier, 0.5)
-# const ditherPattern4x4Rgb* = bayerMatrix[int16](2, multiplier, 0.5)
-# const ditherPattern8x8Rgb* = bayerMatrix[int16](3, multiplier, 0.5)
-# const ditherPattern16x16Rgb* = bayerMatrix[int16](4, multiplier, 0.5)
-# const ditherPattern32x32Rgb* = bayerMatrix[int16](5, multiplier, 0.5)
-
 # For backwards compatability
 const dither16Pattern* = bayerMatrix[uint8](2)
-
-# Blue noise dither luts
-# const bnDitherPattern16x16Rgb* = convertPattern(blueNoise16x16, multiplier, 256)
-# const bnDitherPattern32x32Rgb* = convertPattern(blueNoise32x32, multiplier, 256)
-# const bnDitherPattern64x64Rgb* = convertPattern(blueNoise64x64, multiplier, 256)
-
-# Cluster dither luts
-# const clusterPattern4x4Rgb* = convertPattern(clusterMatrix4x4, multiplier, clusterMatrix4x4.len)
-# const clusterPattern8x8Rgb* = convertPattern(clusterMatrix8x8, multiplier, clusterMatrix8x8.len)
 
 proc getDitherError*(kind: static[DitherKind]; dim: static[Natural]; index: int): int16 =
   when dim <= 0:
     return 0
   else:
     when kind == Bayer:
-      const p = bayerMatrix[int16](dim, multiplier, 0.5)
+      const p = bayerMatrix[int16](dim, multiplier)
       return p[index]
 
     when kind == BlueNoise:
