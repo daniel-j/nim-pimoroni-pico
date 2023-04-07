@@ -37,23 +37,6 @@ proc drawFile(filename: string) =
   inky.setBorder(White)
   inky.clear()
 
-  # inky.setPen(Black)
-  # inky.rectangle(constructRect(0, 0, 600 div 8, 448))
-  # inky.setPen(White)
-  # inky.rectangle(constructRect((600 div 8) * 1, 0, 600 div 8, 448))
-  # inky.setPen(Green)
-  # inky.rectangle(constructRect((600 div 8) * 2, 0, 600 div 8, 448))
-  # inky.setPen(Blue)
-  # inky.rectangle(constructRect((600 div 8) * 3, 0, 600 div 8, 448))
-  # inky.setPen(Red)
-  # inky.rectangle(constructRect((600 div 8) * 4, 0, 600 div 8, 448))
-  # inky.setPen(Yellow)
-  # inky.rectangle(constructRect((600 div 8) * 5, 0, 600 div 8, 448))
-  # inky.setPen(Orange)
-  # inky.rectangle(constructRect((600 div 8) * 6, 0, 600 div 8, 448))
-  # inky.setPen(Clean)
-  # inky.rectangle(constructRect((600 div 8) * 7, 0, 600 div 8, 448))
-
   let (x, y, w, h) = case inky.kind:
     of InkyFrame4_0: (0, 0, inky.width, inky.height)
     of InkyFrame5_7: (0, -1, 600, 450)
