@@ -659,8 +659,7 @@ method setPixelDither*(self: var PicoGraphicsPen3Bit; p: Point; c: RgbLinear) =
 
   let error = getDitherError(kind, patternSize, patternIndex)
 
-  # apply error using gamma correction
-  # let col = (c.rgbToVec3().srgbToLinear(2.0) + (error / 255)).linearToSRGB(2.0).vec3ToRgb()
+  # color and error are in linear rgb space
   let col = (c + error)
 
   let paletteCol = self.createPenNearest(col)

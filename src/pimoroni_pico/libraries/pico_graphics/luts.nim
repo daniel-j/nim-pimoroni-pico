@@ -125,11 +125,11 @@ func bayerMatrix*[T](M: static[Natural]; multiplier: float = 1 shl M shl M; offs
 
 # https://github.com/makew0rld/dither/blob/master/pixelmappers.go
 # See convThresholdToAddition()
-func convertPattern*(pattern: static[openArray[uint8]]; scale: float; max: int = 256): array[pattern.len, int] {.compileTime.} =
+func convertPattern*(pattern: static[openArray[uint8]]; scale: float; max: int = 256): array[pattern.len, int16] {.compileTime.} =
   ## Convert threshold pattern to be used for adding to a Rgb() value
   static: echo "Converting dither pattern " & $pattern.len
   for i, value in pattern:
-    result[i] = int scale * (float32(value + 1) / float32(max) - 0.50000006'f32)
+    result[i] = int16 scale * (float32(value + 1) / float32(max) - 0.50000006'f32)
 
 
 # Simple HSL lookup table
@@ -154,29 +154,30 @@ const dither16Pattern* = bayerMatrix[uint8](2)
 # const clusterPattern4x4Rgb* = convertPattern(clusterMatrix4x4, multiplier, clusterMatrix4x4.len)
 # const clusterPattern8x8Rgb* = convertPattern(clusterMatrix8x8, multiplier, clusterMatrix8x8.len)
 
-proc getDitherError*(kind: static[DitherKind]; dim: static[Natural]; index: int): int =
-  when dim <= 0: return 0
+proc getDitherError*(kind: static[DitherKind]; dim: static[Natural]; index: int): int16 =
+  when dim <= 0:
+    return 0
+  else:
+    when kind == Bayer:
+      const p = bayerMatrix[int16](dim, multiplier, 0.5)
+      return p[index]
 
-  when kind == Bayer:
-    const p = bayerMatrix[int](dim, multiplier, 0.5)
-    return p[index]
+    when kind == BlueNoise:
+      const p = when dim == 4:
+          convertPattern(blueNoise16x16, multiplier, 256)
+        elif dim == 5:
+          convertPattern(blueNoise32x32, multiplier, 256)
+        elif dim == 6:
+          convertPattern(blueNoise64x64, multiplier, 256)
+        else:
+          static: {.error: "getDitherError: No blue noise dither pattern with dim " & $dim.}
+      return p[index]
 
-  when kind == BlueNoise:
-    const p = when dim == 4:
-        convertPattern(blueNoise16x16, multiplier, 256)
-      elif dim == 5:
-        convertPattern(blueNoise32x32, multiplier, 256)
-      elif dim == 6:
-        convertPattern(blueNoise64x64, multiplier, 256)
+    when kind == Cluster:
+      const p = when dim == 2:
+        convertPattern(clusterMatrix4x4, multiplier, clusterMatrix4x4.len)
+      elif dim == 3:
+        convertPattern(clusterMatrix8x8, multiplier, clusterMatrix8x8.len)
       else:
-        static: {.error: "getDitherError: No blue noise dither pattern with dim " & $dim.}
-    return p[index]
-
-  when kind == Cluster:
-    const p = when dim == 2:
-      convertPattern(clusterMatrix4x4, multiplier, clusterMatrix4x4.len)
-    elif dim == 3:
-      convertPattern(clusterMatrix8x8, multiplier, clusterMatrix8x8.len)
-    else:
-      static: {.error: "getDitherError: No cluster dither pattern with dim " & $dim.}
-    return p[index]
+        static: {.error: "getDitherError: No cluster dither pattern with dim " & $dim.}
+      return p[index]

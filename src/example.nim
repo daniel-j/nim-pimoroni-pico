@@ -65,6 +65,7 @@ proc drawFile(filename: string) =
     inky.led(LedActivity, 100)
     echo "Updating... (" & filename & ")"
     inky.update()
+    echo "Update complete. Sleeping..."
     inky.led(LedActivity, 0)
     sleepMs(1 * 60 * 1000)
   else:

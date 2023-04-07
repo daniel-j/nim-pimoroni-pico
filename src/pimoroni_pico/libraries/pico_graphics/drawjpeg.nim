@@ -36,14 +36,13 @@ proc processErrorMatrix(drawY: int) =
 
   for y in 0 ..< imgH - 1:
     for x in 0 ..< imgW:
-
       let pos = case jpeg.getOrientation():
       of 3: Point(x: ox + jpegDecodeOptions.w - (dx + x), y: oy + jpegDecodeOptions.h - (dy + y))
       of 6: Point(x: ox + jpegDecodeOptions.h - (dy + y), y: oy + (dx + x))
       of 8: Point(x: ox + (dy + y), y: oy + jpegDecodeOptions.w - (dx + x))
       else: Point(x: ox + dx + x, y: oy + dy + y)
 
-      let oldPixel = errorMatrix[y][x]
+      let oldPixel = errorMatrix[y][x].clamp()
 
       # find closest color using distance function
       let color = graphics[].createPenNearest(oldPixel)
@@ -52,7 +51,7 @@ proc processErrorMatrix(drawY: int) =
 
       let newPixel = graphics[].getPenColor(color)
 
-      let quantError = oldPixel.clamp() - newPixel
+      let quantError = oldPixel - newPixel
 
       if x + 1 < imgW:
         errorMatrix[y][x + 1] += (quantError * 7) shr 4  # 7/16
