@@ -93,14 +93,6 @@ func getCacheKey*(c: RgbLinear): uint =
   )
   return cacheKey
 
-func generateHslCache*(): array[colorCacheSize, Rgb565] =
-  for i, col in cacheColors():
-    let h = col.r.float / rgbMultiplier
-    let s = col.g.float / rgbMultiplier
-    let l = col.b.float / rgbMultiplier
-    let hslColor = hslToRgb(h, s, l)
-    result[i] = hslColor.toRgb565()
-
 # code from https://nelari.us/post/quick_and_dirty_dithering/#bayer-matrix
 func bayerMatrix*[T](M: static[Natural]; multiplier: float = 1 shl M shl M; offset: float = 0.0): array[1 shl M shl M, T] {.compileTime.} =
   const length = 1 shl M shl M
@@ -130,10 +122,6 @@ func convertPattern*(pattern: static[openArray[uint8]]; scale: float; max: int =
   static: echo "Converting dither pattern " & $pattern.len
   for i, value in pattern:
     result[i] = int16 scale * (float32(value + 1) / float32(max) - 0.50000006'f32)
-
-
-# Simple HSL lookup table
-const hslCache* = generateHslCache()
 
 # Bayer matrix dither luts
 # const ditherPattern2x2Rgb* = bayerMatrix[int16](1, multiplier, 0.5)

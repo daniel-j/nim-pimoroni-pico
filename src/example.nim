@@ -104,9 +104,6 @@ proc inkyProc() =
         let xd = x / inky.width
         let hue = xd
         inky.setPen(inky.createPenHsl(hue, 1.0, 1.02 - l * 1.04))
-        # let col = constructRgb(int16 hue * 255, 255, int16 255 - l * 255)
-        # let hslCacheKey = getCacheKey(col)
-        # inky.setPen(hslCache[hslCacheKey].rgb565ToRgb())
         inky.setPixel(p)
 
     let endTime = getAbsoluteTime()
