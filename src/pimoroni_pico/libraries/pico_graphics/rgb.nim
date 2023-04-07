@@ -69,51 +69,6 @@ func constructRgb*(l: int16): Rgb {.constructor.} =
   result.g = l
   result.b = l
 
-func `+`*(self: Rgb; c: Rgb): Rgb =
-  return constructRgb(self.r + c.r, self.g + c.g, self.b + c.b)
-func `+`*(self: Rgb; i: int16): Rgb =
-  return constructRgb(self.r + i, self.g + i, self.b + i)
-func `+`*(self: Rgb; i: float): Rgb =
-  return constructRgb(int16 self.r.float + i, int16 self.g.float + i, int16 self.b.float + i)
-
-func `*`*(self: Rgb; i: int16): Rgb =
-  return Rgb(r: self.r * i, g: self.g * i, b: self.b * i)
-func `*`*(self: Rgb; i: float): Rgb =
-  return Rgb(r: (self.r.float * i).int16, g: (self.g.float * i).int16, b: (self.b.float * i).int16)
-
-func `div`*(self: Rgb; i: int16): Rgb =
-  return Rgb(r: self.r div i, g: self.g div i, b: self.b div i)
-
-
-
-proc `+=`*(self: var Rgb; c: Rgb) =
-  self.r += c.r
-  self.g += c.g
-  self.b += c.b
-
-proc inc*(self: var Rgb; c: Rgb) =
-  self += c
-
-proc inc*(self: var Rgb; i: int) =
-  inc(self.r, i)
-  inc(self.g, i)
-  inc(self.b, i)
-
-proc dec*(self: var Rgb; c: Rgb) =
-  dec(self.r, c.r)
-  dec(self.g, c.g)
-  dec(self.b, c.b)
-
-proc dec*(self: var Rgb; i: int) =
-  dec(self.r, i)
-  dec(self.g, i)
-  dec(self.b, i)
-
-func `-`*(self: Rgb; c: Rgb): Rgb =
-  return Rgb(r: self.r - c.r, g: self.g - c.g, b: self.b - c.b)
-func `-`*(self: Rgb; i: int16): Rgb =
-  return Rgb(r: self.r - i, g: self.g - i, b: self.b - i)
-
 func luminance*(self: Rgb): int =
   ##  weights based on https://www.johndcook.com/blog/2009/08/24/algorithms-convert-color-grayscale/
   self.r * 21 + self.g * 72 + self.b * 7
