@@ -53,8 +53,8 @@ proc init*(self: var InkyFrame) =
     of InkyFrame5_7: (600, 448)
     of InkyFrame7_3: (800, 480)
   PicoGraphicsPen3Bit(self).init(self.width.uint16, self.height.uint16, BackendMemory)
-  if self.kind == InkyFrame7_3:
-    self.setPaletteSize(7)
+  # if self.kind == InkyFrame7_3:
+  self.setPaletteSize(7)
 
   self.image = newImage(self.width, self.height)
 

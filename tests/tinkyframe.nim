@@ -27,7 +27,7 @@ proc drawHslChart() =
   inky.image.writeFile("inkyhsl.png")
 
 proc drawFile(filename: string) =
-  inky.setPen(Clean)
+  inky.setPen(White)
   inky.clear()
 
   let (x, y, w, h) = case inky.kind:
