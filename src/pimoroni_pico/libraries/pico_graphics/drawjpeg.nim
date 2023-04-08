@@ -4,6 +4,8 @@ import ../jpegdec
 when not defined(mock):
   import ../../drivers/fatfs
 
+import ../error_diffusion
+
 var jpeg: JPEGDEC
 
 type
@@ -18,52 +20,54 @@ type
     chunkHeight: int
     graphics: ptr PicoGraphics
     drawMode: DrawMode
+    errDiff: ErrorDiffusion
 
 var jpegDecodeOptions: JpegDecodeOptions
-var errorMatrix: seq[seq[RgbLinear]]
 
-proc processErrorMatrix(drawY: int) =
-  # echo "processing errorMatrix ", drawY
-  let imgW = jpegDecodeOptions.w
-  let imgH = jpegDecodeOptions.chunkHeight + 1
+# var errorMatrix: seq[seq[RgbLinear]]
 
-  let graphics = jpegDecodeOptions.graphics
+# proc processErrorMatrix(drawY: int) =
+#   # echo "processing errorMatrix ", drawY
+#   let imgW = jpegDecodeOptions.w
+#   let imgH = jpegDecodeOptions.chunkHeight + 1
 
-  let ox = jpegDecodeOptions.x
-  let oy = jpegDecodeOptions.y
-  let dx = 0
-  let dy = drawY * jpegDecodeOptions.h div jpegDecodeOptions.jpegH
+#   let graphics = jpegDecodeOptions.graphics
 
-  let jpegOrientation = jpeg.getOrientation()
+#   let ox = jpegDecodeOptions.x
+#   let oy = jpegDecodeOptions.y
+#   let dx = 0
+#   let dy = drawY * jpegDecodeOptions.h div jpegDecodeOptions.jpegH
 
-  for y in 0 ..< imgH - 1:
-    for x in 0 ..< imgW:
-      let pos = case jpegOrientation:
-      of 3: Point(x: ox + jpegDecodeOptions.w - (dx + x), y: oy + jpegDecodeOptions.h - (dy + y))
-      of 6: Point(x: ox + jpegDecodeOptions.h - (dy + y), y: oy + (dx + x))
-      of 8: Point(x: ox + (dy + y), y: oy + jpegDecodeOptions.w - (dx + x))
-      else: Point(x: ox + dx + x, y: oy + dy + y)
+#   let jpegOrientation = jpeg.getOrientation()
 
-      let oldPixel = errorMatrix[y][x].clamp()
+#   for y in 0 ..< imgH - 1:
+#     for x in 0 ..< imgW:
+#       let pos = case jpegOrientation:
+#       of 3: Point(x: ox + jpegDecodeOptions.w - (dx + x), y: oy + jpegDecodeOptions.h - (dy + y))
+#       of 6: Point(x: ox + jpegDecodeOptions.h - (dy + y), y: oy + (dx + x))
+#       of 8: Point(x: ox + (dy + y), y: oy + jpegDecodeOptions.w - (dx + x))
+#       else: Point(x: ox + dx + x, y: oy + dy + y)
 
-      # find closest color using distance function
-      let color = graphics[].createPenNearest(oldPixel)
-      graphics[].setPen(color)
-      graphics[].setPixel(pos)
+#       let oldPixel = errorMatrix[y][x].clamp()
 
-      let newPixel = graphics[].getPenColor(color)
+#       # find closest color using distance function
+#       let color = graphics[].createPenNearest(oldPixel)
+#       graphics[].setPen(color)
+#       graphics[].setPixel(pos)
 
-      let quantError = oldPixel - newPixel
+#       let newPixel = graphics[].getPenColor(color)
 
-      if x + 1 < imgW:
-        errorMatrix[y][x + 1] += (quantError * 7) shr 4  # 7/16
+#       let quantError = oldPixel - newPixel
 
-      if y + 1 < imgH:
-        if x > 0:
-          errorMatrix[y + 1][x - 1] += (quantError * 3) shr 4  # 3/16
-        errorMatrix[y + 1][x] += (quantError * 5) shr 4  # 5/16
-        if x + 1 < imgW:
-          errorMatrix[y + 1][x + 1] += (quantError) shr 4  # 1/16
+#       if x + 1 < imgW:
+#         errorMatrix[y][x + 1] += (quantError * 7) shr 4  # 7/16
+
+#       if y + 1 < imgH:
+#         if x > 0:
+#           errorMatrix[y + 1][x - 1] += (quantError * 3) shr 4  # 3/16
+#         errorMatrix[y + 1][x] += (quantError * 5) shr 4  # 5/16
+#         if x + 1 < imgW:
+#           errorMatrix[y + 1][x + 1] += (quantError) shr 4  # 1/16
 
 proc jpegdec_open_callback(filename: cstring, size: ptr int32): pointer {.cdecl.} =
   when not defined(mock):
@@ -92,7 +96,7 @@ proc jpegdec_close_callback(handle: pointer) {.cdecl.} =
 proc jpegdec_read_callback(jpeg: ptr JPEGFILE; p: ptr uint8, c: int32): int32 {.cdecl.} =
   when not defined(mock):
     var br: cuint
-    discard f_read(cast[ptr FIL](jpeg.fHandle), cast[pointer](p), c.cuint, br.addr)
+    discard f_read(cast[ptr FIL](jpeg.fHandle), p, c.cuint, br.addr)
     return br.int32
   else:
     let file = cast[ref File](jpeg.fHandle)
@@ -110,52 +114,62 @@ proc jpegdec_draw_callback(draw: ptr JPEGDRAW): cint {.cdecl.} =
   let p = cast[ptr UncheckedArray[uint16]](draw.pPixels)
   let graphics = jpegDecodeOptions.graphics
 
-  let dx = (draw.x * jpegDecodeOptions.w div jpegDecodeOptions.jpegW)
-  let dy = (draw.y * jpegDecodeOptions.h div jpegDecodeOptions.jpegH)
-  let dw = ((draw.x + draw.iWidth) * jpegDecodeOptions.w div jpegDecodeOptions.jpegW) - dx
-  let dh = ((draw.y + draw.iHeight) * jpegDecodeOptions.h div jpegDecodeOptions.jpegH) - dy
+  let imgW = jpegDecodeOptions.w
+  let imgH = jpegDecodeOptions.h
 
+  let dx = (draw.x * imgW div jpegDecodeOptions.jpegW)
+  let dy = (draw.y * imgH div jpegDecodeOptions.jpegH)
+  let dw = ((draw.x + draw.iWidth) * imgW div jpegDecodeOptions.jpegW) - dx
+  let dh = ((draw.y + draw.iHeight) * imgH div jpegDecodeOptions.jpegH) - dy
+
+  # if jpegDecodeOptions.drawMode == ErrorDiffusion and false:
+  #   if draw.x == 0 and draw.y == 0:
+  #     # echo "Free heap before errorMatrix: ", getFreeHeap()
+  #     echo draw[]
+  #     jpegDecodeOptions.chunkHeight = dh
+
+  #     errorMatrix.setLen(jpegDecodeOptions.chunkHeight + 1)
+
+  #     for i in 0 .. jpegDecodeOptions.chunkHeight:
+  #       errorMatrix[i] = newSeq[RgbLinear](imgW)
+  #     # echo "Free heap after errorMatrix alloc: ", getFreeHeap()
+
+  #   if jpegDecodeOptions.lastY != draw.y:
+  #     processErrorMatrix(jpegDecodeOptions.lastY)
+  #     swap(errorMatrix[0], errorMatrix[jpegDecodeOptions.chunkHeight])
+
+  #     jpegDecodeOptions.chunkHeight = dh
+  #     errorMatrix.setLen(jpegDecodeOptions.chunkHeight + 1)
+
+  #     for i in 1 .. jpegDecodeOptions.chunkHeight:
+  #       errorMatrix[i] = newSeq[RgbLinear](imgW)
+
+  #   jpegDecodeOptions.lastY = draw.y
+
+  let lastProgress = (jpegDecodeOptions.progress * 100) div (imgW * imgH)
+
+  var row: seq[RgbLinear]
+
+  let realdw = min(dx + dw, imgW) - dx
   if jpegDecodeOptions.drawMode == ErrorDiffusion:
-    if draw.x == 0 and draw.y == 0:
-      # echo "Free heap before errorMatrix: ", getFreeHeap()
-      echo draw[]
-      jpegDecodeOptions.chunkHeight = dh
-
-      errorMatrix.setLen(jpegDecodeOptions.chunkHeight + 1)
-
-      for i in 0 .. jpegDecodeOptions.chunkHeight:
-        errorMatrix[i] = newSeq[RgbLinear](jpegDecodeOptions.w)
-      # echo "Free heap after errorMatrix alloc: ", getFreeHeap()
-
-    if jpegDecodeOptions.lastY != draw.y:
-      processErrorMatrix(jpegDecodeOptions.lastY)
-      swap(errorMatrix[0], errorMatrix[jpegDecodeOptions.chunkHeight])
-
-      jpegDecodeOptions.chunkHeight = dh
-      errorMatrix.setLen(jpegDecodeOptions.chunkHeight + 1)
-
-      for i in 1 .. jpegDecodeOptions.chunkHeight:
-        errorMatrix[i] = newSeq[RgbLinear](jpegDecodeOptions.w)
-
-    jpegDecodeOptions.lastY = draw.y
-
-  let lastProgress = (jpegDecodeOptions.progress * 100) div (jpegDecodeOptions.w * jpegDecodeOptions.h)
+    row = newSeq[RgbLinear](realdw)
 
   for y in 0 ..< dh:
-    if dy + y < 0 or dy + y >= jpegDecodeOptions.h: continue
-    let symin = floor(y * jpegDecodeOptions.jpegH / jpegDecodeOptions.h).int
+    # if dy + y < 0 or dy + y >= imgH: continue
+    let symin = floor(y * jpegDecodeOptions.jpegH / imgH).int
     if symin >= draw.iHeight: continue
-    let symax = min(floor((y + 1) * jpegDecodeOptions.jpegH / jpegDecodeOptions.h).int, draw.iHeight)
-    for x in 0 ..< dw:
-      if dx + x < 0 or dx + x >= jpegDecodeOptions.w: continue
-      let sxmin = floor(x * jpegDecodeOptions.jpegW / jpegDecodeOptions.w).int
+    let symax = min(floor((y + 1) * jpegDecodeOptions.jpegH / imgH).int, draw.iHeight)
+
+    for x in 0 ..< realdw:
+      # if dx + x < 0 or dx + x >= imgW: continue
+      let sxmin = floor(x * jpegDecodeOptions.jpegW / imgW).int
       if sxmin >= draw.iWidth: continue
-      let sxmax = min(floor((x + 1) * jpegDecodeOptions.jpegW / jpegDecodeOptions.w).int, draw.iWidth)
+      let sxmax = min(floor((x + 1) * jpegDecodeOptions.jpegW / imgW).int, draw.iWidth)
 
       let pos = case jpeg.getOrientation():
-      of 3: Point(x: jpegDecodeOptions.x + jpegDecodeOptions.w - (dx + x), y: jpegDecodeOptions.y + jpegDecodeOptions.h - (dy + y))
-      of 6: Point(x: jpegDecodeOptions.x + jpegDecodeOptions.h - (dy + y), y: jpegDecodeOptions.y + (dx + x))
-      of 8: Point(x: jpegDecodeOptions.x + (dy + y), y: jpegDecodeOptions.y + jpegDecodeOptions.w - (dx + x))
+      of 3: Point(x: jpegDecodeOptions.x + imgW - (dx + x), y: jpegDecodeOptions.y + imgH - (dy + y))
+      of 6: Point(x: jpegDecodeOptions.x + imgH - (dy + y), y: jpegDecodeOptions.y + (dx + x))
+      of 8: Point(x: jpegDecodeOptions.x + (dy + y), y: jpegDecodeOptions.y + imgW - (dx + x))
       else: Point(x: jpegDecodeOptions.x + dx + x, y: jpegDecodeOptions.y + dy + y)
 
       var color = Rgb()
@@ -184,13 +198,17 @@ proc jpegdec_draw_callback(draw: ptr JPEGDRAW): cint {.cdecl.} =
       of OrderedDither:
         graphics[].setPixelDither(pos, color.toLinear())
       of ErrorDiffusion:
-        errorMatrix[y][dx + x] += color.toLinear()
+        # errorMatrix[y][dx + x] += color.toLinear()
+        row[x] = color.toLinear()
 
       jpegDecodeOptions.progress.inc()
+    if jpegDecodeOptions.drawMode == ErrorDiffusion:
+     jpegDecodeOptions.errDiff.write(dx, dy + y, row)
 
-  let currentProgress = (jpegDecodeOptions.progress * 100) div (jpegDecodeOptions.w * jpegDecodeOptions.h)
+  let currentProgress = (jpegDecodeOptions.progress * 100) div (imgW * imgH)
   if lastProgress != currentProgress:
-    echo currentProgress, "%"
+    stdout.write($currentProgress & "%\r")
+    stdout.flushFile()
 
   return 1
 
@@ -265,6 +283,13 @@ proc drawJpeg*(self: var PicoGraphics; filename: string; x, y: int = 0; w, h: in
 
     jpeg.setPixelType(RGB565_LITTLE_ENDIAN)
 
+    if jpegDecodeOptions.drawMode == ErrorDiffusion:
+      jpegDecodeOptions.errDiff.autobackend()
+      jpegDecodeOptions.errDiff.init(jpegDecodeOptions.x, jpegDecodeOptions.y, jpegDecodeOptions.w, jpegDecodeOptions.h, self.addr)
+      jpegDecodeOptions.errDiff.orientation = jpeg.getOrientation()
+      if jpegDecodeOptions.errDiff.backend == ErrorDiffusionBackend.BackendPsram:
+        jpegDecodeOptions.errDiff.psramAddress = PsramAddress self.bounds.w * self.bounds.h
+
     echo "- starting jpeg decode.."
     try:
       jpegErr = jpeg.decode(0, 0, jpegScaleFactor.cint)
@@ -278,8 +303,12 @@ proc drawJpeg*(self: var PicoGraphics; filename: string; x, y: int = 0; w, h: in
 
     jpeg.close()
     if jpegDecodeOptions.drawMode == ErrorDiffusion:
-      processErrorMatrix(jpegDecodeOptions.lastY)
-    errorMatrix.setLen(0)
+      jpegDecodeOptions.errDiff.process()
+      jpegDecodeOptions.errDiff.deinit()
+    
+    # if jpegDecodeOptions.drawMode == ErrorDiffusion and false:
+    #   processErrorMatrix(jpegDecodeOptions.lastY)
+    # errorMatrix.setLen(0)
 
   else:
     echo "- couldnt decode jpeg! error: ", jpeg.getLastError()
