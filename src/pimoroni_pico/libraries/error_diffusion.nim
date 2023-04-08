@@ -42,12 +42,12 @@ proc init*(self: var ErrorDiffusion; x, y, width, height: int; graphics: ptr Pic
     else:
       discard self.fbFile.open("error_diffusion.bin", fmReadWrite)
 
-proc autobackend*(self: var ErrorDiffusion) =
+proc autobackend*(self: var ErrorDiffusion; graphics: ptr PicoGraphics) =
   when defined(mock):
     self.backend = ErrorDiffusionBackend.BackendMemory
     # can also be BackendFile in mock mode
   else:
-    self.backend = if self.graphics.backend == PicoGraphicsBackend.BackendPsram:
+    self.backend = if graphics.backend == PicoGraphicsBackend.BackendPsram:
       ErrorDiffusionBackend.BackendPsram
     else:
       ErrorDiffusionBackend.BackendFile

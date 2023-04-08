@@ -42,7 +42,7 @@ proc drawFile(filename: string) =
     of InkyFrame5_7: (0, -1, 600, 450)
     of InkyFrame7_3: (-27, 0, 854, 480)
 
-  if inky.drawJpeg(filename, x, y, w, h, gravity=(0.5, 0.5), ErrorDiffusion) == 1:
+  if inky.drawJpeg(filename, x, y, w, h, gravity=(0.5, 0.5), DrawMode.ErrorDiffusion) == 1:
     let endTime = getAbsoluteTime()
     echo "Time: ", absoluteTimeDiffUs(startTime, endTime) div 1000, "ms"
     inky.led(LedActivity, 100)

@@ -284,7 +284,7 @@ proc drawJpeg*(self: var PicoGraphics; filename: string; x, y: int = 0; w, h: in
     jpeg.setPixelType(RGB565_LITTLE_ENDIAN)
 
     if jpegDecodeOptions.drawMode == ErrorDiffusion:
-      jpegDecodeOptions.errDiff.autobackend()
+      jpegDecodeOptions.errDiff.autobackend(self.addr)
       jpegDecodeOptions.errDiff.init(jpegDecodeOptions.x, jpegDecodeOptions.y, jpegDecodeOptions.w, jpegDecodeOptions.h, self.addr)
       jpegDecodeOptions.errDiff.orientation = jpeg.getOrientation()
       if jpegDecodeOptions.errDiff.backend == ErrorDiffusionBackend.BackendPsram:

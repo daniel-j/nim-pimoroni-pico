@@ -37,7 +37,7 @@ proc drawFile(filename: string) =
 
   echo "Decoding jpeg file ", filename, "..."
 
-  if inky.drawJpeg(filename, x, y, w, h, gravity=(0.5, 0.5), ErrorDiffusion) == 1:
+  if inky.drawJpeg(filename, x, y, w, h, gravity=(0.5, 0.5), DrawMode.ErrorDiffusion) == 1:
     echo "Converting image..."
     inky.update()
     echo "Writing image to inky.png..."
