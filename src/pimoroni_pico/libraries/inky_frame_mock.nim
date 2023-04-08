@@ -18,12 +18,12 @@ const paletteGamma = 1.1
 const palette = [
   hsvToRgb(100/360, 1, 0).toLinear(paletteGamma), ##  black
   hsvToRgb(270/360, 0, 1).toLinear(paletteGamma), ##  white
-  hsvToRgb(120/360, 1.00, 0.55).toLinear(paletteGamma), ##  green
+  hsvToRgb(120/360, 1.00, 0.65).toLinear(paletteGamma), ##  green
   hsvToRgb(210/360, 0.95, 0.45).toLinear(paletteGamma), ##  blue
   hsvToRgb(350/360, 0.95, 0.85).toLinear(paletteGamma), ##  red
-  hsvToRgb( 56/360, 0.76, 1.00).toLinear(paletteGamma), ##  yellow
+  hsvToRgb( 56/360, 1.00, 1.00).toLinear(paletteGamma), ##  yellow
   hsvToRgb( 26/360, 1.00, 0.85).toLinear(paletteGamma), ##  orange
-  hsvToRgb(      0, 0, 1.00).toLinear(paletteGamma), ##  clean - do not use on inky7 as colour
+  constructRgb(255, 0, 255).toLinear(paletteGamma), ##  clean - do not use on inky7 as colour
 ]
 
 type

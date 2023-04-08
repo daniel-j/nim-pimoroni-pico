@@ -6,7 +6,7 @@ proc builtinBswap16(a: uint16): uint16 {.importc: "__builtin_bswap16", nodecl, n
 ## RGB
 ##
 
-const defaultGamma* = 1.9
+const defaultGamma* = 2.0
 const rgbBits* = 12
 const rgbMultiplier* = (1 shl rgbBits) - 1
 
@@ -131,63 +131,35 @@ func fromLinear*(c: RgbLinear; gamma = defaultGamma; cheat = false): Rgb =
 
 
 # From https://github.com/makew0rld/dither/blob/master/dither.go
-func sqDiff(v1, v2: int16): uint32 =
-  let d = uint32(v1 - v2)
-  return (d * d) shr 2
+# See sqDiff()
+func sqDiff(v1, v2: int16): uint64 =
+  let d = int32(v1 - v2)
+  return uint64 (d * d) shr 2
 
 # From https://github.com/makew0rld/dither/blob/master/dither.go
+# See closestColor()
 func distance*(c1, c2: RgbLinear): uint32 =
   return uint32(
-    1063 * uint64(sqDiff(c1.r, c2.r)) div 5000 +
-    447 * uint64(sqDiff(c1.g, c2.g)) div 625 +
-    361 * uint64(sqDiff(c1.b, c2.b)) div 5000
+    1063 * sqDiff(c1.r, c2.r) div 5000 +
+    447 * sqDiff(c1.g, c2.g) div 625 +
+    361 * sqDiff(c1.b, c2.b) div 5000
   )
 
+# func distanceLinear*(a, b: RgbLinear): int =
+#   return (b.r - a.r).int * (b.r - a.r).int + (b.g - a.g).int * (b.g - a.g).int + (b.b - a.b).int * (b.b - a.b).int
+
 func closest*(self: RgbLinear; palette: openArray[RgbLinear]): int =
+  var col = self
+  col.g = col.g * 2 # tweak green
   var best = uint32.high
   for i, c in palette:
-    let dist = self.distance(c)
+    let dist = col.distance(c)
 
     if dist < best:
       if dist == 0:
         return i
       result = i
       best = dist
-
-# func distance*(self: Rgb; c: Rgb; whitepoint: Rgb = Rgb(r: 255, g: 255, b: 255)): float =
-#   let e1 = (self)
-#   let e2 = (c)
-#   ##  algorithm from https://www.compuphase.com/cmetric.htm
-#   let rmean = ((e1.r.float + e2.r.float) / 2) * (whitepoint.r.float / 255)
-#   let rx = (e1.r.float - e2.r.float) * (whitepoint.r.float / 255)
-#   let gx = (e1.g.float - e2.g.float) * (whitepoint.g.float / 255)
-#   let bx = (e1.b.float - e2.b.float) * (whitepoint.b.float / 255)
-#   return ((((512 + rmean) * rx * rx).int64 shr 8).float + 4.0 * gx * gx + (((767 - rmean) * bx * bx).int64 shr 8).float).abs()
-#   #return ((2 + (rmean / 256)) * rx * rx + 4 * gx * gx + (2 + (255 - rmean) / 256) * bx * bx).abs()
-
-# func distanceLinear*(a, b: Rgb): int =
-#   return (b.r - a.r).int * (b.r - a.r).int + (b.g - a.g).int * (b.g - a.g).int + (b.b - a.b).int * (b.b - a.b).int
-
-# func distance*(self: Rgb; c: Rgb): int =
-#   ##  algorithm from https://www.compuphase.com/cmetric.htm
-#   let rmean: int64 = (self.r + c.r) div 2
-#   let rx: int64 = (self.r - c.r)
-#   let gx: int64 = (self.g - c.g)
-#   let bx: int64 = (self.b - c.b)
-#   return int (((512 + rmean) * rx * rx) shr 8) + 4 * gx * gx + (((767 - rmean) * bx * bx) shr 8)
-
-# func closest*(self: Rgb; palette: openArray[Rgb]; fallback: int = 0; whitepoint: Rgb = Rgb(r: 255, g: 255, b: 255)): int =
-#   assert(palette.len > 0)
-#   let col = self.clamp()
-#   var
-#     d = int.high
-#     m = fallback
-#   for i in 0 ..< palette.len:
-#     let dc = col.distance(palette[i]) # whitepoint
-#     if dc < d:
-#       m = i
-#       d = dc
-#   return m
 
 func saturate*(self: Rgb; factor: float): Rgb =
   const luR = 0.3086
