@@ -16,13 +16,13 @@ const paletteGamma = 1.0
 # ]
 
 const palette = [
-  hsvToRgb(      0, 0, 0).toLinear(paletteGamma), ##  black
-  hsvToRgb(      0, 0, 1).toLinear(paletteGamma), ##  white
-  hsvToRgb(120.7/360, 0.992, 0.420).toLinear(paletteGamma), ##  green
-  hsvToRgb(235.9/360, 0.953, 0.461).toLinear(paletteGamma), ##  blue
-  hsvToRgb(  0.0/360, 0.950, 0.850).toLinear(paletteGamma), ##  red
-  hsvToRgb( 56.0/360, 0.769, 1.000).toLinear(paletteGamma), ##  yellow
-  hsvToRgb( 27.0/360, 0.990, 0.808).toLinear(paletteGamma), ##  orange
+  hsvToRgb(100/360, 1, 0).toLinear(paletteGamma), ##  black
+  hsvToRgb(270/360, 0, 1).toLinear(paletteGamma), ##  white
+  hsvToRgb( 90/360, 1.00, 0.34).toLinear(paletteGamma), ##  green
+  hsvToRgb(205/360, 0.95, 0.45).toLinear(paletteGamma), ##  blue
+  hsvToRgb(350/360, 0.95, 0.85).toLinear(paletteGamma), ##  red
+  hsvToRgb( 56/360, 0.76, 1.00).toLinear(paletteGamma), ##  yellow
+  hsvToRgb( 26/360, 1.00, 0.85).toLinear(paletteGamma), ##  orange
   hsvToRgb(      0, 0, 1.00).toLinear(paletteGamma), ##  clean - do not use on inky7 as colour
 ]
 
