@@ -78,7 +78,8 @@ proc readRow*(self: var ErrorDiffusion; y: int): seq[RgbLinear] =
   of BackendFile:
     var rgb = newSeq[RgbLinear](self.width)
     when not defined(mock):
-      discard f_lseek(self.fbFile.addr, FSIZE_t self.rowToAddress(0, y))
+      if f_tell(self.fbFile.addr) != self.rowToAddress(0, y):
+        discard f_lseek(self.fbFile.addr, FSIZE_t self.rowToAddress(0, y))
       var br: cuint
       discard f_read(self.fbFile.addr, rgb[0].addr, cuint sizeof(RgbLinear) * self.width, br.addr)
     else:
@@ -96,7 +97,8 @@ proc write*(self: var ErrorDiffusion; x, y: int; rgb: seq[RgbLinear]) =
     self.graphics[].fbPsram.write(self.rowToAddress(x, y, self.psramAddress), uint sizeof(RgbLinear) * rgb.len, cast[ptr uint8](rgb[0].unsafeAddr))
   of BackendFile:
     when not defined(mock):
-      discard f_lseek(self.fbFile.addr, FSIZE_t self.rowToAddress(x, y))
+      if f_tell(self.fbFile.addr) != self.rowToAddress(x, y):
+        discard f_lseek(self.fbFile.addr, FSIZE_t self.rowToAddress(x, y))
       var bw: cuint
       discard f_write(self.fbFile.addr, rgb[0].unsafeAddr, cuint sizeof(RgbLinear) * rgb.len, bw.addr)
     else:
