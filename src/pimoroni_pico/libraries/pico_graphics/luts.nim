@@ -76,15 +76,13 @@ iterator cacheColors*(): tuple[i: int, c: RgbLinear] =
     yield (i, cacheCol)
 
 func generateNearestCache*(cache: var array[colorCacheSize, uint8]; palette: openArray[RgbLinear]) =
+  var paletteLab = newSeq[Lab](palette.len)
+  for i, col in palette:
+    paletteLab[i] = col.toLab()
   for i, col in cacheColors():
-    cache[i] = col.closest(palette).uint8
+    cache[i] = col.toLab().closest(paletteLab).uint8
 
 func getCacheKey*(c: RgbLinear): uint =
-  # let col = Rgb(
-  #   r: (round(c.r / (1 shl (8 - cacheRedBits))).int16 * (1 shl (8 - cacheRedBits))).clamp(0, 255),
-  #   g: (round(c.g / (1 shl (8 - cacheGreenBits))).int16 * (1 shl (8 - cacheGreenBits))).clamp(0, 255),
-  #   b: (round(c.b / (1 shl (8 - cacheBlueBits))).int16 * (1 shl (8 - cacheBlueBits))).clamp(0, 255)
-  # )
   let col = c.clamp()
   let cacheKey = (
     (((col.r.uint and cacheRedMask shl (rgbBits - cacheRedBits)) shr (rgbBits - cacheRedBits)) shl (cacheGreenBits + cacheBlueBits)) or

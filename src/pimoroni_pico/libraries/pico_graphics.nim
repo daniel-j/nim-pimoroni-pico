@@ -531,7 +531,7 @@ type
     cacheNearest*: array[colorCacheSize, uint8]
     cacheNearestBuilt*: bool
 
-const paletteGamma = 2.0
+const paletteGamma = 1.8
 
 # const PicoGraphicsPen3BitPalette* = [
 #   Rgb(r:   0, g:   0, b:   0).toLinear(paletteGamma), ##  black
@@ -547,11 +547,11 @@ const paletteGamma = 2.0
 const PicoGraphicsPen3BitPalette* = [
   hsvToRgb(110/360, 1, 0.05).toLinear(paletteGamma), ##  black
   hsvToRgb(290/360, 0.00, 1).toLinear(paletteGamma), ##  white
-  hsvToRgb(110/360, 1.00, 0.40).toLinear(paletteGamma), ##  green
-  hsvToRgb(210/360, 0.95, 0.60).toLinear(paletteGamma), ##  blue
-  hsvToRgb(350/360, 0.95, 0.91).toLinear(paletteGamma), ##  red
-  hsvToRgb( 56/360, 0.76, 1.00).toLinear(paletteGamma), ##  yellow
-  hsvToRgb( 27/360, 0.95, 0.76).toLinear(paletteGamma), ##  orange
+  hsvToRgb(110/360, 0.90, 0.40).toLinear(paletteGamma), ##  green
+  hsvToRgb(210/360, 0.95, 0.55).toLinear(paletteGamma), ##  blue
+  hsvToRgb(355/360, 0.90, 0.90).toLinear(paletteGamma), ##  red
+  hsvToRgb( 56/360, 0.79, 0.98).toLinear(paletteGamma), ##  yellow
+  hsvToRgb( 25/360, 0.90, 0.75).toLinear(paletteGamma), ##  orange
   hsvToRgb(      0, 0, 1.00).toLinear(paletteGamma), ##  clean - do not use on inky7 as colour
 ]
 
@@ -609,7 +609,7 @@ proc createPenNearestLut*(self: var PicoGraphicsPen3Bit; c: RgbLinear): uint =
 
 method createPenNearest*(self: var PicoGraphicsPen3Bit; c: RgbLinear): uint =
   return self.createPenNearestLut(c)
-  # return c.closest(self.getPalette()).uint
+  # return c.toLab().closest(self.getPaletteLab()).uint
 
 method getPenColor*(self: PicoGraphicsPen3Bit; color: uint = self.color): RgbLinear {.inline.} = self.palette[color]
 

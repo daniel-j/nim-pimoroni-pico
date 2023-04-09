@@ -18,6 +18,8 @@ type
     r*, g*, b*: int16
   RgbLinear* {.packed.} = object
     r*, g*, b*: int16
+  Lab* {.packed.} = object
+    L*, a*, b*: float
 
 func clamp*(self: Rgb): Rgb =
   result.r = self.r.clamp(0, 255)
@@ -69,97 +71,6 @@ func constructRgb*(l: int16): Rgb {.constructor.} =
   result.g = l
   result.b = l
 
-
-func `+`*(lhs: RgbLinear; rhs: RgbLinear): RgbLinear =
-  return RgbLinear(r: lhs.r + rhs.r, g: lhs.g + rhs.g, b: lhs.b + rhs.b)
-func `+`*(lhs: RgbLinear; rhs: int16): RgbLinear =
-  return RgbLinear(r: lhs.r + rhs, g: lhs.g + rhs, b: lhs.b + rhs)
-func `-`*(self: RgbLinear; c: RgbLinear): RgbLinear =
-  return RgbLinear(r: self.r - c.r, g: self.g - c.g, b: self.b - c.b)
-func `*`*(self: RgbLinear; i: int16): RgbLinear =
-  return RgbLinear(r: self.r * i, g: self.g * i, b: self.b * i)
-func `*`*(self: RgbLinear; i: float): RgbLinear =
-  return RgbLinear(r: int16 self.r.float * i, g: int16 self.g.float * i, b: int16 self.b.float * i)
-func `div`*(self: RgbLinear; i: int16): RgbLinear =
-  return RgbLinear(r: self.r div i, g: self.g div i, b: self.b div i)
-func `shr`*(self: RgbLinear; i: int16): RgbLinear =
-  return RgbLinear(r: self.r shr i, g: self.g shr i, b: self.b shr i)
-func `shl`*(self: RgbLinear; i: int16): RgbLinear =
-  return RgbLinear(r: self.r shl i, g: self.g shl i, b: self.b shl i)
-
-proc `+=`*(self: var RgbLinear; c: RgbLinear) =
-  self.r += c.r
-  self.g += c.g
-  self.b += c.b
-
-func clamp*(self: RgbLinear): RgbLinear =
-  result.r = self.r.clamp(0, rgbMultiplier)
-  result.g = self.g.clamp(0, rgbMultiplier)
-  result.b = self.b.clamp(0, rgbMultiplier)
-
-# From https://github.com/makew0rld/dither/blob/master/color_spaces.go
-func linearize1*(v: float; gamma = defaultGamma): float =
-  if v <= 0.04045:
-    return v / 12.92
-  return ((v+0.055)/1.055).pow(gamma)
-
-func delinearize1*(v: float; gamma = defaultGamma): float =
-  if v <= 0.0031308:
-    return v * 12.92
-  return (v * 1.055).pow(1 / gamma) - 0.055
-
-# From https://github.com/makew0rld/dither/blob/master/color_spaces.go
-func toLinear*(c: Rgb; gamma = defaultGamma; cheat = false): RgbLinear =
-  if cheat:
-    result.r = int16 round(c.r.clamp(0, 255).float * (rgbMultiplier.float / 255))
-    result.g = int16 round(c.g.clamp(0, 255).float * (rgbMultiplier.float / 255))
-    result.b = int16 round(c.b.clamp(0, 255).float * (rgbMultiplier.float / 255))
-  else:
-    result.r = int16 round((c.r.float / 255.0).clamp(0, 1).linearize1(gamma) * rgbMultiplier)
-    result.g = int16 round((c.g.float / 255.0).clamp(0, 1).linearize1(gamma) * rgbMultiplier)
-    result.b = int16 round((c.b.float / 255.0).clamp(0, 1).linearize1(gamma) * rgbMultiplier)
-
-func fromLinear*(c: RgbLinear; gamma = defaultGamma; cheat = false): Rgb =
-  if cheat:
-    result.r = int16 round(c.r.float / (rgbMultiplier.float / 255))
-    result.g = int16 round(c.g.float / (rgbMultiplier.float / 255))
-    result.b = int16 round(c.b.float / (rgbMultiplier.float / 255))
-  else:
-    result.r = int16 round((c.r.float / rgbMultiplier).delinearize1(gamma).clamp(0, 1) * 255.0)
-    result.g = int16 round((c.g.float / rgbMultiplier).delinearize1(gamma).clamp(0, 1) * 255.0)
-    result.b = int16 round((c.b.float / rgbMultiplier).delinearize1(gamma).clamp(0, 1) * 255.0)
-
-
-# From https://github.com/makew0rld/dither/blob/master/dither.go
-# See sqDiff()
-func sqDiff(v1, v2: int16): uint64 =
-  let d = int32(v1 - v2)
-  return uint64 (d * d) shr 2
-
-# From https://github.com/makew0rld/dither/blob/master/dither.go
-# See closestColor()
-func distance*(c1, c2: RgbLinear): uint32 =
-  return uint32(
-    1063 * sqDiff(c1.r, c2.r) div 5000 +
-    447 * sqDiff(c1.g, c2.g) div 625 +
-    361 * sqDiff(c1.b, c2.b) div 5000
-  )
-
-# func distanceLinear*(a, b: RgbLinear): int =
-#   return (b.r - a.r).int * (b.r - a.r).int + (b.g - a.g).int * (b.g - a.g).int + (b.b - a.b).int * (b.b - a.b).int
-
-func closest*(self: RgbLinear; palette: openArray[RgbLinear]): int =
-  var col = self
-  col.g = col.g * 2 # tweak green
-  var best = uint32.high
-  for i, c in palette:
-    let dist = col.distance(c)
-
-    if dist < best:
-      if dist == 0:
-        return i
-      result = i
-      best = dist
 
 func saturate*(self: Rgb; factor: float): Rgb =
   const luR = 0.3086
@@ -258,7 +169,139 @@ func hslToRgb*(h, s, l: float): Rgb =
   result.g = int16 round(hue2rgb(p, q, h).clamp(0, 1) * 255.0)
   result.b = int16 round(hue2rgb(p, q, h - 1/3).clamp(0, 1) * 255.0)
 
+func `+`*(lhs: RgbLinear; rhs: RgbLinear): RgbLinear =
+  return RgbLinear(r: lhs.r + rhs.r, g: lhs.g + rhs.g, b: lhs.b + rhs.b)
+func `+`*(lhs: RgbLinear; rhs: int16): RgbLinear =
+  return RgbLinear(r: lhs.r + rhs, g: lhs.g + rhs, b: lhs.b + rhs)
+func `-`*(self: RgbLinear; c: RgbLinear): RgbLinear =
+  return RgbLinear(r: self.r - c.r, g: self.g - c.g, b: self.b - c.b)
+func `*`*(self: RgbLinear; i: int16): RgbLinear =
+  return RgbLinear(r: self.r * i, g: self.g * i, b: self.b * i)
+func `*`*(self: RgbLinear; i: float): RgbLinear =
+  return RgbLinear(r: int16 self.r.float * i, g: int16 self.g.float * i, b: int16 self.b.float * i)
+func `div`*(self: RgbLinear; i: int16): RgbLinear =
+  return RgbLinear(r: self.r div i, g: self.g div i, b: self.b div i)
+func `shr`*(self: RgbLinear; i: int16): RgbLinear =
+  return RgbLinear(r: self.r shr i, g: self.g shr i, b: self.b shr i)
+func `shl`*(self: RgbLinear; i: int16): RgbLinear =
+  return RgbLinear(r: self.r shl i, g: self.g shl i, b: self.b shl i)
 
+proc `+=`*(self: var RgbLinear; c: RgbLinear) =
+  self.r += c.r
+  self.g += c.g
+  self.b += c.b
+
+func clamp*(self: RgbLinear): RgbLinear =
+  result.r = self.r.clamp(0, rgbMultiplier)
+  result.g = self.g.clamp(0, rgbMultiplier)
+  result.b = self.b.clamp(0, rgbMultiplier)
+
+# From https://github.com/makew0rld/dither/blob/master/color_spaces.go
+func linearize1*(v: float; gamma = defaultGamma): float =
+  if v <= 0.04045:
+    return v / 12.92
+  return ((v+0.055)/1.055).pow(gamma)
+
+func delinearize1*(v: float; gamma = defaultGamma): float =
+  if v <= 0.0031308:
+    return v * 12.92
+  return (v * 1.055).pow(1 / gamma) - 0.055
+
+# From https://github.com/makew0rld/dither/blob/master/color_spaces.go
+func toLinear*(c: Rgb; gamma = defaultGamma; cheat = false): RgbLinear =
+  if cheat:
+    result.r = int16 round(c.r.clamp(0, 255).float * (rgbMultiplier.float / 255))
+    result.g = int16 round(c.g.clamp(0, 255).float * (rgbMultiplier.float / 255))
+    result.b = int16 round(c.b.clamp(0, 255).float * (rgbMultiplier.float / 255))
+  else:
+    result.r = int16 round((c.r.float / 255.0).clamp(0, 1).linearize1(gamma) * rgbMultiplier)
+    result.g = int16 round((c.g.float / 255.0).clamp(0, 1).linearize1(gamma) * rgbMultiplier)
+    result.b = int16 round((c.b.float / 255.0).clamp(0, 1).linearize1(gamma) * rgbMultiplier)
+
+func fromLinear*(c: RgbLinear; gamma = defaultGamma; cheat = false): Rgb =
+  if cheat:
+    result.r = int16 round(c.r.float / (rgbMultiplier.float / 255))
+    result.g = int16 round(c.g.float / (rgbMultiplier.float / 255))
+    result.b = int16 round(c.b.float / (rgbMultiplier.float / 255))
+  else:
+    result.r = int16 round((c.r.float / rgbMultiplier).delinearize1(gamma).clamp(0, 1) * 255.0)
+    result.g = int16 round((c.g.float / rgbMultiplier).delinearize1(gamma).clamp(0, 1) * 255.0)
+    result.b = int16 round((c.b.float / rgbMultiplier).delinearize1(gamma).clamp(0, 1) * 255.0)
+
+func LChToLab*(L, C, h: float): Lab =
+  result.L = L
+  let rad = degToRad(h * 360)
+  result.a = C * cos(rad)
+  result.b = C * sin(rad)
+
+# https://bottosson.github.io/posts/oklab/
+# See linear_srgb_to_oklab() and oklab_to_linear_srgb()
+func toLab*(c: RgbLinear): Lab =
+  let r = c.r.float / rgbMultiplier
+  let g = c.g.float / rgbMultiplier
+  let b = c.b.float / rgbMultiplier
+
+  let l = cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b)
+  let m = cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b)
+  let s = cbrt(0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b)
+
+  result.L = 0.2104542553 * l + 0.7936177850 * m - 0.0040720468 * s
+  result.a = 1.9779984951 * l - 2.4285922050 * m + 0.4505937099 * s
+  result.b = 0.0259040371 * l + 0.7827717662 * m - 0.8086757660 * s
+
+func fromLab*(c: Lab): RgbLinear =
+  let l = c.L + 0.3963377774 * c.a + 0.2158037573 * c.b;
+  let m = c.L - 0.1055613458 * c.a - 0.0638541728 * c.b;
+  let s = c.L - 0.0894841775 * c.a - 1.2914855480 * c.b;
+
+  let l3 = l * l * l
+  let m3 = m * m * m
+  let s3 = s * s * s
+
+  result.r = int16 round((+4.0767416621 * l3 - 3.3077115913 * m3 + 0.2309699292 * s3) * rgbMultiplier)
+  result.g = int16 round((-1.2684380046 * l3 + 2.6097574011 * m3 - 0.3413193965 * s3) * rgbMultiplier)
+  result.b = int16 round((-0.0041960863 * l3 - 0.7034186147 * m3 + 1.7076147010 * s3) * rgbMultiplier)
+
+
+func distance*(a, b: Lab): float =
+  return (b.L - a.L) * (b.L - a.L) + (b.a - a.a) * (b.a - a.a) + (b.b - a.b) * (b.b - a.b)
+
+# From https://github.com/makew0rld/dither/blob/master/dither.go
+# See sqDiff()
+func sqDiff(v1, v2: int16): uint64 =
+  let d = int32(v1) - int32(v2)
+  return uint64 (d * d) shr 2
+
+# From https://github.com/makew0rld/dither/blob/master/dither.go
+# See closestColor()
+func distance*(c1, c2: RgbLinear): uint32 =
+  return uint32(
+    1063 * sqDiff(c1.r, c2.r) div 5000 +
+    447 * sqDiff(c1.g, c2.g) div 625 +
+    361 * sqDiff(c1.b, c2.b) div 5000
+  )
+
+func closest*(self: RgbLinear; palette: openArray[RgbLinear]): int =
+  var best = uint32.high
+  for i, c in palette:
+    let dist = self.distance(c)
+
+    if dist < best:
+      if dist == 0:
+        return i
+      result = i
+      best = dist
+
+func closest*(self: Lab; palette: openArray[Lab]): int =
+  var best = float.high
+  for i, c in palette:
+    let dist = self.distance(c)
+
+    if dist < best:
+      if dist == 0:
+        return i
+      result = i
+      best = dist
 
 func toRgb565*(self: Rgb): Rgb565 =
   let c = self.clamp()
