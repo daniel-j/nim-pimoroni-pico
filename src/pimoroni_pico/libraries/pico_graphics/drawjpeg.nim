@@ -4,7 +4,7 @@ import ../jpegdec
 when not defined(mock):
   import ../../drivers/fatfs
 
-import ../error_diffusion
+import ../pico_graphics/error_diffusion
 
 var jpeg: JPEGDEC
 
@@ -188,7 +188,7 @@ proc jpegdec_draw_callback(draw: ptr JPEGDRAW): cint {.cdecl.} =
       #   color = constructRgb(Rgb565(p[sxmin + symin * draw.iWidth]))
       color = constructRgb(Rgb565(p[sxmin + symin * draw.iWidth]))
 
-      color = color.level(black=0.00, white=0.97).saturate(1.00)
+      # color = color.level(black=0.00, white=0.97) #.saturate(1.00)
 
       case jpegDecodeOptions.drawMode:
       of Default:
@@ -196,8 +196,10 @@ proc jpegdec_draw_callback(draw: ptr JPEGDRAW): cint {.cdecl.} =
         graphics[].setPen(pen)
         graphics[].setPixel(pos)
       of OrderedDither:
+        color = color.saturate(1.50).level(black=0.04, white=0.97, gamma=0.85)
         graphics[].setPixelDither(pos, color.toLinear())
       of ErrorDiffusion:
+        color = color.saturate(1.10)
         # errorMatrix[y][dx + x] += color.toLinear()
         row[x] = color.toLinear()
 

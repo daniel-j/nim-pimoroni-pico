@@ -76,9 +76,6 @@ func saturate*(self: Rgb; factor: float): Rgb =
   const luR = 0.3086
   const luG = 0.6094
   const luB = 0.0820
-  #const luR = 0.25
-  #const luG = 0.7
-  #const luB = 0.10
 
   let nfactor = (1 - factor)
 
@@ -228,12 +225,6 @@ func fromLinear*(c: RgbLinear; gamma = defaultGamma; cheat = false): Rgb =
     result.g = int16 round((c.g.float / rgbMultiplier).delinearize1(gamma).clamp(0, 1) * 255.0)
     result.b = int16 round((c.b.float / rgbMultiplier).delinearize1(gamma).clamp(0, 1) * 255.0)
 
-func LChToLab*(L, C, h: float): Lab =
-  result.L = L
-  let rad = degToRad(h * 360)
-  result.a = C * cos(rad)
-  result.b = C * sin(rad)
-
 # https://bottosson.github.io/posts/oklab/
 # See linear_srgb_to_oklab() and oklab_to_linear_srgb()
 func toLab*(c: RgbLinear): Lab =
@@ -262,9 +253,77 @@ func fromLab*(c: Lab): RgbLinear =
   result.g = int16 round((-1.2684380046 * l3 + 2.6097574011 * m3 - 0.3413193965 * s3) * rgbMultiplier)
   result.b = int16 round((-0.0041960863 * l3 - 0.7034186147 * m3 + 1.7076147010 * s3) * rgbMultiplier)
 
+func LChToLab*(L, C, h: float): Lab =
+  result.L = L
+  let rad = degToRad(h * 360)
+  result.a = C * cos(rad)
+  result.b = C * sin(rad)
 
-func distance*(a, b: Lab): float =
-  return (b.L - a.L) * (b.L - a.L) + (b.a - a.a) * (b.a - a.a) + (b.b - a.b) * (b.b - a.b)
+func deltaE76*(col1, col2: Lab): float =
+  let dL = col2.L - col1.L
+  let da = col2.a - col1.a
+  let db = col2.b - col1.b
+  return dL * dL + da * da + db * db
+
+# http://www.brucelindbloom.com/index.html?Eqn_DeltaE_CIE2000.html
+# https://github.com/hamada147/IsThisColourSimilar/blob/master/Colour.js#L252
+func deltaE00*(col1, col2: Lab): float =
+  let avgL = (col1.L + col2.L) / 2
+  let c1 = sqrt(col1.a * col1.a + col1.b * col1.b)
+  let c2 = sqrt(col2.a * col2.a + col2.b * col2.b)
+  let avgC = (c1 + c2) / 2
+  let avgC7 = pow(avgC, 7)
+  const pow25_7 = pow(25.0, 7)
+  let g = (1 - sqrt(avgC7 / (avgC7 + pow25_7))) / 2
+
+  let a1p = col1.a * (1 + g)
+  let a2p = col2.a * (1 + g)
+
+  let c1p = sqrt(a1p * a1p + col1.b * col1.b)
+  let c2p = sqrt(a2p * a2p + col2.b * col2.b)
+
+  let avgCp = (c1p + c2p) / 2
+
+  var h1p = radToDeg(arctan2(col1.b, a1p))
+  var h2p = radToDeg(arctan2(col2.b, a2p))
+  if h1p < 0:
+    h1p += 360
+  if h2p < 0:
+    h2p += 360
+
+  let avghp = if abs(h1p - h2p) > 180: (h1p + h2p + 360) / 2 else: (h1p + h2p) / 360
+
+  let t = 1 - 0.17 * cos(degToRad(avghp - 30)) + 0.24 * cos(degToRad(2 * avghp)) + 0.32 * cos(degToRad(3 * avghp + 6)) - 0.2 * cos(degToRad(4 * avghp - 63))
+
+  var deltahp = h2p - h1p
+  if abs(deltahp) > 180:
+    if h2p <= h1p:
+      deltahp += 360
+    else:
+      deltahp -= 360
+
+
+  let deltalp = col2.L - col1.L
+  let deltacp = c2p - c1p
+
+  deltahp = 2 * sqrt(c1p * c2p) * sin(degToRad(deltahp) / 2)
+
+  let sl = 1 + ((0.015 * pow(avgL - 50, 2)) / sqrt(20 + pow(avgL - 50, 2)))
+  let sc = 1 + 0.045 * avgCp
+  let sh = 1 + 0.015 * avgCp * t
+
+
+  let deltaro = 30 * exp(-(pow((avghp - 275) / 25, 2)))
+  let avgCp7 = pow(avgCp, 7)
+  let rc = 2 * sqrt(avgCp7 / (avgCp7 + pow25_7))
+  let rt = -rc * sin(2 * degToRad(deltaro))
+
+  const kl = 1
+  const kc = 1
+  const kh = 1
+
+  return sqrt(pow(deltalp / (kl * sl), 2) + pow(deltacp / (kc * sc), 2) + pow(deltahp / (kh * sh), 2) + rt * (deltacp / (kc * sc)) * (deltahp / (kh * sh)))
+
 
 # From https://github.com/makew0rld/dither/blob/master/dither.go
 # See sqDiff()
@@ -295,7 +354,7 @@ func closest*(self: RgbLinear; palette: openArray[RgbLinear]): int =
 func closest*(self: Lab; palette: openArray[Lab]): int =
   var best = float.high
   for i, c in palette:
-    let dist = self.distance(c)
+    let dist = self.deltaE00(c)
 
     if dist < best:
       if dist == 0:

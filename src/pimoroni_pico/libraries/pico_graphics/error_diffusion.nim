@@ -1,10 +1,11 @@
-import ./pico_graphics
+import ../pico_graphics
+export pico_graphics
 when not defined(mock):
-  import ../drivers/psram_display
-  import ../drivers/fatfs
+  import ../../drivers/psram_display
+  import ../../drivers/fatfs
   export psram_display
 else:
-  import ../drivers/psram_display_mock
+  import ../../drivers/psram_display_mock
   export psram_display_mock
 
 type

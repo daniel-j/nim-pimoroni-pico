@@ -550,7 +550,7 @@ const PicoGraphicsPen3BitPalette* = [
   hsvToRgb(110/360, 0.90, 0.40).toLinear(paletteGamma), ##  green
   hsvToRgb(210/360, 0.95, 0.55).toLinear(paletteGamma), ##  blue
   hsvToRgb(355/360, 0.90, 0.90).toLinear(paletteGamma), ##  red
-  hsvToRgb( 56/360, 0.79, 0.98).toLinear(paletteGamma), ##  yellow
+  hsvToRgb( 56/360, 0.59, 0.98).toLinear(paletteGamma), ##  yellow
   hsvToRgb( 25/360, 0.90, 0.75).toLinear(paletteGamma), ##  orange
   hsvToRgb(      0, 0, 1.00).toLinear(paletteGamma), ##  clean - do not use on inky7 as colour
 ]
@@ -650,8 +650,8 @@ method setPixelDither*(self: var PicoGraphicsPen3Bit; p: Point; c: RgbLinear) =
   # 4 = 16x16
   # 5 = 32x32
   # 6 = 64x64
-  const patternSize = 6
-  const kind = DitherKind.BlueNoise
+  const patternSize = 4
+  const kind = DitherKind.Bayer
 
   const mask = (1 shl patternSize) - 1
   # find the pattern coordinate offset
