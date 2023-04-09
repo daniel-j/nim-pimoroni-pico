@@ -302,7 +302,6 @@ func deltaE00*(col1, col2: Lab): float =
     else:
       deltahp -= 360
 
-
   let deltalp = col2.L - col1.L
   let deltacp = c2p - c1p
 
