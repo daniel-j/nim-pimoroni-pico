@@ -60,7 +60,7 @@ proc drawFile(filename: string) =
     inky.update()
     echo "Update complete. Sleeping..."
     inky.led(LedActivity, 0)
-    inky.sleep(1)
+    inky.sleep(10)
   else:
     inky.led(LedActivity, 0)
 
@@ -158,6 +158,7 @@ proc inkyProc() =
     inky.led(LedC, 50)
     echo "Drawing palette stripes..."
     let startTime = getAbsoluteTime()
+
     inky.setPen(Black)
     inky.rectangle(constructRect(0, 0, inky.width div 8, inky.height))
     inky.setPen(White)

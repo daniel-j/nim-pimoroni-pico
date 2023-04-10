@@ -22,7 +22,7 @@ const palette = [
   hsvToRgb(220/360, 0.70, 0.60).toLinear(paletteGamma), ##  blue
   hsvToRgb( 10/360, 0.80, 0.75).toLinear(paletteGamma), ##  red
   hsvToRgb( 56/360, 0.60, 0.95).toLinear(paletteGamma), ##  yellow
-  hsvToRgb( 35/360, 0.55, 0.85).toLinear(paletteGamma), ##  orange
+  hsvToRgb( 35/360, 0.65, 0.85).toLinear(paletteGamma), ##  orange
   constructRgb(255, 0, 255).toLinear(paletteGamma), ##  clean - do not use on inky7 as colour
 ]
 

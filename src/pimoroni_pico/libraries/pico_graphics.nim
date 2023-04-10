@@ -545,8 +545,8 @@ type
 const PicoGraphicsPen3BitPalette* = [
   hslToRgb((h: 120/360, s: 0.00, l: 0.00)).toLinear(), ##  black
   hslToRgb((h:   0/360, s: 0.00, l: 1.00)).toLinear(), ##  white
-  hslToRgb((h:  95/360, s: 0.95, l: 0.30)).toLinear(), ##  green
-  hslToRgb((h: 205/360, s: 0.85, l: 0.37)).toLinear(), ##  blue
+  hslToRgb((h:  95/360, s: 0.93, l: 0.30)).toLinear(), ##  green
+  hslToRgb((h: 205/360, s: 0.88, l: 0.42)).toLinear(), ##  blue
   hslToRgb((h: 355/360, s: 0.95, l: 0.49)).toLinear(), ##  red
   hslToRgb((h:  57/360, s: 0.97, l: 0.72)).toLinear(), ##  yellow
   hslToRgb((h:  23/360, s: 1.00, l: 0.45)).toLinear(), ##  orange
