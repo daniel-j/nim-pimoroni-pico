@@ -6,7 +6,7 @@ proc builtinBswap16(a: uint16): uint16 {.importc: "__builtin_bswap16", nodecl, n
 ## RGB
 ##
 
-const defaultGamma* = 2.0
+const defaultGamma* = 2.4
 const rgbBits* = 12
 const rgbMultiplier* = (1 shl rgbBits) - 1
 
@@ -16,10 +16,15 @@ type
   Rgb888* = distinct uint32
   Rgb* {.packed.} = object
     r*, g*, b*: int16
+  RgbLinearComponent* = int16
   RgbLinear* {.packed.} = object
-    r*, g*, b*: int16
+    r*, g*, b*: RgbLinearComponent
   Lab* {.packed.} = object
     L*, a*, b*: float
+  Hsl* {.packed.} = tuple
+    h: float
+    s: float
+    l: float
 
 func clamp*(self: Rgb): Rgb =
   result.r = self.r.clamp(0, 255)
@@ -144,9 +149,10 @@ func hsvToRgb*(h, s, v: float): Rgb =
     of 5: return constructRgb(v, p, q)
     else: return constructRgb(0, 0, 0)
 
-func hslToRgb*(h, s, l: float): Rgb =
+func hslToRgb*(hsl: Hsl): Rgb =
   ## Converts from HSL to RGB
   ## HSL values are between 0.0 and 1.0
+  let (h, s, l) = hsl
   if s <= 0.0:
     return constructRgb(l, l, l)
 
@@ -166,21 +172,59 @@ func hslToRgb*(h, s, l: float): Rgb =
   result.g = int16 round(hue2rgb(p, q, h).clamp(0, 1) * 255.0)
   result.b = int16 round(hue2rgb(p, q, h - 1/3).clamp(0, 1) * 255.0)
 
+func rgbToHsl*(col: Rgb): Hsl =
+  let r = col.r / 255
+  let g = col.g / 255
+  let b = col.b / 255
+  let valMin = min(r, min(g, b))
+  let valMax = max(r, max(g, b))
+  let delta = valMax - valMin
+  var h = 0.0
+
+  if delta == 0:
+    h = 0
+  elif valMax == r:
+    h = ((g - b) / delta)
+  elif valMax == g:
+    h = (b - r) / delta + 2
+  elif valMax == b:
+    h = (r - g) / delta + 4
+
+  h = h * 60.0 / 360.0
+
+  if h < 0: h += 1.0
+
+  let l = (valMin + valMax) / 2
+
+  let s = (
+    if delta == 0:
+      0.0
+    elif l <= 0.5:
+      delta / (valMax + valMin)
+    else:
+      delta / (2 - valMax - valMin)
+  )
+
+  result.h = h
+  result.s = s
+  result.l = l
+
+
 func `+`*(lhs: RgbLinear; rhs: RgbLinear): RgbLinear =
   return RgbLinear(r: lhs.r + rhs.r, g: lhs.g + rhs.g, b: lhs.b + rhs.b)
-func `+`*(lhs: RgbLinear; rhs: int16): RgbLinear =
+func `+`*(lhs: RgbLinear; rhs: RgbLinearComponent): RgbLinear =
   return RgbLinear(r: lhs.r + rhs, g: lhs.g + rhs, b: lhs.b + rhs)
 func `-`*(self: RgbLinear; c: RgbLinear): RgbLinear =
   return RgbLinear(r: self.r - c.r, g: self.g - c.g, b: self.b - c.b)
-func `*`*(self: RgbLinear; i: int16): RgbLinear =
+func `*`*(self: RgbLinear; i: RgbLinearComponent): RgbLinear =
   return RgbLinear(r: self.r * i, g: self.g * i, b: self.b * i)
 func `*`*(self: RgbLinear; i: float): RgbLinear =
-  return RgbLinear(r: int16 self.r.float * i, g: int16 self.g.float * i, b: int16 self.b.float * i)
-func `div`*(self: RgbLinear; i: int16): RgbLinear =
+  return RgbLinear(r: RgbLinearComponent self.r.float * i, g: RgbLinearComponent self.g.float * i, b: RgbLinearComponent self.b.float * i)
+func `div`*(self: RgbLinear; i: RgbLinearComponent): RgbLinear =
   return RgbLinear(r: self.r div i, g: self.g div i, b: self.b div i)
-func `shr`*(self: RgbLinear; i: int16): RgbLinear =
+func `shr`*(self: RgbLinear; i: RgbLinearComponent): RgbLinear =
   return RgbLinear(r: self.r shr i, g: self.g shr i, b: self.b shr i)
-func `shl`*(self: RgbLinear; i: int16): RgbLinear =
+func `shl`*(self: RgbLinear; i: RgbLinearComponent): RgbLinear =
   return RgbLinear(r: self.r shl i, g: self.g shl i, b: self.b shl i)
 
 proc `+=`*(self: var RgbLinear; c: RgbLinear) =
@@ -207,19 +251,19 @@ func delinearize1*(v: float; gamma = defaultGamma): float =
 # From https://github.com/makew0rld/dither/blob/master/color_spaces.go
 func toLinear*(c: Rgb; gamma = defaultGamma; cheat = false): RgbLinear =
   if cheat:
-    result.r = int16 round(c.r.clamp(0, 255).float * (rgbMultiplier.float / 255))
-    result.g = int16 round(c.g.clamp(0, 255).float * (rgbMultiplier.float / 255))
-    result.b = int16 round(c.b.clamp(0, 255).float * (rgbMultiplier.float / 255))
+    result.r = RgbLinearComponent round((c.r.float / 255.0).clamp(0, 1).pow(gamma) * rgbMultiplier)
+    result.g = RgbLinearComponent round((c.g.float / 255.0).clamp(0, 1).pow(gamma) * rgbMultiplier)
+    result.b = RgbLinearComponent round((c.b.float / 255.0).clamp(0, 1).pow(gamma) * rgbMultiplier)
   else:
-    result.r = int16 round((c.r.float / 255.0).clamp(0, 1).linearize1(gamma) * rgbMultiplier)
-    result.g = int16 round((c.g.float / 255.0).clamp(0, 1).linearize1(gamma) * rgbMultiplier)
-    result.b = int16 round((c.b.float / 255.0).clamp(0, 1).linearize1(gamma) * rgbMultiplier)
+    result.r = RgbLinearComponent round((c.r.float / 255.0).clamp(0, 1).linearize1(gamma) * rgbMultiplier)
+    result.g = RgbLinearComponent round((c.g.float / 255.0).clamp(0, 1).linearize1(gamma) * rgbMultiplier)
+    result.b = RgbLinearComponent round((c.b.float / 255.0).clamp(0, 1).linearize1(gamma) * rgbMultiplier)
 
 func fromLinear*(c: RgbLinear; gamma = defaultGamma; cheat = false): Rgb =
   if cheat:
-    result.r = int16 round(c.r.float / (rgbMultiplier.float / 255))
-    result.g = int16 round(c.g.float / (rgbMultiplier.float / 255))
-    result.b = int16 round(c.b.float / (rgbMultiplier.float / 255))
+    result.r = int16 round(c.r.float / (rgbMultiplier.float / 255)).clamp(0, 255)
+    result.g = int16 round(c.g.float / (rgbMultiplier.float / 255)).clamp(0, 255)
+    result.b = int16 round(c.b.float / (rgbMultiplier.float / 255)).clamp(0, 255)
   else:
     result.r = int16 round((c.r.float / rgbMultiplier).delinearize1(gamma).clamp(0, 1) * 255.0)
     result.g = int16 round((c.g.float / rgbMultiplier).delinearize1(gamma).clamp(0, 1) * 255.0)
@@ -259,11 +303,23 @@ func LChToLab*(L, C, h: float): Lab =
   result.a = C * cos(rad)
   result.b = C * sin(rad)
 
+# Simple euclidian distance function
 func deltaE76*(col1, col2: Lab): float =
   let dL = col2.L - col1.L
   let da = col2.a - col1.a
   let db = col2.b - col1.b
-  return dL * dL + da * da + db * db
+  return sqrt(dL * dL + da * da + db * db)
+
+# https://github.com/svgeesus/svgeesus.github.io/blob/master/Color/OKLab-notes.md
+func deltaEOK*(col1, col2: Lab): float =
+  let dL = col1.L - col2.L
+  let C1 = sqrt(col1.a * col1.a + col1.b * col1.b)
+  let C2 = sqrt(col2.a * col2.a + col2.b * col2.b)
+  let dC = C1 - C2
+  let da = col1.a - col2.a
+  let db = col1.b - col2.b
+  let dH = sqrt(da * da + db * db - dC * dC)
+  return sqrt(dL * dL + dC * dC + dH * dH)
 
 # http://www.brucelindbloom.com/index.html?Eqn_DeltaE_CIE2000.html
 # https://github.com/hamada147/IsThisColourSimilar/blob/master/Colour.js#L252
@@ -326,8 +382,8 @@ func deltaE00*(col1, col2: Lab): float =
 
 # From https://github.com/makew0rld/dither/blob/master/dither.go
 # See sqDiff()
-func sqDiff(v1, v2: int16): uint64 =
-  let d = int32(v1) - int32(v2)
+func sqDiff(v1, v2: int32): uint64 =
+  let d = (v1) - (v2)
   return uint64 (d * d) shr 2
 
 # From https://github.com/makew0rld/dither/blob/master/dither.go
@@ -353,7 +409,7 @@ func closest*(self: RgbLinear; palette: openArray[RgbLinear]): int =
 func closest*(self: Lab; palette: openArray[Lab]): int =
   var best = float.high
   for i, c in palette:
-    let dist = self.deltaE00(c)
+    let dist = self.deltaEOK(c)
 
     if dist < best:
       if dist == 0:

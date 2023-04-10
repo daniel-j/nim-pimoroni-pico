@@ -6,6 +6,7 @@ import picostdlib/pico/rand
 
 import pimoroni_pico/libraries/pico_graphics/drawjpeg
 import pimoroni_pico/libraries/inky_frame
+import pimoroni_pico/libraries/pico_graphics/error_diffusion
 
 discard stdioInitAll()
 # blockUntilUsbConnected()
@@ -74,11 +75,21 @@ proc inkyProc() =
   if EvtBtnA in inky.getWakeUpEvents():
     echo "Drawing HSL chart..."
     let startTime = getAbsoluteTime()
+
+    var errDiff: ErrorDiffusion
+    errDiff.autobackend(inky.addr)
+    errDiff.init(0, 0, inky.width, inky.height, inky.addr)
+    errDiff.orientation = 0
+    if errDiff.backend == ErrorDiffusionBackend.BackendPsram:
+      errDiff.psramAddress = PsramAddress inky.width * inky.height
+
     inky.setPen(White)
     inky.clear()
     var p = Point()
+    var row = newSeq[RgbLinear](inky.width)
     for y in 0..<inky.height:
-      echo y, " of ", inky.height
+      stdout.write $(y+1) & " of " & $inky.height & "\r"
+      stdout.flushFile()
       p.y = y
       let yd = y / inky.height
       let l = yd
@@ -86,8 +97,15 @@ proc inkyProc() =
         p.x = x
         let xd = x / inky.width
         let hue = xd
-        inky.setPen(inky.createPenHsl(hue, 1.0, 1.02 - l * 1.04))
-        inky.setPixel(p)
+        let color = inky.createPenHsl(hue, 1.0, 1.02 - l * 1.04)
+        #let color = LChToLab(1 - l, 0.15, hue).fromLab()
+        # inky.setPen(color)
+        # inky.setPixel(p)
+        row[x] = color.toLinear()
+      errDiff.write(0, y, row)
+
+    errDiff.process()
+    errDiff.deinit()
 
     let endTime = getAbsoluteTime()
     echo "Time: ", absoluteTimeDiffUs(startTime, endTime) div 1000, "ms"

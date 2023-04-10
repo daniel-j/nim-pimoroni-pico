@@ -531,8 +531,6 @@ type
     cacheNearest*: array[colorCacheSize, uint8]
     cacheNearestBuilt*: bool
 
-const paletteGamma = 1.8
-
 # const PicoGraphicsPen3BitPalette* = [
 #   Rgb(r:   0, g:   0, b:   0).toLinear(paletteGamma), ##  black
 #   Rgb(r: 255, g: 255, b: 255).toLinear(paletteGamma), ##  white
@@ -545,19 +543,20 @@ const paletteGamma = 1.8
 # ]
 
 const PicoGraphicsPen3BitPalette* = [
-  hsvToRgb(110/360, 1, 0.05).toLinear(paletteGamma), ##  black
-  hsvToRgb(290/360, 0.00, 1).toLinear(paletteGamma), ##  white
-  hsvToRgb(120/360, 0.90, 0.40).toLinear(paletteGamma), ##  green
-  hsvToRgb(230/360, 0.90, 0.50).toLinear(paletteGamma), ##  blue
-  hsvToRgb(358/360, 0.90, 0.80).toLinear(paletteGamma), ##  red
-  hsvToRgb( 56/360, 0.59, 0.98).toLinear(paletteGamma), ##  yellow
-  hsvToRgb( 30/360, 0.90, 0.70).toLinear(paletteGamma), ##  orange
-  hsvToRgb(      0, 0, 1.00).toLinear(paletteGamma), ##  clean - do not use on inky7 as colour
+  hslToRgb((h: 120/360, s: 0.00, l: 0.00)).toLinear(), ##  black
+  hslToRgb((h:   0/360, s: 0.00, l: 1.00)).toLinear(), ##  white
+  hslToRgb((h:  95/360, s: 0.95, l: 0.30)).toLinear(), ##  green
+  hslToRgb((h: 205/360, s: 0.85, l: 0.37)).toLinear(), ##  blue
+  hslToRgb((h: 355/360, s: 0.95, l: 0.49)).toLinear(), ##  red
+  hslToRgb((h:  57/360, s: 0.97, l: 0.72)).toLinear(), ##  yellow
+  hslToRgb((h:  23/360, s: 1.00, l: 0.45)).toLinear(), ##  orange
+  hslToRgb((h:   0/360, s: 0.00, l: 1.00)).toLinear(), ##  clean - do not use on inky7 as colour
 ]
 
 static:
   for c in PicoGraphicsPen3BitPalette:
-    echo c.fromLinear(paletteGamma)
+    echo c.fromLinear()
+
 
 const RGB_FLAG*: uint = 0x7f000000
 
@@ -598,7 +597,7 @@ proc createPen*(self: PicoGraphicsPen3Bit; c: Rgb): uint =
 proc createPenHsv*(self: PicoGraphics; h, s, v: float): Rgb =
   hsvToRgb(h, s, v)
 proc createPenHsl*(self: PicoGraphics; h, s, l: float): Rgb =
-  hslToRgb(h, s, l)
+  hslToRgb(Hsl (h, s, l))
 
 proc createPenNearestLut*(self: var PicoGraphicsPen3Bit; c: RgbLinear): uint =
   if not self.cacheNearestBuilt:
@@ -609,7 +608,12 @@ proc createPenNearestLut*(self: var PicoGraphicsPen3Bit; c: RgbLinear): uint =
 
 method createPenNearest*(self: var PicoGraphicsPen3Bit; c: RgbLinear): uint =
   return self.createPenNearestLut(c)
-  # return c.toLab().closest(self.getPaletteLab()).uint
+
+  # Warning: This is slooow:
+  # var paletteLab = newSeq[Lab](self.paletteSize)
+  # for i, col in self.getPalette():
+  #   paletteLab[i] = col.toLab()
+  # return c.toLab().closest(paletteLab).uint
 
 method getPenColor*(self: PicoGraphicsPen3Bit; color: uint = self.color): RgbLinear {.inline.} = self.palette[color]
 
@@ -650,7 +654,7 @@ method setPixelDither*(self: var PicoGraphicsPen3Bit; p: Point; c: RgbLinear) =
   # 4 = 16x16
   # 5 = 32x32
   # 6 = 64x64
-  const patternSize = 4
+  const patternSize = 6
   const kind = DitherKind.Bayer
 
   const mask = (1 shl patternSize) - 1

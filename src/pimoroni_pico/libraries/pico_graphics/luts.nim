@@ -11,7 +11,7 @@ type
   DitherKind* = enum
     NoDither, Bayer, BlueNoise, Cluster
 
-const multiplier = rgbMultiplier * 0.8
+const multiplier = rgbMultiplier * 0.87
 
 # How many bits for each colour in cache
 const
@@ -69,9 +69,9 @@ iterator cacheColors*(): tuple[i: int, c: RgbLinear] =
     let g = (i.uint and cacheGreenMask shl cacheBlueBits) shr cacheBlueBits shl (rgbBits - cacheGreenBits)
     let b = (i.uint and cacheBlueMask) shl (rgbBits - cacheBlueBits)
     let cacheCol = RgbLinear(
-      r: int16 r or (r shr cacheBlueBits) or (r shr (cacheGreenBits + cacheBlueBits)),
-      g: int16 g or (g shr cacheBlueBits) or (g shr (cacheGreenBits + cacheBlueBits)),
-      b: int16 b or (b shr cacheBlueBits) or (b shr (cacheGreenBits + cacheBlueBits))
+      r: RgbLinearComponent r or (r shr cacheBlueBits) or (r shr (cacheGreenBits + cacheBlueBits)),
+      g: RgbLinearComponent g or (g shr cacheBlueBits) or (g shr (cacheGreenBits + cacheBlueBits)),
+      b: RgbLinearComponent b or (b shr cacheBlueBits) or (b shr (cacheGreenBits + cacheBlueBits))
     )
     yield (i, cacheCol)
 
@@ -115,7 +115,7 @@ func bayerMatrix*[T](M: static[Natural]; multiplier: float = 1 shl M shl M): arr
 
 # https://github.com/makew0rld/dither/blob/master/pixelmappers.go
 # See convThresholdToAddition()
-func convertPattern*(pattern: static[openArray[uint8]]; scale: float; max: int = 256): array[pattern.len, int16] {.compileTime.} =
+func convertPattern*(pattern: static[openArray[uint8]]; scale: float; max: int = 256): array[pattern.len, RgbLinearComponent] {.compileTime.} =
   ## Convert threshold pattern to be used for adding to a Rgb() value
   static: echo "Converting dither pattern " & $pattern.len
   for i, value in pattern:
@@ -124,12 +124,12 @@ func convertPattern*(pattern: static[openArray[uint8]]; scale: float; max: int =
 # For backwards compatability
 const dither16Pattern* = bayerMatrix[uint8](2)
 
-proc getDitherError*(kind: static[DitherKind]; dim: static[Natural]; index: int): int16 =
+proc getDitherError*(kind: static[DitherKind]; dim: static[Natural]; index: int): RgbLinearComponent =
   when dim <= 0:
     return 0
   else:
     when kind == Bayer:
-      const p = bayerMatrix[int16](dim, multiplier)
+      const p = bayerMatrix[RgbLinearComponent](dim, multiplier)
       return p[index]
 
     when kind == BlueNoise:
