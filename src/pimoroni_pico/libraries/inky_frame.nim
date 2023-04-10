@@ -193,12 +193,17 @@ proc sleep*(self: var InkyFrame; wakeInMinutes: int = -1) =
     # supports, to sleep any longer we need to specify a date and time to
     # wake up
     self.rtc.setTimer(wakeInMinutes.uint8, tt1Over60Hz)
-    self.rtc.enableTimerInterrupt(true, false)
+    self.rtc.enableTimerInterrupt(true)
+
 
   # release the vsys hold pin so that inky can go to sleep
   gpioPut(PinHoldSysEn, Low)
-  while true:
-    tightLoopContents()
+
+  # regular sleep on usb power
+  if wakeInMinutes > 0:
+    echo "Sleeping for ", wakeInMinutes, " minute(s)"
+    sleepMs(wakeInMinutes.uint32 * 60 * 1000)
+
 
 proc sleepUntil*(self: var InkyFrame; second, minute, hour, day: int = -1) =
   if second != -1 or minute != -1 or hour != -1 or day != -1:
@@ -208,6 +213,9 @@ proc sleepUntil*(self: var InkyFrame; second, minute, hour, day: int = -1) =
 
   # release the vsys hold pin so that inky can go to sleep
   gpioPut(PinHoldSysEn, Low)
+
+  # TODO: Implement emulation of sleep using rtc
+  echo "Sleeping forever."
   while true:
     tightLoopContents()
 

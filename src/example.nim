@@ -27,13 +27,15 @@ let inkyKindEnum = parseEnum[InkyFrameKind](inkyKind, m.get())
 
 inky.kind = inkyKindEnum
 
+discard stdioInitAll()
+
+sleepMs(2000)
+
 inky.init()
 
 inky.led(Led.LedActivity, 100)
 
-discard stdioInitAll()
 # blockUntilUsbConnected()
-sleepMs(2000)
 
 echo "Wake Up Events: ", inky.getWakeUpEvents()
 
@@ -58,7 +60,7 @@ proc drawFile(filename: string) =
     inky.update()
     echo "Update complete. Sleeping..."
     inky.led(LedActivity, 0)
-    sleepMs(1 * 60 * 1000)
+    inky.sleep(1)
   else:
     inky.led(LedActivity, 0)
 

@@ -174,14 +174,12 @@ proc unsetAlarm*(self: var RtcPcf85063a) =
 
 proc setTimer*(self: var RtcPcf85063a; ticks: uint8; ttp: TimerTickPeriod) =
   var bits: uint8 = self.i2c.regReadUint8(self.address, Registers.TIMER_MODE.uint8)
-  var timer: array[2, uint8] = [ticks, uint8(
-      (bits and not 0x18'u8) or (ttp.uint8 shl 3) or 0x04'u8)] ##  mask out current ttp and set new + enable
+  var timer: array[2, uint8] = [ticks, uint8((bits and not 0x18'u8) or (ttp.uint8 shl 3) or 0x04'u8)] ##  mask out current ttp and set new + enable
   discard self.i2c.writeBytes(self.address, Registers.TIMER_VALUE.uint8, timer[0].addr, timer.len.cuint)
 
-proc enableTimerInterrupt*(self: var RtcPcf85063a; enable: bool; flagOnly: bool) =
+proc enableTimerInterrupt*(self: var RtcPcf85063a; enable: bool; flagOnly: bool = false) =
   var bits: uint8 = self.i2c.regReadUint8(self.address, Registers.TIMER_MODE.uint8)
-  bits = (bits and not 0x03'u8) or (if enable: 0x02 else: 0x00) or
-      (if flagOnly: 0x01 else: 0x00)
+  bits = (bits and not 0x03'u8) or (if enable: 0x02 else: 0x00) or (if flagOnly: 0x01 else: 0x00)
   self.i2c.regWriteUint8(self.address, Registers.TIMER_MODE.uint8, bits)
 
 proc readTimerFlag*(self: var RtcPcf85063a): bool =

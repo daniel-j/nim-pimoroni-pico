@@ -32,17 +32,18 @@ proc init*(self: var I2c; sda: Gpio = I2cDefaultSda; scl: Gpio = I2cDefaultScl; 
     inc(pin)
   discard i2cInit(self.i2c, self.baudrate.cuint)
   gpioSetFunction(self.sda, GpioFunction.I2c)
-  gpioPullUp(self.sda)
   gpioSetFunction(self.scl, GpioFunction.I2c)
+  gpioPullUp(self.sda)
   gpioPullUp(self.scl)
 
-proc `=destroy`*(self: var I2c) =
-  i2cDeinit(self.i2c)
-  gpioDisablePulls(self.sda)
-  gpioSetFunction(self.sda, GpioFunction.Null)
-  gpioDisablePulls(self.scl)
-  gpioSetFunction(self.scl, GpioFunction.Null)
-
+proc deinit*(self: var I2c) =
+  if self.i2c != nil:
+    i2cDeinit(self.i2c)
+    gpioDisablePulls(self.sda)
+    gpioSetFunction(self.sda, GpioFunction.Null)
+    gpioDisablePulls(self.scl)
+    gpioSetFunction(self.scl, GpioFunction.Null)
+    self.i2c = nil
 
 proc getI2c*(self: var I2c): auto = self.i2c
 proc getScl*(self: var I2c): auto = self.scl
@@ -65,29 +66,25 @@ proc regWriteUint8*(self: var I2c; address: I2cAddress; reg: uint8; value: uint8
 
 proc regReadUint8*(self: var I2c; address: I2cAddress; reg: uint8): uint8 =
   var value: uint8
-  var register = reg
-  discard i2cWriteBlocking(self.i2c, address, register.addr, 1, false)
+  discard i2cWriteBlocking(self.i2c, address, reg.unsafeAddr, 1, false)
   discard i2cReadBlocking(self.i2c, address, value.addr, 1, false)
   return value
 
 proc regReadUint16*(self: var I2c; address: I2cAddress; reg: uint8): uint16 =
   var value: uint16
-  var register = reg
-  discard i2cWriteBlocking(self.i2c, address, register.addr, 1, true)
+  discard i2cWriteBlocking(self.i2c, address, reg.unsafeAddr, 1, true)
   discard i2cReadBlocking(self.i2c, address, cast[ptr uint8](addr(value)), sizeof((uint16)).csize_t, false)
   return value
 
 proc regReadUint32*(self: var I2c; address: I2cAddress; reg: uint8): uint32 =
   var value: uint32
-  var register = reg
-  discard i2cWriteBlocking(self.i2c, address, addr(register), 1, true)
+  discard i2cWriteBlocking(self.i2c, address, reg.unsafeAddr, 1, true)
   discard i2cReadBlocking(self.i2c, address, cast[ptr uint8](addr(value)), sizeof((uint32)).csize_t, false)
   return value
 
 proc regReadInt16*(self: var I2c; address: I2cAddress; reg: uint8): int16 =
   var value: int16
-  var register = reg
-  discard i2cWriteBlocking(self.i2c, address, addr(register), 1, true)
+  discard i2cWriteBlocking(self.i2c, address, reg.unsafeAddr, 1, true)
   discard i2cReadBlocking(self.i2c, address, cast[ptr uint8](addr(value)), sizeof((int16)).csize_t, false)
   return value
 

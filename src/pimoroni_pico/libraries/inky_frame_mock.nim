@@ -2,7 +2,7 @@ import pixie
 import ./pico_graphics
 export pixie, pico_graphics
 
-const paletteGamma = 2.0
+const paletteGamma = 1.8
 
 # const palette = [
 #   hslToRgb(      0, 1.00, 0.00).toLinear(paletteGamma), ##  black
@@ -17,7 +17,7 @@ const paletteGamma = 2.0
 
 const palette = [
   hsvToRgb(100/360, 1, 0).toLinear(paletteGamma), ##  black
-  hsvToRgb(270/360, 0, 0.97).toLinear(paletteGamma), ##  white
+  hsvToRgb(30/360, 0.07, 0.97).toLinear(paletteGamma), ##  white
   hsvToRgb(120/360, 1.00, 0.65).toLinear(paletteGamma), ##  green
   hsvToRgb(220/360, 0.70, 0.60).toLinear(paletteGamma), ##  blue
   hsvToRgb( 10/360, 0.80, 0.75).toLinear(paletteGamma), ##  red
