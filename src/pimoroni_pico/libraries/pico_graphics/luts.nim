@@ -11,7 +11,7 @@ type
   DitherKind* = enum
     NoDither, Bayer, BlueNoise, Cluster
 
-const multiplier = rgbMultiplier * 0.87
+const multiplier = rgbMultiplier * 1.0
 
 # How many bits for each colour in cache
 const

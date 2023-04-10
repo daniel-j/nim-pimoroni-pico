@@ -176,7 +176,7 @@ proc jpegdec_draw_callback(draw: ptr JPEGDRAW): cint {.cdecl.} =
 
       # linear interpolation
       # var colorv = RgbLinear()
-      # var divider: int16 = 0
+      # var divider: RgbLinearComponent = 0
       # for sx in sxmin..<sxmax:
       #   for sy in symin..<symax:
       #     colorv += constructRgb(Rgb565(p[sx + sy * draw.iWidth])).toLinear()
@@ -199,7 +199,7 @@ proc jpegdec_draw_callback(draw: ptr JPEGDRAW): cint {.cdecl.} =
         color = color.saturate(1.30) #.level(black=0.04, white=0.97)
         graphics[].setPixelDither(pos, color.toLinear())
       of ErrorDiffusion:
-        color = color.saturate(1.10)
+        color = color.saturate(1.30).level(gamma=1.5)
         # errorMatrix[y][dx + x] += color.toLinear()
         row[x] = color.toLinear()
 

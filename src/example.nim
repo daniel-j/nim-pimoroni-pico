@@ -1,3 +1,4 @@
+
 import std/strutils
 import std/random
 
@@ -8,10 +9,8 @@ import pimoroni_pico/libraries/pico_graphics/drawjpeg
 import pimoroni_pico/libraries/inky_frame
 import pimoroni_pico/libraries/pico_graphics/error_diffusion
 
-discard stdioInitAll()
-# blockUntilUsbConnected()
-
-echo "USB connected"
+var inky: InkyFrame
+inky.boot()
 
 var fs: FATFS
 
@@ -25,9 +24,17 @@ assert(m.isSome)
 
 const inkyKind {.strdefine.} = "Unknown inkyKind"
 let inkyKindEnum = parseEnum[InkyFrameKind](inkyKind, m.get())
-var inky = InkyFrame(kind: inkyKindEnum)
+
+inky.kind = inkyKindEnum
 
 inky.init()
+
+inky.led(Led.LedActivity, 100)
+
+discard stdioInitAll()
+# blockUntilUsbConnected()
+sleepMs(2000)
+
 echo "Wake Up Events: ", inky.getWakeUpEvents()
 
 
@@ -70,9 +77,11 @@ proc getFileN(directory: string; n: Natural): FILINFO =
     inc(i)
 
 proc inkyProc() =
+  inky.led(Led.LedActivity, 0)
   echo "Starting..."
 
   if EvtBtnA in inky.getWakeUpEvents():
+    inky.led(LedA, 50)
     echo "Drawing HSL chart..."
     let startTime = getAbsoluteTime()
 
@@ -101,7 +110,7 @@ proc inkyProc() =
         #let color = LChToLab(1 - l, 0.15, hue).fromLab()
         # inky.setPen(color)
         # inky.setPixel(p)
-        row[x] = color.toLinear()
+        row[x] = color.level(gamma=1.5).toLinear()
       errDiff.write(0, y, row)
 
     errDiff.process()
@@ -110,9 +119,12 @@ proc inkyProc() =
     let endTime = getAbsoluteTime()
     echo "Time: ", absoluteTimeDiffUs(startTime, endTime) div 1000, "ms"
     echo "Updating..."
+    inky.led(LedA, 100)
     inky.update()
+    inky.led(LedA, 0)
 
   elif EvtBtnB in inky.getWakeUpEvents():
+    inky.led(LedB, 50)
     echo "Drawing bubbles..."
     let startTime = getAbsoluteTime()
     inky.setPen(White)
@@ -136,9 +148,12 @@ proc inkyProc() =
     let endTime = getAbsoluteTime()
     echo "Time: ", absoluteTimeDiffUs(startTime, endTime) div 1000, "ms"
     echo "Updating..."
+    inky.led(LedB, 100)
     inky.update()
+    inky.led(LedB, 0)
 
   elif EvtBtnC in inky.getWakeUpEvents():
+    inky.led(LedC, 50)
     echo "Drawing palette stripes..."
     let startTime = getAbsoluteTime()
     inky.setPen(Black)
@@ -160,9 +175,12 @@ proc inkyProc() =
     let endTime = getAbsoluteTime()
     echo "Time: ", absoluteTimeDiffUs(startTime, endTime) div 1000, "ms"
     echo "Updating..."
+    inky.led(LedC, 100)
     inky.update()
+    inky.led(LedC, 0)
 
   elif EvtBtnD in inky.getWakeUpEvents():
+    inky.led(LedD, 50)
     echo "Drawing triangles and lines..."
     let startTime = getAbsoluteTime()
     inky.setPen(White)
@@ -199,9 +217,12 @@ proc inkyProc() =
     let endTime = getAbsoluteTime()
     echo "Time: ", absoluteTimeDiffUs(startTime, endTime) div 1000, "ms"
     echo "Updating..."
+    inky.led(LedD, 100)
     inky.update()
+    inky.led(LedD, 0)
 
   elif EvtBtnE in inky.getWakeUpEvents():
+    inky.led(LedE, 50)
     echo "Cleaning..."
     inky.setPen(Clean)
     inky.setBorder(Orange)
@@ -210,10 +231,12 @@ proc inkyProc() =
     let endTime = getAbsoluteTime()
     echo "Time to clear: ", absoluteTimeDiffUs(startTime, endTime) div 1000, "ms"
     echo "First update..."
+    inky.led(LedE, 100)
     inky.update()
     inky.setBorder(White)
     echo "Second update..."
     inky.update()
+    inky.led(LedE, 0)
 
   echo "Mounting SD card..."
 

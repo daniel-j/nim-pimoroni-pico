@@ -111,6 +111,20 @@ proc isBusy*(): bool =
   ## Check busy flag on shift register
   not sr.readBit(FlagEinkBusy)
 
+proc boot*(self: var InkyFrame) =
+  # keep the pico awake by holding vsys_en high
+  gpioConfigure(PinHoldSysEn, Out, High)
+
+  # setup the shift register
+  sr.init()
+
+  # determine wake up event
+  let bits = sr.read()
+  self.wakeUpEvents = cast[set[WakeUpEvent]](bits.bitsliced(static WakeUpEvent.low.ord..WakeUpEvent.high.ord))
+  # there are other reasons a wake event can occur: connect power via usb,
+  # connect a battery, or press the reset button. these cannot be
+  # disambiguated so we don't attempt to report them
+
 proc init*(self: var InkyFrame) =
   (self.width, self.height) =
     case self.kind:
@@ -138,19 +152,6 @@ proc init*(self: var InkyFrame) =
     resetPin = PinEinkReset,
     isBusy,
     blocking = true)
-
-  # keep the pico awake by holding vsys_en high
-  gpioConfigure(PinHoldSysEn, Out, High)
-
-  # setup the shift register
-  sr.init()
-
-  # determine wake up event
-  let bits = sr.read()
-  self.wakeUpEvents = cast[set[WakeUpEvent]](bits.bitsliced(static WakeUpEvent.low.ord..WakeUpEvent.high.ord))
-  # there are other reasons a wake event can occur: connect power via usb,
-  # connect a battery, or press the reset button. these cannot be
-  # disambiguated so we don't attempt to report them
 
   var i2c: I2c
   i2c.init(PinI2cSda, PinI2cScl)

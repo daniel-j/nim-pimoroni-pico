@@ -33,7 +33,7 @@ proc drawHslChart() =
       #let color = LChToLab(1 - l, 0.15, hue).fromLab()
       # inky.setPen(color)
       # inky.setPixel(p)
-      row[x] = color.toLinear()
+      row[x] = color.level(gamma=1.5).toLinear()
     errDiff.write(0, y, row)
 
   errDiff.process()
