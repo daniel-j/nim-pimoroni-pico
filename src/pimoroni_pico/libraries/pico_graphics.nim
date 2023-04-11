@@ -531,6 +531,8 @@ type
     cacheNearest*: array[colorCacheSize, uint8]
     cacheNearestBuilt*: bool
 
+const paletteGamma = 2.4
+
 # const PicoGraphicsPen3BitPalette* = [
 #   Rgb(r:   0, g:   0, b:   0).toLinear(paletteGamma), ##  black
 #   Rgb(r: 255, g: 255, b: 255).toLinear(paletteGamma), ##  white
@@ -543,14 +545,14 @@ type
 # ]
 
 const PicoGraphicsPen3BitPalette* = [
-  hslToRgb((h: 120/360, s: 0.00, l: 0.00)).toLinear(), ##  black
-  hslToRgb((h:   0/360, s: 0.00, l: 1.00)).toLinear(), ##  white
-  hslToRgb((h:  95/360, s: 0.93, l: 0.30)).toLinear(), ##  green
-  hslToRgb((h: 205/360, s: 0.88, l: 0.42)).toLinear(), ##  blue
-  hslToRgb((h: 355/360, s: 0.95, l: 0.49)).toLinear(), ##  red
-  hslToRgb((h:  57/360, s: 0.97, l: 0.72)).toLinear(), ##  yellow
-  hslToRgb((h:  23/360, s: 1.00, l: 0.45)).toLinear(), ##  orange
-  hslToRgb((h:   0/360, s: 0.00, l: 1.00)).toLinear(), ##  clean - do not use on inky7 as colour
+  hslToRgb((h: 110/360, s: 0.99, l: 0.03)).toLinear(paletteGamma), ##  black
+  hslToRgb((h:   0/360, s: 0.00, l: 0.98)).toLinear(paletteGamma), ##  white
+  hslToRgb((h:  95/360, s: 0.90, l: 0.35)).toLinear(paletteGamma), ##  green
+  hslToRgb((h: 215/360, s: 0.88, l: 0.42)).toLinear(paletteGamma), ##  blue
+  hslToRgb((h: 350/360, s: 0.98, l: 0.49)).toLinear(paletteGamma), ##  red
+  hslToRgb((h:  60/360, s: 0.97, l: 0.55)).toLinear(paletteGamma), ##  yellow
+  hslToRgb((h:  26/360, s: 0.98, l: 0.47)).toLinear(paletteGamma), ##  orange
+  hslToRgb((h:   0/360, s: 0.00, l: 1.00)).toLinear(paletteGamma), ##  clean - do not use on inky7 as colour
 ]
 
 static:
@@ -654,7 +656,7 @@ method setPixelDither*(self: var PicoGraphicsPen3Bit; p: Point; c: RgbLinear) =
   # 4 = 16x16
   # 5 = 32x32
   # 6 = 64x64
-  const patternSize = 6
+  const patternSize = 5
   const kind = DitherKind.Bayer
 
   const mask = (1 shl patternSize) - 1

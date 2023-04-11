@@ -6,8 +6,8 @@ proc builtinBswap16(a: uint16): uint16 {.importc: "__builtin_bswap16", nodecl, n
 ## RGB
 ##
 
-const defaultGamma* = 2.4
-const rgbBits* = 12
+const defaultGamma* = 2.2
+const rgbBits* = 10
 const rgbMultiplier* = (1 shl rgbBits) - 1
 
 type

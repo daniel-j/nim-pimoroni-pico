@@ -196,10 +196,10 @@ proc jpegdec_draw_callback(draw: ptr JPEGDRAW): cint {.cdecl.} =
         graphics[].setPen(pen)
         graphics[].setPixel(pos)
       of OrderedDither:
-        color = color.saturate(1.30) #.level(black=0.04, white=0.97)
+        color = color.saturate(1.50) #.level(black=0.04, white=0.97)
         graphics[].setPixelDither(pos, color.toLinear())
       of ErrorDiffusion:
-        color = color.saturate(1.30).level(gamma=1.5)
+        color = color.saturate(1.30).level(gamma=1.6)
         # errorMatrix[y][dx + x] += color.toLinear()
         row[x] = color.toLinear()
 
