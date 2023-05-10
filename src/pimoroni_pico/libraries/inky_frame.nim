@@ -1,4 +1,4 @@
-import std/math, std/bitops, std/options
+import std/math, std/bitops, std/options, std/times
 
 import picostdlib
 import picostdlib/[hardware/i2c, hardware/pwm]
@@ -187,25 +187,42 @@ proc led*(self: InkyFrame; led: Led; brightness: range[0.uint8..100.uint8]) =
   pwmSetGpioLevel(led.Gpio, (pow(brightness.float / 100, 2.8) * 65535.0f + 0.5f).uint16)
 
 proc sleep*(self: var InkyFrame; wakeInMinutes: int = -1) =
-  if wakeInMinutes != -1:
-    # set an alarm to wake inky up in wake_in_minutes - the maximum sleep
-    # is 255 minutes or around 4.5 hours which is the longest timer the RTC
-    # supports, to sleep any longer we need to specify a date and time to
-    # wake up
-    self.rtc.setTimer(wakeInMinutes.uint8, tt1Over60Hz)
-    self.rtc.enableTimerInterrupt(true)
+  # Set an alarm to wake inky up in wake_in_minutes
+  # Negative values means sleep without a wakeup timer (default)
 
+  self.rtc.clearAlarmFlag()
+
+  # Can't sleep beyond a month, so clamp the sleep to a 28 day maximum
+  let minutes = min(40320, wakeInMinutes)
+
+  if wakeInMinutes > 0:
+    if minutes <= 255:
+      # the maximum sleep is 255 minutes or around 4.5 hours which is the longest timer the RTC
+      # supports, to sleep any longer we need to specify a date and time to
+      # wake up
+      self.rtc.setTimer(minutes.uint8, tt1Over60Hz)
+      self.rtc.enableTimerInterrupt(true)
+    else:
+      # more than 255 minutes, calculate wakeup time and day
+      let dt = (self.rtc.getDatetime().toNimDateTime() + initDuration(minutes = minutes))
+      self.rtc.setAlarm(dt.second, dt.minute, dt.hour, dt.monthday)
+      self.rtc.enableAlarmInterrupt(true)
 
   # release the vsys hold pin so that inky can go to sleep
   gpioPut(PinHoldSysEn, Low)
 
-  # regular sleep on usb power
-  if wakeInMinutes > 0:
-    echo "Sleeping for ", wakeInMinutes, " minute(s)"
-    sleepMs(wakeInMinutes.uint32 * 60 * 1000)
-
+  # emulate sleep on usb power
+  if minutes > 0:
+    echo "Sleeping for ", minutes, " minutes"
+    sleepMs(minutes.uint32 * 60 * 1000)
+  else:
+    echo "Sleeping forever."
+    while true:
+      tightLoopContents()
+      sleepMs(1000)
 
 proc sleepUntil*(self: var InkyFrame; second, minute, hour, day: int = -1) =
+  self.rtc.clearAlarmFlag()
   if second != -1 or minute != -1 or hour != -1 or day != -1:
     # set an alarm to wake inky up at the specified time and day
     self.rtc.setAlarm(second, minute, hour, day)

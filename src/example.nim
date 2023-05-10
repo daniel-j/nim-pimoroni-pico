@@ -29,16 +29,15 @@ inky.kind = inkyKindEnum
 
 discard stdioInitAll()
 
+# blockUntilUsbConnected()
 sleepMs(2000)
 
 inky.init()
 
 inky.led(Led.LedActivity, 100)
 
-# blockUntilUsbConnected()
 
 echo "Wake Up Events: ", inky.getWakeUpEvents()
-
 
 proc drawFile(filename: string) =
   inky.led(LedActivity, 50)
