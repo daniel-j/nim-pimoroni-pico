@@ -558,11 +558,11 @@ const PicoGraphicsPen3BitPalette7_3* = [
 const PicoGraphicsPen3BitPalette5_7* = [
   PicoGraphicsPen3BitPalette7_3[0], ##  black
   PicoGraphicsPen3BitPalette7_3[1], ##  white
-  hslToRgb((h: 113/360, s: 1.0, l: 0.42)).toLinear(paletteGamma), ##  green
+  hslToRgb((h: 113/360, s: 1.0, l: 0.45)).toLinear(paletteGamma), ##  green
   hslToRgb((h: 215/360, s: 0.95, l: 0.52)).toLinear(paletteGamma), ##  blue
   PicoGraphicsPen3BitPalette7_3[4], ##  red
   PicoGraphicsPen3BitPalette7_3[5], ##  yellow
-  PicoGraphicsPen3BitPalette7_3[6], ##  orange
+  hslToRgb((h: 26/360, s: 0.98, l: 0.47)).toLinear(paletteGamma), ##  orange
   hslToRgb((h: 20/360, s: 0.98, l: 0.90)).toLinear(paletteGamma), ##  clean
 ]
 
