@@ -15,7 +15,7 @@ const paletteGamma = 1.8
 #   hslToRgb(      0, 1.00, 1.00).toLinear(paletteGamma), ##  clean - do not use on inky7 as colour
 # ]
 
-const palette = [
+const palette7_3 = [
   hsvToRgb(100/360, 1, 0).toLinear(paletteGamma), ##  black
   hsvToRgb(30/360, 0.07, 0.97).toLinear(paletteGamma), ##  white
   hsvToRgb( 90/360, 1.00, 0.65).toLinear(paletteGamma), ##  green
@@ -25,6 +25,18 @@ const palette = [
   hsvToRgb( 24/360, 0.75, 0.90).toLinear(paletteGamma), ##  orange
   constructRgb(255, 0, 255).toLinear(paletteGamma), ##  clean - do not use on inky7 as colour
 ]
+
+const palette5_7 = [
+  palette7_3[0], ##  black
+  palette7_3[1], ##  white
+  hsvToRgb( 90/360, 0.80, 0.75).toLinear(paletteGamma), ##  green
+  hsvToRgb(215/360, 0.55, 0.75).toLinear(paletteGamma), ##  blue
+  palette7_3[4], ##  red
+  palette7_3[5], ##  yellow
+  palette7_3[6], ##  orange
+  Rgb(r: 245, g: 215, b: 191).toLinear(paletteGamma), ##  clean
+]
+
 
 type
   Colour* = enum
@@ -52,15 +64,19 @@ proc init*(self: var InkyFrame) =
     of InkyFrame4_0: (640, 400)
     of InkyFrame5_7: (600, 448)
     of InkyFrame7_3: (800, 480)
-  PicoGraphicsPen3Bit(self).init(self.width.uint16, self.height.uint16, BackendMemory)
-  # if self.kind == InkyFrame7_3:
-  self.setPaletteSize(7)
+  PicoGraphicsPen3Bit(self).init(
+    width = self.width.uint16,
+    height = self.height.uint16,
+    backend = BackendMemory,
+    palette = if self.kind == InkyFrame7_3: PicoGraphicsPen3BitPalette7_3 else: PicoGraphicsPen3BitPalette5_7,
+    # paletteSize = if self.kind == InkyFrame5_7: 8 else: 7 # clean colour is a greenish gradient on inky7, so avoid it
+  )
 
   self.image = newImage(self.width, self.height)
 
 proc update*(self: var InkyFrame) =
   let image = self.image
-  # let palette = self.getRawPalette()
+  let palette = if self.kind == InkyFrame7_3: palette7_3 else: palette5_7
   var y = 0
   self.frameConvert(Pen_P4, (proc (buf: pointer; length: uint) =
     if length > 0:

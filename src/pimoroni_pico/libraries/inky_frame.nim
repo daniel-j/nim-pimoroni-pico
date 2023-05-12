@@ -133,13 +133,12 @@ proc init*(self: var InkyFrame) =
     of InkyFrame7_3: (800, 480)
 
   PicoGraphicsPen3Bit(self).init(
-    self.width.uint16,
-    self.height.uint16,
-    if self.kind == InkyFrame7_3: BackendPsram else: BackendMemory
+    width = self.width.uint16,
+    height = self.height.uint16,
+    backend = if self.kind == InkyFrame7_3: BackendPsram else: BackendMemory,
+    palette = if self.kind == InkyFrame7_3: PicoGraphicsPen3BitPalette7_3 else: PicoGraphicsPen3BitPalette5_7,
+    # paletteSize = if self.kind == InkyFrame5_7: 8 else: 7 # clean colour is a greenish gradient on inky7, so avoid it
   )
-
-  #if self.kind == InkyFrame7_3:
-  self.setPaletteSize(7) # clean colour is a greenish gradient, so avoid it
 
   let pins = SpiPins(spi: PimoroniSpiDefaultInstance, cs: PinEinkCs, sck: PinClk, mosi: PinMosi, dc: PinEinkDc)
 
@@ -158,6 +157,7 @@ proc init*(self: var InkyFrame) =
 
   # initialise the rtc
   self.rtc.init(move i2c)
+  self.rtc.enableTimerInterrupt(false)
 
   # setup led pwm
   gpioConfigurePwm(PinLedA)

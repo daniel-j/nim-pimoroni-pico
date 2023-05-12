@@ -527,7 +527,7 @@ type
   PicoGraphicsPen3Bit* = object of PicoGraphics
     color*: uint
     palette: array[8, RgbLinear]
-    paletteSize: uint16
+    paletteSize: uint8
     cacheNearest*: array[colorCacheSize, uint8]
     cacheNearestBuilt*: bool
 
@@ -544,7 +544,7 @@ const paletteGamma = 2.4
 #   Rgb(r: 245, g: 215, b: 191).toLinear(paletteGamma), ##  clean - do not use on inky7 as colour
 # ]
 
-const PicoGraphicsPen3BitPalette* = [
+const PicoGraphicsPen3BitPalette7_3* = [
   hslToRgb((h: 110/360, s: 0.99, l: 0.03)).toLinear(paletteGamma), ##  black
   hslToRgb((h:   0/360, s: 0.00, l: 0.98)).toLinear(paletteGamma), ##  white
   hslToRgb((h:  95/360, s: 0.90, l: 0.35)).toLinear(paletteGamma), ##  green
@@ -555,8 +555,23 @@ const PicoGraphicsPen3BitPalette* = [
   hslToRgb((h:   0/360, s: 0.00, l: 1.00)).toLinear(paletteGamma), ##  clean - do not use on inky7 as colour
 ]
 
+const PicoGraphicsPen3BitPalette5_7* = [
+  PicoGraphicsPen3BitPalette7_3[0], ##  black
+  PicoGraphicsPen3BitPalette7_3[1], ##  white
+  hslToRgb((h: 113/360, s: 1.0, l: 0.42)).toLinear(paletteGamma), ##  green
+  hslToRgb((h: 215/360, s: 0.95, l: 0.52)).toLinear(paletteGamma), ##  blue
+  PicoGraphicsPen3BitPalette7_3[4], ##  red
+  PicoGraphicsPen3BitPalette7_3[5], ##  yellow
+  PicoGraphicsPen3BitPalette7_3[6], ##  orange
+  hslToRgb((h: 20/360, s: 0.98, l: 0.90)).toLinear(paletteGamma), ##  clean
+]
+
 static:
-  for c in PicoGraphicsPen3BitPalette:
+  echo "Inky Frame 7.3\" palette:"
+  for c in PicoGraphicsPen3BitPalette7_3:
+    echo c.fromLinear()
+  echo "Inky Frame 5.7\" palette:"
+  for c in PicoGraphicsPen3BitPalette5_7:
     echo c.fromLinear()
 
 
@@ -565,11 +580,15 @@ const RGB_FLAG*: uint = 0x7f000000
 func bufferSize*(self: PicoGraphicsPen3Bit; w: uint; h: uint): uint =
   return (w * h div 8) * 3
 
-proc init*(self: var PicoGraphicsPen3Bit; width: uint16; height: uint16; backend: PicoGraphicsBackend = BackendMemory; frameBuffer: seq[uint8] = @[]) =
+func getPaletteSize*(self: PicoGraphicsPen3Bit): uint8 = self.paletteSize
+func setPaletteSize*(self: var PicoGraphicsPen3Bit; paletteSize: uint8) =
+  self.paletteSize = paletteSize.clamp(1'u8, self.palette.len.uint8)
+
+proc init*(self: var PicoGraphicsPen3Bit; width: uint16; height: uint16; backend: PicoGraphicsBackend = BackendMemory; frameBuffer: seq[uint8] = @[]; palette = PicoGraphicsPen3BitPalette7_3; paletteSize: uint8 = 7) =
   PicoGraphics(self).init(width, height, backend, frameBuffer)
-  self.palette = PicoGraphicsPen3BitPalette
   self.penType = Pen_3Bit
-  self.paletteSize = 8
+  self.palette = palette
+  self.setPaletteSize(paletteSize)
   self.cacheNearestBuilt = false
   case self.backend:
   of BackendMemory:
@@ -581,9 +600,6 @@ proc init*(self: var PicoGraphicsPen3Bit; width: uint16; height: uint16; backend
 # proc constructPicoGraphicsPen3Bit*(width: uint16; height: uint16; backend: PicoGraphicsBackend = BackendMemory; frameBuffer: seq[uint8] = @[]): PicoGraphicsPen3Bit {.constructor.} =
 #   result.init(width, height, frameBuffer)
 
-func getPaletteSize*(self: PicoGraphicsPen3Bit): uint16 = self.paletteSize
-func setPaletteSize*(self: var PicoGraphicsPen3Bit; paletteSize: uint16) =
-  self.paletteSize = paletteSize.clamp(1'u16, self.palette.len.uint16)
 func getRawPalette*(self: PicoGraphicsPen3Bit): auto {.inline.} = self.palette
 func getPalette*(self: PicoGraphicsPen3Bit): auto {.inline.} = self.palette[0..<self.paletteSize]
 
