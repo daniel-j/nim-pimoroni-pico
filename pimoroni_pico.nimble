@@ -5,7 +5,7 @@ author        = "djazz"
 description   = "Pimoroni Pico drivers and libraries Nim port"
 license       = "MIT"
 srcDir        = "src"
-bin           = @["example"]
+# bin           = @["example"]
 backend       = "c"
 
 # Dependencies
