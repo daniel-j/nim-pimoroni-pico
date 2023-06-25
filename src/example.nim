@@ -81,6 +81,12 @@ proc inkyProc() =
   inky.led(Led.LedActivity, 0)
   echo "Starting..."
 
+  echo "Mounting SD card..."
+
+  let fr = f_mount(fs.addr, "".cstring, 1)
+  if fr != FR_OK:
+    echo "Failed to mount SD card, error: ", fr
+
   if EvtBtnA in inky.getWakeUpEvents():
     inky.led(LedA, 50)
     echo "Drawing HSL chart..."
@@ -240,12 +246,7 @@ proc inkyProc() =
     inky.update()
     inky.led(LedE, 0)
 
-  echo "Mounting SD card..."
-
-  let fr = f_mount(fs.addr, "".cstring, 1)
-  if fr != FR_OK:
-    echo "Failed to mount SD card, error: ", fr
-  else:
+  if fr == FR_OK:
     echo "Listing SD card contents.."
     let directory = "/images"
     var fileCount = 0
