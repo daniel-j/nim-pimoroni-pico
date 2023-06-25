@@ -13,7 +13,7 @@ type
   RtcPcf85063a* = object
     i2c: I2c               ## Interface pins with our standard defaults where appropriate
     address: I2cAddress
-    interrupt: int8
+    interrupt: GpioOptional
 
   ClockOut* {.pure.} = enum
     co32768Hz = 0
@@ -78,7 +78,7 @@ proc bcdDecode*(v: uint): int8 =
     v1: uint = v and 0x0f
   return (v1 + (v10 * 10)).int8
 
-proc init*(self: var RtcPcf85063a; i2c: I2c; interrupt: int8 = PinUnused) =
+proc init*(self: var RtcPcf85063a; i2c: I2c; interrupt: GpioOptional = PinUnused) =
   self.address = DefaultI2cAddress
   self.i2c = i2c
   self.interrupt = interrupt

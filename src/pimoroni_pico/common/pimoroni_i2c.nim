@@ -1,12 +1,14 @@
 import picostdlib/[hardware/i2c, hardware/gpio]
 import pimoroni_common
 
+export i2c, gpio, pimoroni_common
+
 type
   I2c* = object
     i2c: ptr I2cInst
     sda: Gpio
     scl: Gpio
-    interrupt: int8
+    interrupt: GpioOptional
     baudrate: uint
 
 proc pinToInst*(pin: Gpio): ptr I2cInst =
@@ -45,10 +47,10 @@ proc deinit*(self: var I2c) =
     gpioSetFunction(self.scl, GpioFunction.Null)
     self.i2c = nil
 
-proc getI2c*(self: var I2c): auto = self.i2c
-proc getScl*(self: var I2c): auto = self.scl
-proc getSda*(self: var I2c): auto = self.sda
-proc getBaudrate*(self: var I2c): auto = self.baudrate
+proc getI2c*(self: var I2c|ptr I2c): auto = self.i2c
+proc getScl*(self: var I2c|ptr I2c): auto = self.scl
+proc getSda*(self: var I2c|ptr I2c): auto = self.sda
+proc getBaudrate*(self: var I2c|ptr I2c): auto = self.baudrate
 
 ##  Basic wrappers for devices using i2c functions directly
 

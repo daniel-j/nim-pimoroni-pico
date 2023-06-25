@@ -10,7 +10,7 @@ let
   PimoroniSpiDefaultInstance* = spi0
 
 const
-  PinUnused* = -1.int8
+  PinUnused* = GpioUnused
 
   ## I2C
   I2cDefaultBaudrate* = 400_000
