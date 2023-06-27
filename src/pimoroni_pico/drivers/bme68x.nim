@@ -1,35 +1,39 @@
 import std/os, std/macros
 import picostdlib/helpers
+import ../common/pimoroni_i2c
 
-import typeinfo
-import futhark
+const
+  Bme68xI2cAddrLow* = 0x76.I2cAddress
+  Bme68xI2cAddrHigh* = 0x77.I2cAddress
 
-const bme68xInclude = currentSourcePath.parentDir / ".." / "vendor" / "bme68x"
+when defined(useFuthark) or defined(useFutharkForPimoroniPico):
+  import futhark
 
-importc:
-  compilerArg "--target=arm-none-eabi"
-  compilerArg "-mthumb"
-  compilerArg "-mcpu=cortex-m0plus"
-  compilerArg "-fsigned-char"
-  compilerArg "-fshort-enums" # needed to get the right struct size
+  const bme68xInclude = currentSourcePath.parentDir / ".." / "vendor" / "bme68x" / "BME68x-Sensor-API"
 
-  sysPath armSysrootInclude
-  sysPath armInstallInclude
-  path bme68xInclude
+  importc:
+    outputPath currentSourcePath.parentDir / "futhark_bme68x.nim"
 
-  renameCallback futharkRenameCallback
+    compilerArg "--target=arm-none-eabi"
+    compilerArg "-mthumb"
+    compilerArg "-mcpu=cortex-m0plus"
+    compilerArg "-fsigned-char"
+    compilerArg "-fshort-enums" # needed to get the right struct size
 
-  "bme68x.h"
+    sysPath armSysrootInclude
+    sysPath armInstallInclude
+    path bme68xInclude
 
+    renameCallback futharkRenameCallback
+
+    "bme68x.h"
+else:
+  include ./futhark_bme68x
 
 ##  Nim helpers
 
 import picostdlib
-import ../common/pimoroni_i2c
 import ../common/vla
-
-const DEFAULT_I2C_ADDRESS = 0x76.I2cAddress
-const ALTERNATE_I2C_ADDRESS = 0x77.I2cAddress
 
 type
   Bme68x* = object
@@ -81,7 +85,7 @@ proc bme68xWriteBytes(regAddr: uint8; regData: ptr uint8; length: uint32; intfPt
 
   return if res == PicoErrorGeneric.int8: 1 else: 0
 
-proc bme68xDelayUs(period: uint32; intfPtr: pointer) {.cdecl.} =
+proc bme68xDelayUs*(period: uint32; intfPtr: pointer) {.cdecl.} =
   sleepUs(period)
 
 
@@ -129,8 +133,8 @@ proc init*(self: var Bme68x): bool =
   return self.configure(
     filter = BME68X_FILTER_OFF,
     odr = BME68X_ODR_NONE,
-    osHumidity = BME68X_OS_16X,
-    osPressure = BME68X_OS_1X,
+    osHumidity = BME68X_OS_1X,
+    osPressure = BME68X_OS_16X,
     osTemp = BME68X_OS_2X
   )
 
@@ -147,13 +151,17 @@ proc readForced*(self: var Bme68x; data: var Bme68xData; heater_temp: uint16 = 3
   self.bme68xCheckRslt("bme68x_set_heatr_conf", res)
   if res != BME68X_OK: return false
 
+
   res = bme68x_set_op_mode(BME68X_FORCED_MODE.uint8, self.device.addr)
   self.bme68xCheckRslt("bme68x_set_op_mode", res)
   if res != BME68X_OK: return false
 
+
   delay_period = bme68x_get_meas_dur(BME68X_FORCED_MODE.uint8, self.conf.addr, self.device.addr) + (self.heatr_conf.heatr_dur * 1000)
   # Could probably just call sleep_us here directly, I guess the API uses this internally
   self.device.delay_us(delay_period, self.device.intf_ptr)
+
+  sleepMs(heater_duration - delay_period div 1000)
 
   res = bme68x_get_data(BME68X_FORCED_MODE.uint8, data.addr, n_fields.addr, self.device.addr)
   self.bme68xCheckRslt("bme68x_get_data", res)
@@ -165,7 +173,7 @@ proc readParallel*(self: var Bme68x; results: ptr Bme68xData; profile_temps: var
   discard
 
 
-proc newBme68x*(i2c: var I2c; address: I2cAddress = DEFAULT_I2C_ADDRESS; interrupt: GpioOptional = PinUnused): Bme68x =
+proc newBme68x*(i2c: var I2c; address: I2cAddress = Bme68xI2cAddrHigh; interrupt: GpioOptional = PinUnused): Bme68x =
   result.i2c = i2c.addr
   result.address = address
   result.interrupt = interrupt

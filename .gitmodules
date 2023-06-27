@@ -1,0 +1,6 @@
+[submodule "src/pimoroni_pico/vendor/bme68x/BME68x-Sensor-API"]
+	path = src/pimoroni_pico/vendor/bme68x/BME68x-Sensor-API
+	url = https://github.com/boschsensortec/BME68x-Sensor-API
+[submodule "src/pimoroni_pico/vendor/bme68x/Bosch-BSEC2-Library"]
+	path = src/pimoroni_pico/vendor/bme68x/Bosch-BSEC2-Library
+	url = https://github.com/boschsensortec/Bosch-BSEC2-Library
