@@ -39,6 +39,8 @@ type
   Bme68x* = object
     i2cInterface*: I2cIntf
     debug*: bool
+    status*: int8
+    lastOpMode: uint8
 
     device: Bme68xDev
     conf: Bme68xConf
@@ -50,6 +52,9 @@ type
   I2cIntf = object
     i2c*: ptr I2cInst
     address*: I2cAddress
+
+proc createBme68x*(debug: bool = false): Bme68x =
+  result.debug = debug
 
 proc bme68xCheckRslt*(self: Bme68x; apiName: string; rslt: int8) =
   if not self.debug: return
@@ -104,7 +109,40 @@ proc configure*(self: var Bme68x; filter, odr, osHumidity, osPressure, osTemp: u
 
   return true
 
-proc init*(self: var Bme68x): bool =
+proc setTPH*(self: var Bme68x; osTemp, osPres, osHum: uint8) =
+  ## Function to set the Temperature, Pressure and Humidity over-sampling
+  self.status = bme68x_get_conf(self.conf.addr, self.device.addr)
+  if self.status == BME68X_OK:
+    self.conf.os_temp = osTemp
+    self.conf.os_pres = osPres
+    self.conf.os_hum = osHum
+    self.status = bme68x_set_conf(self.conf.addr, self.device.addr)
+
+proc setHeaterProf*(self: var Bme68x; temp, dur: uint16) =
+  ## Function to set the heater profile for Forced mode
+  self.heatr_conf.enable = BME68X_ENABLE
+  self.heatr_conf.heatr_temp = temp
+  self.heatr_conf.heatr_dur = dur
+  self.status = bme68x_set_heatr_conf(BME68X_FORCED_MODE, self.heatr_conf.addr, self.device.addr)
+
+proc setHeaterProf*(self: var Bme68x; temp, mul: ptr uint16; sharedHeatrDur: uint16; profileLen: uint8) =
+  ## Function to set the heater profile for Parallel mode
+  self.heatr_conf.enable = BME68X_ENABLE
+  self.heatr_conf.heatr_temp_prof = temp
+  self.heatr_conf.heatr_dur_prof = mul
+  self.heatr_conf.shared_heatr_dur = sharedHeatrDur
+  self.heatr_conf.profile_len = profileLen
+
+proc setOpMode*(self: var Bme68x; opMode: uint8) =
+  self.status = bme68x_set_op_mode(opMode, self.device.addr)
+  if self.status == BME68X_OK and opMode != BME68X_SLEEP_MODE:
+    self.lastOpMode = opMode
+
+proc begin*(self: var Bme68x; i2c: var I2c; address: I2cAddress = Bme68xI2cAddrHigh; interrupt: GpioOptional = PinUnused): bool =
+  self.i2c = i2c.addr
+  self.address = address
+  self.interrupt = interrupt
+
   var res: int8 = 0
 
   if self.interrupt != PinUnused:
@@ -138,6 +176,13 @@ proc init*(self: var Bme68x): bool =
     osTemp = BME68X_OS_2X
   )
 
+proc getMeasDur*(self: var Bme68x; opMode: uint8): uint32 =
+  ## Function to get the measurement duration in microseconds
+  var opModeDyn = opMode
+  if opMode == BME68X_SLEEP_MODE:
+    opModeDyn = self.lastOpMode
+
+  return bme68x_get_meas_dur(opModeDyn, self.conf.addr, self.device.addr)
 
 proc readForced*(self: var Bme68x; data: var Bme68xData; heater_temp: uint16 = 300; heater_duration: uint16 = 100): bool =
   var res: int8 = 0
@@ -171,14 +216,6 @@ proc readForced*(self: var Bme68x; data: var Bme68xData; heater_temp: uint16 = 3
 
 proc readParallel*(self: var Bme68x; results: ptr Bme68xData; profile_temps: var uint16; profile_durations: var uint16; profile_length: uint): bool =
   discard
-
-
-proc newBme68x*(i2c: var I2c; address: I2cAddress = Bme68xI2cAddrHigh; interrupt: GpioOptional = PinUnused): Bme68x =
-  result.i2c = i2c.addr
-  result.address = address
-  result.interrupt = interrupt
-  result.debug = true
-
 
 proc getI2c*(self: Bme68x): ptr I2c = self.i2c
 proc getInt*(self: Bme68x): GpioOptional = self.interrupt
