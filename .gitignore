@@ -1,3 +1,5 @@
 build
 tests/nimcache
 csource/imports.cmake
+/src/pimoroni_pico/drivers/futhark_bme68x.nim
+/src/pimoroni_pico/libraries/futhark_bsec2.nim

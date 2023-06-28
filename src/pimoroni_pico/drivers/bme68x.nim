@@ -1,5 +1,3 @@
-import std/os, std/macros
-import picostdlib/helpers
 import ../common/pimoroni_i2c
 
 const
@@ -7,9 +5,11 @@ const
   Bme68xI2cAddrHigh* = 0x77.I2cAddress
 
 when defined(useFuthark) or defined(useFutharkForPimoroniPico):
+  import std/os, std/macros
+  import picostdlib/helpers
   import futhark
 
-  const bme68xInclude = currentSourcePath.parentDir / ".." / "vendor" / "bme68x" / "BME68x-Sensor-API"
+  const bme68xInclude = currentSourcePath.parentDir / ".." / "vendor" / "BME68x-Sensor-API"
 
   importc:
     outputPath currentSourcePath.parentDir / "futhark_bme68x.nim"

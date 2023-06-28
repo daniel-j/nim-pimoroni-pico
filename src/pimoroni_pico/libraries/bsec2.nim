@@ -1,9 +1,9 @@
-import std/os, std/macros
-import picostdlib/helpers
 
 when defined(useFuthark) or defined(useFutharkForPimoroniPico):
+  import std/os, std/macros
+  import picostdlib/helpers
   import futhark
-  const bsec2Include = currentSourcePath.parentDir / ".." / "vendor" / "bme68x" / "Bosch-BSEC2-Library" / "src" / "inc"
+  const bsec2Include = currentSourcePath.parentDir / ".." / "vendor" / "Bosch-BSEC2-Library" / "src" / "inc"
 
   importc:
     outputPath currentSourcePath.parentDir / "futhark_bsec2.nim"
@@ -27,7 +27,6 @@ else:
 
 ##  Nim helpers
 
-import picostdlib
 import ../common/pimoroni_i2c
 import ../drivers/bme68x
 
