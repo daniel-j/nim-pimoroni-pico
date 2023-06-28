@@ -149,6 +149,15 @@ proc setBme68xConfigParallel(self: var Bsec2) =
 
   self.opMode = BME68X_PARALLEL_MODE
 
+proc getTimeMs*(self: var Bsec2): int64 =
+  ## Function to calculate an int64_t timestamp in milliseconds
+  let timeMs = uint32 timeUs64() div 1000
+
+  if self.lastMillis > timeMs:
+    inc(self.ovfCounter)
+  self.lastMillis = timeMs
+  return timeMs.int64 + (self.ovfCounter.int64 * 0xFFFFFFFF'i64)
+
 proc updateSubscription*(self: var Bsec2; sensorList: openArray[BsecVirtualSensorT]; sampleRate: float = BSEC_SAMPLE_RATE_ULP): bool =
   ## Function that sets the desired sensors and the sample rates
   ## @param sensorList	: The list of output sensors
@@ -239,7 +248,7 @@ proc run*(self: var Bsec2): bool =
   ## @return	true for success, false otherwise
   var nFieldsLeft: uint8 = 0
   var data: Bme68xData
-  let currTimeNs: int64 = int64 timeUs64() * 1000'u64
+  let currTimeNs = self.getTimeMs() * 1_000_000
   self.opMode = self.bmeConf.op_mode
 
   if currTimeNs >= self.bmeConf.next_call:
@@ -325,10 +334,6 @@ proc setTemperatureOffset*(self: var Bsec2; tempOffset: float) =
   ## @param tempOffset	: Temperature offset in degree Celsius
   self.extTempOffset = tempOffset
 
-proc getTimeMs*(self: Bsec2): int64 =
-  ## Function to calculate an int64_t timestamp in milliseconds
-  discard
-
 proc allocateMemory*(self: var Bsec2; memBlock: var array[BSEC_INSTANCE_SIZE, uint8]) =
   ## Function to assign the memory block to the bsec instance
   ## @param[in] memBlock : reference to the memory block
@@ -338,5 +343,3 @@ proc clearMemory*(self: var Bsec2) =
   ## Function to de-allocate the dynamically allocated memory
   # dealloc(self.bsecInstance)
 
-
-# WIP
