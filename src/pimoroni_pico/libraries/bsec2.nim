@@ -45,16 +45,13 @@ type
     newDataCallback: BsecCallback
     outputs: BsecOutputs
     opMode: uint8
-    extTempOffset: cfloat
+    extTempOffset: float
     ovfCounter: uint32
     lastMillis: uint32
     bsecInstance: ptr uint8
 
-  BsecData* = BsecOutputT
-  BsecSensor* = BsecVirtualSensorT
-
   BsecOutputs* = object
-    output*: array[BSEC_NUMBER_OUTPUTS, BsecData]
+    output*: array[BSEC_NUMBER_OUTPUTS, BsecOutputT]
     nOutputs*: uint8
 
   BsecCallback* = proc (data: Bme68xData; outputs: BsecOutputs; bsec: var Bsec2)
@@ -152,7 +149,7 @@ proc setBme68xConfigParallel(self: var Bsec2) =
 
   self.opMode = BME68X_PARALLEL_MODE
 
-proc updateSubscription*(self: var Bsec2; sensorList: openArray[BsecSensor]; nSensors: uint8; sampleRate: float = BSEC_SAMPLE_RATE_ULP): bool =
+proc updateSubscription*(self: var Bsec2; sensorList: openArray[BsecVirtualSensorT]; sampleRate: float = BSEC_SAMPLE_RATE_ULP): bool =
   ## Function that sets the desired sensors and the sample rates
   ## @param sensorList	: The list of output sensors
   ## @param nSensors		: Number of outputs requested
@@ -162,12 +159,12 @@ proc updateSubscription*(self: var Bsec2; sensorList: openArray[BsecSensor]; nSe
   var sensorSettings: array[BSEC_MAX_PHYSICAL_SENSOR, BsecSensorConfigurationT]
   var nSensorSettings: uint8 = BSEC_MAX_PHYSICAL_SENSOR
 
-  for i in 0'u ..< nSensors:
+  for i in 0 ..< sensorList.len:
     virtualSensors[i].sensor_id = sensorList[i].uint8
     virtualSensors[i].sample_rate = sampleRate
 
   # Subscribe to library virtual sensors outputs
-  self.status = bsec_update_subscription_m(self.bsecInstance, virtualSensors[0].addr, nSensors, sensorSettings[0].addr, nSensorSettings.addr)
+  self.status = bsec_update_subscription_m(self.bsecInstance, virtualSensors[0].addr, sensorList.len.uint8, sensorSettings[0].addr, nSensorSettings.addr)
   if self.status != BSEC_OK:
     return false
 
@@ -185,7 +182,7 @@ proc processData(self: var Bsec2; currTimeNs: int64; data: var Bme68xData): bool
       inputs[nInputs].signal = self.extTempOffset
       inputs[nInputs].time_stamp = currTimeNs
       inc(nInputs)
-      when defined(BME68X_USE_FPU):
+      when true or defined(BME68X_USE_FPU):
         inputs[nInputs].signal = data.temperature
       else:
         inputs[nInputs].signal = data.temperature / 100.0f
@@ -194,7 +191,7 @@ proc processData(self: var Bsec2; currTimeNs: int64; data: var Bme68xData): bool
       inc(nInputs)
 
   if BSEC_CHECK_INPUT(self.bmeConf.process_data, BSEC_INPUT_HUMIDITY):
-    when defined(BME68X_USE_FPU):
+    when true or defined(BME68X_USE_FPU):
       inputs[nInputs].signal = data.humidity
     else:
       inputs[nInputs].signal = data.humidity / 1000.0f
@@ -291,7 +288,7 @@ proc getOutputs*(self: var Bsec2): ptr BsecOutputs =
   else:
     return nil
 
-proc getData*(self: var Bsec2; id: BsecSensor): ptr BsecData =
+proc getData*(self: var Bsec2; id: BsecVirtualSensorT): ptr BsecOutputT =
   ## Function to get the BSEC output by sensor id
   ## @return	pointer to BSEC output, nil otherwise
   for i in 0'u ..< self.outputs.nOutputs:
