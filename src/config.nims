@@ -3,7 +3,7 @@ switch("os", "freertos")
 
 switch("define", "release")
 switch("define", "NDEBUG")
-switch("opt", "size")
+# switch("opt", "size")
 switch("mm", "orc") # use "arc", "orc" or "none"
 switch("deepcopy", "on")
 switch("threads", "off")

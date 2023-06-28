@@ -40,6 +40,8 @@ type
     debug*: bool
     status*: int8
     lastOpMode: uint8
+    sensorData: array[3, Bme68xData]
+    nFields, iFields: uint8
 
     device: Bme68xDev
     conf: Bme68xConf
@@ -49,11 +51,9 @@ type
     interrupt: GpioOptional
 
   I2cIntf = object
-    i2c*: ptr I2cInst
+    i2c*: ptr I2c
     address*: I2cAddress
 
-# heap buffer for i2c writes
-var writeBuffer: seq[uint8]
 
 proc createBme68x*(debug: bool = false): Bme68x =
   result.debug = debug
@@ -74,22 +74,14 @@ proc bme68xCheckRslt*(self: Bme68x; apiName: string; rslt: int8) =
 proc bme68xReadBytes(regAddr: uint8; regData: ptr uint8; length: uint32; intfPtr: pointer): int8 {.cdecl.} =
   let i2c = cast[ptr I2cIntf](intfPtr)
 
-  var register = regAddr
-  var res = i2c.i2c.i2cWriteBlocking(i2c.address, addr(register), 1.csize_t, true)
-  res = i2c.i2c.i2cReadBlocking(i2c.address, regData, length.csize_t, false)
+  let res = i2c.i2c.readBytes(i2c.address, regAddr, regData, length)
 
   return if res == PicoErrorGeneric.int8: 1 else: 0
 
 proc bme68xWriteBytes(regAddr: uint8; regData: ptr uint8; length: uint32; intfPtr: pointer): int8 {.cdecl.} =
   let i2c = cast[ptr I2cIntf](intfPtr)
 
-  writeBuffer.setLen(length + 1)
-  let regDataArr = cast[ptr UncheckedArray[uint8]](regData)
-  writeBuffer[0] = regAddr
-  for i in 0..<length:
-    writeBuffer[i + 1] = regDataArr[i]
-
-  let res = i2c.i2c.i2cWriteBlocking(i2c.address, writeBuffer[0].addr, length.csize_t + 1, false)
+  let res = i2c.i2c.writeBytes(i2c.address, regAddr, regData, length)
 
   return if res == PicoErrorGeneric.int8: 1 else: 0
 
@@ -141,19 +133,46 @@ proc setOpMode*(self: var Bme68x; opMode: uint8) =
   if self.status == BME68X_OK and opMode != BME68X_SLEEP_MODE:
     self.lastOpMode = opMode
 
-proc begin*(self: var Bme68x; i2c: var I2c; address: I2cAddress = Bme68xI2cAddrHigh; interrupt: GpioOptional = PinUnused): bool =
+proc fetchData*(self: var Bme68x): uint8 =
+  self.nFields = 0
+  self.status = bme68x_get_data(self.lastOpMode, self.sensorData[0].addr, self.nFields.addr, self.device.addr)
+  self.iFields = 0
+
+  return self.nFields
+
+proc getData*(self: var Bme68x; data: var Bme68xData): uint8 =
+  if self.lastOpMode == BME68X_FORCED_MODE:
+    data = self.sensorData[0]
+  else:
+    if self.nFields > 0:
+      # iFields spans from 0-2 while nFields spans from
+      # 0-3, where 0 means that there is no new data
+      data = self.sensorData[self.iFields]
+      inc(self.iFields)
+
+      # Limit reading continuously to the last fields read
+      if self.iFields >= self.nFields:
+        self.iFields = self.nFields - 1
+        return 0
+
+      # Indicate if there is something left to read
+      return self.nFields - self.iFields;
+
+  return 0
+
+proc begin*(self: var Bme68x; i2c: var I2c; address: I2cAddress = Bme68xI2cAddrHigh; interrupt: GpioOptional = GpioUnused): bool =
   self.i2c = i2c.addr
   self.address = address
   self.interrupt = interrupt
 
   var res: int8 = 0
 
-  if self.interrupt != PinUnused:
+  if self.interrupt != GpioUnused:
     gpioSetFunction(self.interrupt.Gpio, Sio)
     gpioSetDir(self.interrupt.Gpio, In)
     gpioPullUp(self.interrupt.Gpio)
 
-  self.i2cInterface.i2c = self.i2c.getI2c
+  self.i2cInterface.i2c = self.i2c
   self.i2cInterface.address = self.address
 
   self.device.intfPtr = self.i2cInterface.addr

@@ -8,7 +8,6 @@ type
     i2c: ptr I2cInst
     sda: Gpio
     scl: Gpio
-    interrupt: GpioOptional
     baudrate: uint
 
 proc pinToInst*(pin: Gpio): ptr I2cInst =
@@ -18,7 +17,6 @@ proc init*(self: var I2c; sda: Gpio = I2cDefaultSda; scl: Gpio = I2cDefaultScl; 
   self.sda = sda
   self.scl = scl
   self.baudrate = baudrate
-  self.interrupt = PinUnused
   self.i2c = PimoroniI2cDefaultInstance
 
   #self.i2c = pinToInst(self.sda)
@@ -54,43 +52,20 @@ proc getBaudrate*(self: var I2c|ptr I2c): auto = self.baudrate
 
 ##  Basic wrappers for devices using i2c functions directly
 
-proc writeBlocking*(self: var I2c; `addr`: I2cAddress; src: ptr uint8; len: csize_t; nostop: bool): cint =
-  return i2cWriteBlocking(self.i2c, `addr`, src, len, nostop)
+# proc writeBlocking*(self: var I2c|ptr I2c; `addr`: I2cAddress; src: ptr uint8; len: csize_t; nostop: bool): cint =
+#   return i2cWriteBlocking(self.i2c, `addr`, src, len, nostop)
 
-proc readBlocking*(self: var I2c; `addr`: I2cAddress; dst: ptr uint8; len: csize_t; nostop: bool): cint =
-  return i2cReadBlocking(self.i2c, `addr`, dst, len, nostop)
+# proc readBlocking*(self: var I2c|ptr I2c; `addr`: I2cAddress; dst: ptr uint8; len: csize_t; nostop: bool): cint =
+#   return i2cReadBlocking(self.i2c, `addr`, dst, len, nostop)
 
 ##  Convenience functions for various common i2c operations
 
-proc regWriteUint8*(self: var I2c; address: I2cAddress; reg: uint8; value: uint8) =
-  var buffer: array[2, uint8] = [reg, value]
-  discard i2cWriteBlocking(self.i2c, address, buffer[0].addr, 2, false)
+proc readBytes*(self: var I2c|ptr I2c; address: I2cAddress; reg: uint8; buf: ptr uint8; len: uint): cint =
+  let res = i2cWriteBlocking(self.i2c, address, reg.unsafeAddr, 1, true)
+  if res <= 0: return res
+  return i2cReadBlocking(self.i2c, address, buf, len.csize_t, false)
 
-proc regReadUint8*(self: var I2c; address: I2cAddress; reg: uint8): uint8 =
-  var value: uint8
-  discard i2cWriteBlocking(self.i2c, address, reg.unsafeAddr, 1, false)
-  discard i2cReadBlocking(self.i2c, address, value.addr, 1, false)
-  return value
-
-proc regReadUint16*(self: var I2c; address: I2cAddress; reg: uint8): uint16 =
-  var value: uint16
-  discard i2cWriteBlocking(self.i2c, address, reg.unsafeAddr, 1, true)
-  discard i2cReadBlocking(self.i2c, address, cast[ptr uint8](addr(value)), sizeof((uint16)).csize_t, false)
-  return value
-
-proc regReadUint32*(self: var I2c; address: I2cAddress; reg: uint8): uint32 =
-  var value: uint32
-  discard i2cWriteBlocking(self.i2c, address, reg.unsafeAddr, 1, true)
-  discard i2cReadBlocking(self.i2c, address, cast[ptr uint8](addr(value)), sizeof((uint32)).csize_t, false)
-  return value
-
-proc regReadInt16*(self: var I2c; address: I2cAddress; reg: uint8): int16 =
-  var value: int16
-  discard i2cWriteBlocking(self.i2c, address, reg.unsafeAddr, 1, true)
-  discard i2cReadBlocking(self.i2c, address, cast[ptr uint8](addr(value)), sizeof((int16)).csize_t, false)
-  return value
-
-proc writeBytes*(self: var I2c; address: I2cAddress; reg: uint8; buf: ptr uint8; len: cuint): cint =
+proc writeBytes*(self: var I2c|ptr I2c; address: I2cAddress; reg: uint8; buf: ptr uint8; len: uint): cint =
   var buffer: seq[uint8]
   buffer.setLen(len + 1)
   buffer[0] = reg
@@ -101,25 +76,47 @@ proc writeBytes*(self: var I2c; address: I2cAddress; reg: uint8; buf: ptr uint8;
   return i2cWriteBlocking(self.i2c, address, buffer[0].addr, (len + 1), false)
 
 
-proc readBytes*(self: var I2c; address: I2cAddress; reg: uint8; buf: ptr uint8; len: cint): cint =
-  var register = reg
-  discard i2cWriteBlocking(self.i2c, address, addr(register), 1, true)
-  discard i2cReadBlocking(self.i2c, address, buf, len.csize_t, false)
-  return len
+proc regWriteUint8*(self: var I2c|ptr I2c; address: I2cAddress; reg: uint8; value: uint8) =
+  var buffer: array[2, uint8] = [reg, value]
+  discard i2cWriteBlocking(self.i2c, address, buffer[0].addr, 2, false)
+
+proc regReadUint8*(self: var I2c|ptr I2c; address: I2cAddress; reg: uint8): uint8 =
+  var value: uint8
+  discard i2cWriteBlocking(self.i2c, address, reg.unsafeAddr, 1, false)
+  discard i2cReadBlocking(self.i2c, address, value.addr, 1, false)
+  return value
+
+proc regReadUint16*(self: var I2c|ptr I2c; address: I2cAddress; reg: uint8): uint16 =
+  var value: uint16
+  discard i2cWriteBlocking(self.i2c, address, reg.unsafeAddr, 1, true)
+  discard i2cReadBlocking(self.i2c, address, cast[ptr uint8](addr(value)), sizeof((uint16)).csize_t, false)
+  return value
+
+proc regReadUint32*(self: var I2c|ptr I2c; address: I2cAddress; reg: uint8): uint32 =
+  var value: uint32
+  discard i2cWriteBlocking(self.i2c, address, reg.unsafeAddr, 1, true)
+  discard i2cReadBlocking(self.i2c, address, cast[ptr uint8](addr(value)), sizeof((uint32)).csize_t, false)
+  return value
+
+proc regReadInt16*(self: var I2c|ptr I2c; address: I2cAddress; reg: uint8): int16 =
+  var value: int16
+  discard i2cWriteBlocking(self.i2c, address, reg.unsafeAddr, 1, true)
+  discard i2cReadBlocking(self.i2c, address, cast[ptr uint8](addr(value)), sizeof((int16)).csize_t, false)
+  return value
 
 
-proc getBits*(self: var I2c; address: I2cAddress; reg: uint8; shift: uint8; mask: uint8): uint8 =
+proc getBits*(self: var I2c|ptr I2c; address: I2cAddress; reg: uint8; shift: uint8; mask: uint8 = 0b1): uint8 =
   var value: uint8
   discard self.readBytes(address, reg, addr(value), 1)
   return value and (mask shl shift)
 
-proc setBits*(self: var I2c; address: I2cAddress; reg: uint8; shift: uint8; mask: uint8) =
+proc setBits*(self: var I2c|ptr I2c; address: I2cAddress; reg: uint8; shift: uint8; mask: uint8 = 0b1) =
   var value: uint8
   discard self.readBytes(address, reg, addr(value), 1)
   value = value or mask shl shift
   discard self.writeBytes(address, reg, addr(value), 1)
 
-proc clearBits*(self: var I2c; address: I2cAddress; reg: uint8; shift: uint8; mask: uint8) =
+proc clearBits*(self: var I2c|ptr I2c; address: I2cAddress; reg: uint8; shift: uint8; mask: uint8 = 0b1) =
   var value: uint8
   discard self.readBytes(address, reg, addr(value), 1)
   value = value and not (mask shl shift)

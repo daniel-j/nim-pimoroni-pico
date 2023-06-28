@@ -17,4 +17,4 @@ requires "pixie >= 5.0.4"
 include picostdlib/build_utils/tasks
 
 before install:
-  exec "nimble c -d:useFuthark -d:futharkRebuild -d:opirRebuild src/pimoroni_pico/futhark_gen"
+  exec "nimble c -c -d:useFuthark -d:futharkRebuild -d:opirRebuild src/pimoroni_pico/futhark_gen"

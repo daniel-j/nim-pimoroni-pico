@@ -10,8 +10,6 @@ let
   PimoroniSpiDefaultInstance* = spi0
 
 const
-  PinUnused* = GpioUnused
-
   ## I2C
   I2cDefaultBaudrate* = 400_000
   I2cDefaultSda* = 20.Gpio
@@ -104,7 +102,7 @@ type
   #   NormalDir = 0, ReversedDir = 1
 
 ##  Template to return a value clamped between a minimum and maximum
-template clamp*(a, mn, mx: untyped): untyped =
-  (if (a) < (mx): (if (a) > (mn): (a) else: (mn)) else: (mx))
+# template clamp*(a, mn, mx: untyped): untyped =
+#   (if (a) < (mx): (if (a) > (mn): (a) else: (mn)) else: (mx))
 
 proc millis*(): uint32 {.inline.} = toMsSinceBoot(getAbsoluteTime())

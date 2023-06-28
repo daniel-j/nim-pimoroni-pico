@@ -27,6 +27,7 @@ else:
 
 ##  Nim helpers
 
+import picostdlib/hardware/timer
 import ../common/pimoroni_i2c
 import ../drivers/bme68x
 
@@ -56,10 +57,10 @@ type
     output*: array[BSEC_NUMBER_OUTPUTS, BsecData]
     nOutputs*: uint8
 
-  BsecCallback* = proc (data: Bme68xData; outputs: BsecOutputs; bsec: Bsec2)
+  BsecCallback* = proc (data: Bme68xData; outputs: BsecOutputs; bsec: var Bsec2)
 
-proc BSEC_CHECK_INPUT(x, shift: int): int =
-  (x and (1 shl (shift-1)))
+proc BSEC_CHECK_INPUT(x: uint32; shift: BsecPhysicalSensorT): bool =
+  (x.int and (1 shl (shift.int-1))) != 0
 
 proc createBsec2*(): Bsec2 =
   ## Constructor of Bsec2 class
@@ -103,6 +104,7 @@ proc begin*(self: var Bsec2; intf: Bme68xIntf; read: Bme68xReadFptrT; write: Bme
   ## @param idleTask : Delay or Idle function
   ## @param intfPtr : Pointer to the interface descriptor
   ## @return True if everything initialized correctly
+  discard
 
 proc begin*(self: var Bsec2; i2c: var I2c; i2cAddr: I2cAddress; idleTask: Bme68xDelayUsFptrT = bme68xDelayUs): bool =
   ## Function to initialize the sensor based on the I2c library
@@ -114,18 +116,169 @@ proc begin*(self: var Bsec2; i2c: var I2c; i2cAddr: I2cAddress; idleTask: Bme68x
     return false
   return self.beginCommon()
 
-proc updateSubscription*(self: var Bsec2; sensorList: openArray[BsecSensor], sampleRate: float = BSEC_SAMPLE_RATE_ULP): bool =
+proc setBme68xConfigForced(self: var Bsec2) =
+  # Set the BME68x sensor configuration to forced mode
+  self.sensor.setTPH(self.bmeConf.temperature_oversampling, self.bmeConf.pressure_oversampling, self.bmeConf.humidity_oversampling)
+  if self.sensor.status != BME68X_OK:
+    return
+
+  self.sensor.setHeaterProf(self.bmeConf.heater_temperature, self.bmeConf.heater_duration)
+  if self.sensor.status != BME68X_OK:
+    return
+
+  self.sensor.setOpMode(BME68X_FORCED_MODE)
+  if self.sensor.status != BME68X_OK:
+    return
+
+  self.opMode = BME68X_FORCED_MODE
+
+
+proc setBme68xConfigParallel(self: var Bsec2) =
+  # Set the BME68X sensor configuration to parallel mode
+
+  self.sensor.setTPH(self.bmeConf.temperature_oversampling, self.bmeConf.pressure_oversampling, self.bmeConf.humidity_oversampling)
+  if self.sensor.status != BME68X_OK:
+    return
+
+  let sharedHeaterDur = uint16 BSEC_TOTAL_HEAT_DUR - (self.sensor.getMeasDur(BME68X_PARALLEL_MODE) div 1000)
+
+  self.sensor.setHeaterProf(self.bmeConf.heater_temperature_profile[0].addr, self.bmeConf.heater_duration_profile[0].addr, sharedHeaterDur, self.bmeConf.heater_profile_len)
+  if self.sensor.status != BME68X_OK:
+    return
+
+  self.sensor.setOpMode(BME68X_PARALLEL_MODE)
+  if self.sensor.status != BME68X_OK:
+    return
+
+  self.opMode = BME68X_PARALLEL_MODE
+
+proc updateSubscription*(self: var Bsec2; sensorList: openArray[BsecSensor]; nSensors: uint8; sampleRate: float = BSEC_SAMPLE_RATE_ULP): bool =
   ## Function that sets the desired sensors and the sample rates
   ## @param sensorList	: The list of output sensors
   ## @param nSensors		: Number of outputs requested
   ## @param sampleRate	: The sample rate of requested sensors
   ## @return	true for success, false otherwise
-  discard
+  var virtualSensors: array[BSEC_NUMBER_OUTPUTS, BsecSensorConfigurationT]
+  var sensorSettings: array[BSEC_MAX_PHYSICAL_SENSOR, BsecSensorConfigurationT]
+  var nSensorSettings: uint8 = BSEC_MAX_PHYSICAL_SENSOR
+
+  for i in 0'u ..< nSensors:
+    virtualSensors[i].sensor_id = sensorList[i].uint8
+    virtualSensors[i].sample_rate = sampleRate
+
+  # Subscribe to library virtual sensors outputs
+  self.status = bsec_update_subscription_m(self.bsecInstance, virtualSensors[0].addr, nSensors, sensorSettings[0].addr, nSensorSettings.addr)
+  if self.status != BSEC_OK:
+    return false
+
+  return true
+
+proc processData(self: var Bsec2; currTimeNs: int64; data: var Bme68xData): bool =
+  ## Reads the data from the BME68x sensor and process it
+  ## @param currTimeNs: Current time in ns
+  ## @return true if there are new outputs. false otherwise
+  var inputs: array[BSEC_MAX_PHYSICAL_SENSOR, BsecInputT] # Temp, Pres, Hum & Gas
+  var nInputs: uint8 = 0
+  # Checks all the required sensor inputs, required for the BSEC library for the requested outputs
+  if BSEC_CHECK_INPUT(self.bmeConf.process_data, BSEC_INPUT_TEMPERATURE):
+      inputs[nInputs].sensor_id = BSEC_INPUT_HEATSOURCE.uint8
+      inputs[nInputs].signal = self.extTempOffset
+      inputs[nInputs].time_stamp = currTimeNs
+      inc(nInputs)
+      when defined(BME68X_USE_FPU):
+        inputs[nInputs].signal = data.temperature
+      else:
+        inputs[nInputs].signal = data.temperature / 100.0f
+      inputs[nInputs].sensor_id = BSEC_INPUT_TEMPERATURE.uint8
+      inputs[nInputs].time_stamp = currTimeNs
+      inc(nInputs)
+
+  if BSEC_CHECK_INPUT(self.bmeConf.process_data, BSEC_INPUT_HUMIDITY):
+    when defined(BME68X_USE_FPU):
+      inputs[nInputs].signal = data.humidity
+    else:
+      inputs[nInputs].signal = data.humidity / 1000.0f
+
+    inputs[nInputs].sensor_id = BSEC_INPUT_HUMIDITY.uint8
+    inputs[nInputs].time_stamp = currTimeNs
+    inc(nInputs)
+
+  if BSEC_CHECK_INPUT(self.bmeConf.process_data, BSEC_INPUT_PRESSURE):
+    inputs[nInputs].sensor_id = BSEC_INPUT_PRESSURE.uint8
+    inputs[nInputs].signal = data.pressure
+    inputs[nInputs].time_stamp = currTimeNs
+    inc(nInputs)
+
+  if BSEC_CHECK_INPUT(self.bmeConf.process_data, BSEC_INPUT_GASRESISTOR) and (data.status and BME68X_GASM_VALID_MSK) != 0:
+    inputs[nInputs].sensor_id = BSEC_INPUT_GASRESISTOR.uint8
+    inputs[nInputs].signal = data.gas_resistance
+    inputs[nInputs].time_stamp = currTimeNs
+    inc(nInputs)
+
+  if BSEC_CHECK_INPUT(self.bmeConf.process_data, BSEC_INPUT_PROFILE_PART) and (data.status and BME68X_GASM_VALID_MSK) != 0:
+    inputs[nInputs].sensor_id = BSEC_INPUT_PROFILE_PART.uint8
+    inputs[nInputs].signal = if self.opMode == BME68X_FORCED_MODE: 0.0 else: data.gas_index.float
+    inputs[nInputs].time_stamp = currTimeNs
+    inc(nInputs)
+
+  if nInputs > 0:
+
+    self.outputs.nOutputs = BSEC_NUMBER_OUTPUTS
+    zeroMem(self.outputs.output.addr, sizeof(self.outputs.output))
+
+    # Processing of the input signals and returning of output samples is performed by bsec_do_steps()
+    self.status = bsec_do_steps_m(self.bsecInstance, inputs[0].addr, nInputs, self.outputs.output[0].addr, self.outputs.nOutputs.addr)
+
+    if self.status != BSEC_OK:
+        return false
+
+    if not self.newDataCallback.isNil:
+      self.newDataCallback(data, self.outputs, self)
+
+  return true
 
 proc run*(self: var Bsec2): bool =
   ## Callback from the user to read data from the BME68x using parallel/forced mode, process and store outputs
   ## @return	true for success, false otherwise
-  discard
+  var nFieldsLeft: uint8 = 0
+  var data: Bme68xData
+  let currTimeNs: int64 = int64 timeUs64() * 1000'u64
+  self.opMode = self.bmeConf.op_mode
+
+  if currTimeNs >= self.bmeConf.next_call:
+    # Provides the information about the current sensor configuration that is
+    # necessary to fulfill the input requirements, eg: operation mode, timestamp
+    # at which the sensor data shall be fetched etc
+    self.status = bsec_sensor_control_m(self.bsecInstance, currTimeNs, self.bmeConf.addr)
+    if self.status != BSEC_OK:
+      return false
+
+    case self.bmeConf.op_mode:
+    of BME68X_FORCED_MODE:
+      self.setBme68xConfigForced()
+    of BME68X_PARALLEL_MODE:
+      if self.opMode != self.bmeConf.op_mode:
+        self.setBme68xConfigParallel()
+    of BME68X_SLEEP_MODE:
+      if self.opMode != self.bmeConf.op_mode:
+        self.sensor.setOpMode(BME68X_SLEEP_MODE)
+        self.opMode = BME68X_SLEEP_MODE
+    else: discard
+
+    if self.sensor.status != BME68X_OK:
+      return false
+
+    if self.bmeConf.trigger_measurement != 0 and self.bmeConf.op_mode != BME68X_SLEEP_MODE:
+      if self.sensor.fetchData() > 0:
+        while true:
+          nFieldsLeft = self.sensor.getData(data)
+          # check for valid gas data
+          if (data.status and BME68X_GASM_VALID_MSK) != 0:
+            if not self.processData(currTimeNs, data):
+              return false
+          if nFieldsLeft <= 0: break
+
+  return true
 
 proc setCallback*(self: var Bsec2; callback: BsecCallback) =
   self.newDataCallback = callback
@@ -141,7 +294,7 @@ proc getOutputs*(self: var Bsec2): ptr BsecOutputs =
 proc getData*(self: var Bsec2; id: BsecSensor): ptr BsecData =
   ## Function to get the BSEC output by sensor id
   ## @return	pointer to BSEC output, nil otherwise
-  for i in 0..<self.outputs.nOutputs.int:
+  for i in 0'u ..< self.outputs.nOutputs:
     if id.uint8 == self.outputs.output[i].sensor_id:
       return self.outputs.output[i].addr
   return nil
@@ -188,46 +341,5 @@ proc clearMemory*(self: var Bsec2) =
   ## Function to de-allocate the dynamically allocated memory
   # dealloc(self.bsecInstance)
 
-proc processData(self: var Bsec2; currTimeNs: int64; data: ptr Bme68xData): bool =
-  ## Reads the data from the BME68x sensor and process it
-  ## @param currTimeNs: Current time in ns
-  ## @return true if there are new outputs. false otherwise
-  discard
-
-proc setBme68xConfigForced(self: var Bsec2) =
-  # Set the BME68x sensor configuration to forced mode
-  self.sensor.setTPH(self.bmeConf.temperature_oversampling, self.bmeConf.pressure_oversampling, self.bmeConf.humidity_oversampling)
-  if self.sensor.status != BME68X_OK:
-    return
-
-  self.sensor.setHeaterProf(self.bmeConf.heater_temperature, self.bmeConf.heater_duration)
-  if self.sensor.status != BME68X_OK:
-    return
-
-  self.sensor.setOpMode(BME68X_FORCED_MODE)
-  if self.sensor.status != BME68X_OK:
-    return
-
-  self.opMode = BME68X_FORCED_MODE
-
-
-proc setBme68xConfigParallel(self: var Bsec2) =
-  # Set the BME68X sensor configuration to parallel mode
-
-  self.sensor.setTPH(self.bmeConf.temperature_oversampling, self.bmeConf.pressure_oversampling, self.bmeConf.humidity_oversampling)
-  if self.sensor.status != BME68X_OK:
-    return
-
-  let sharedHeaterDur = uint16 BSEC_TOTAL_HEAT_DUR - (self.sensor.getMeasDur(BME68X_PARALLEL_MODE) div 1000)
-
-  self.sensor.setHeaterProf(self.bmeConf.heater_temperature_profile[0].addr, self.bmeConf.heater_duration_profile[0].addr, sharedHeaterDur, self.bmeConf.heater_profile_len)
-  if self.sensor.status != BME68X_OK:
-    return
-
-  self.sensor.setOpMode(BME68X_PARALLEL_MODE)
-  if self.sensor.status != BME68X_OK:
-    return
-
-  self.opMode = BME68X_PARALLEL_MODE
 
 # WIP

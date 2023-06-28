@@ -78,11 +78,11 @@ proc bcdDecode*(v: uint): int8 =
     v1: uint = v and 0x0f
   return (v1 + (v10 * 10)).int8
 
-proc init*(self: var RtcPcf85063a; i2c: I2c; interrupt: GpioOptional = PinUnused) =
+proc init*(self: var RtcPcf85063a; i2c: I2c; interrupt: GpioOptional = GpioUnused) =
   self.address = DefaultI2cAddress
   self.i2c = i2c
   self.interrupt = interrupt
-  if self.interrupt != PinUnused:
+  if self.interrupt != GpioUnused:
     gpioSetFunction(self.interrupt.Gpio, GpioFunction.Sio)
     gpioSetDir(self.interrupt.Gpio, In)
     gpioSetPulls(self.interrupt.Gpio, up=false, down=true)
