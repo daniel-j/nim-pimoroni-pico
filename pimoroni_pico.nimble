@@ -5,7 +5,6 @@ author        = "djazz"
 description   = "Pimoroni Pico drivers and libraries for Nim"
 license       = "MIT"
 srcDir        = "src"
-# bin           = @["example"]
 skipFiles     = @["futhark_gen.nim"]
 backend       = "c"
 

@@ -33,7 +33,6 @@ else:
 ##  Nim helpers
 
 import picostdlib
-import ../common/vla
 
 type
   Bme68x* = object
@@ -52,6 +51,9 @@ type
   I2cIntf = object
     i2c*: ptr I2cInst
     address*: I2cAddress
+
+# heap buffer for i2c writes
+var writeBuffer: seq[uint8]
 
 proc createBme68x*(debug: bool = false): Bme68x =
   result.debug = debug
@@ -80,13 +82,14 @@ proc bme68xReadBytes(regAddr: uint8; regData: ptr uint8; length: uint32; intfPtr
 
 proc bme68xWriteBytes(regAddr: uint8; regData: ptr uint8; length: uint32; intfPtr: pointer): int8 {.cdecl.} =
   let i2c = cast[ptr I2cIntf](intfPtr)
-  var buffer = newVLA(uint8, int length + 1)
-  let regDataArr = cast[ptr UncheckedArray[uint8]](regData)
-  buffer[0] = regAddr
-  for i in 0..<length:
-    buffer[i + 1] = regDataArr[i]
 
-  let res = i2c.i2c.i2cWriteBlocking(i2c.address, buffer[0].addr, length.csize_t + 1, false)
+  writeBuffer.setLen(length + 1)
+  let regDataArr = cast[ptr UncheckedArray[uint8]](regData)
+  writeBuffer[0] = regAddr
+  for i in 0..<length:
+    writeBuffer[i + 1] = regDataArr[i]
+
+  let res = i2c.i2c.i2cWriteBlocking(i2c.address, writeBuffer[0].addr, length.csize_t + 1, false)
 
   return if res == PicoErrorGeneric.int8: 1 else: 0
 
