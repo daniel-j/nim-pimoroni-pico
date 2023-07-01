@@ -1,0 +1,75 @@
+--- a/src/rp2_common/pico_standard_link/crt0.S
++++ b/src/rp2_common/pico_standard_link/crt0.S
+@@ -11,6 +11,8 @@
+ #include "hardware/regs/addressmap.h"
+ #include "hardware/regs/sio.h"
+ #include "pico/binary_info/defs.h"
++#include "hardware/regs/resets.h"
++#include "hardware/regs/rosc.h"
+ 
+ #ifdef NDEBUG
+ #ifndef COLLAPSE_IRQS
+@@ -225,6 +227,23 @@ _reset_handler:
+     cmp r0, #0
+     bne hold_non_core0_in_bootrom
+ 
++    // Increase ROSC frequency to ~48MHz (range 14.4 - 96)
++    // Startup drops from ~160ms to ~32ms on Pico W MicroPython
++    ldr r0, =(ROSC_BASE + ROSC_DIV_OFFSET)
++    ldr r1, =0xaa2
++    str r1, [r0]
++
++    ldr r1, =runtime_reset_peripherals
++    blx r1
++
++    ldr r1, =runtime_user_init
++    blx r1
++
++    // Read GPIO state for front buttons and store
++    movs r3, 0xd0                // Load 0xd0 into r3
++    lsls r3, r3, 24              // Shift left 24 to get 0xd0000000
++    ldr r6, [r3, 4]              // Load GPIO state (0xd0000004) into r6
++
+     // In a NO_FLASH binary, don't perform .data copy, since it's loaded
+     // in-place by the SRAM load. Still need to clear .bss
+ #if !PICO_NO_FLASH
+@@ -251,6 +270,10 @@ bss_fill_test:
+     cmp r1, r2
+     bne bss_fill_loop
+ 
++    // runtime_wakeup_gpio_state gets zero init above
++    ldr r2, =runtime_wakeup_gpio_state   // Load output var addr into r2
++    str r6, [r2]                        // Store r6 to r2
++
+ platform_entry: // symbol for stack traces
+     // Use 32-bit jumps, in case these symbols are moved out of branch range
+     // (e.g. if main is in SRAM and crt0 in flash)
+@@ -310,6 +333,18 @@ data_cpy_table:
+ runtime_init:
+     bx lr
+ 
++.weak runtime_user_init
++.type runtime_user_init,%function
++.thumb_func
++runtime_user_init:
++    bx lr
++
++.weak runtime_reset_peripherals
++.type runtime_reset_peripherals,%function
++.thumb_func
++runtime_reset_peripherals:
++    bx lr
++
+ // ----------------------------------------------------------------------------
+ // If core 1 somehow gets into crt0 due to a spectacular VTOR mishap, we need to
+ // catch it and send back to the sleep-and-launch code in the bootrom. Shouldn't
+@@ -350,3 +385,9 @@ spacer_section .heap
+ .p2align 2
+     .equ HeapSize, PICO_HEAP_SIZE
+ .space HeapSize
++
++.section .data._reset_handler
++.global runtime_wakeup_gpio_state
++.align 4
++runtime_wakeup_gpio_state:
++.word 0x00000000

@@ -1,0 +1,57 @@
+--- a/src/rp2_common/pico_runtime/runtime.c
++++ b/src/rp2_common/pico_runtime/runtime.c
+@@ -20,6 +20,7 @@
+ #include "hardware/clocks.h"
+ #include "hardware/irq.h"
+ #include "hardware/resets.h"
++#include "hardware/gpio.h"
+ 
+ #include "pico/mutex.h"
+ #include "pico/time.h"
+@@ -35,6 +36,21 @@
+ #include "pico/bootrom.h"
+ #endif
+ 
++// Pins to toggle on wakeup
++#ifndef PICO_WAKEUP_PIN_MASK
++#define PICO_WAKEUP_PIN_MASK ((0b1 << 2) | (0b1 << 6))
++#endif
++
++// Direction
++#ifndef PICO_WAKEUP_PIN_DIR
++#define PICO_WAKEUP_PIN_DIR ((0b1 << 2) | (0b1 << 6))
++#endif
++
++// Value
++#ifndef PICO_WAKEUP_PIN_VALUE
++#define PICO_WAKEUP_PIN_VALUE ((0b1 << 2) | (0b1 << 6))
++#endif
++
+ extern char __StackLimit; /* Set by linker.  */
+ 
+ uint32_t __attribute__((section(".ram_vector_table"))) ram_vector_table[48];
+@@ -64,7 +80,13 @@ void runtime_install_stack_guard(void *stack_bottom) {
+                    | 0x10000000; // XN = disable instruction fetch; no other bits means no permissions
+ }
+ 
+-void runtime_init(void) {
++void runtime_user_init(void) {
++    gpio_init_mask(PICO_WAKEUP_PIN_MASK);
++    gpio_set_dir_masked(PICO_WAKEUP_PIN_MASK, PICO_WAKEUP_PIN_DIR);
++    gpio_put_masked(PICO_WAKEUP_PIN_MASK, PICO_WAKEUP_PIN_VALUE);
++}
++
++void runtime_reset_peripherals(void) {
+     // Reset all peripherals to put system into a known state,
+     // - except for QSPI pads and the XIP IO bank, as this is fatal if running from flash
+     // - and the PLLs, as this is fatal if clock muxing has not been reset on this boot
+@@ -89,7 +111,9 @@ void runtime_init(void) {
+             RESETS_RESET_UART1_BITS |
+             RESETS_RESET_USBCTRL_BITS
+     ));
++}
+ 
++void runtime_init(void) {
+     // pre-init runs really early since we need it even for memcpy and divide!
+     // (basically anything in aeabi that uses bootrom)
+ 
