@@ -45,7 +45,6 @@ endif()
 execute_process(COMMAND ${PATCH} ${in_file} -p1 --input=${patch_file} --output=${out_file} --ignore-whitespace --read-only=ignore
   WORKING_DIRECTORY ${work_dir}
   TIMEOUT 15
-  COMMAND_ECHO STDOUT
   RESULT_VARIABLE ret
 )
 

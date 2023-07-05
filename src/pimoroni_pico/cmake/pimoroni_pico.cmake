@@ -25,5 +25,3 @@ function(pico_sdk_patch_source filename patch_file target)
     PROPERTIES HEADER_FILE_ONLY ON)
 
 endfunction()
-
-
