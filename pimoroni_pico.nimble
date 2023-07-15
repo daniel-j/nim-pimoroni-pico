@@ -18,3 +18,16 @@ include picostdlib/build_utils/tasks
 
 before install:
   exec "nimble c -c -d:useFuthark -d:futharkRebuild -d:opirRebuild src/pimoroni_pico/futhark_gen"
+
+task test, "Runs the test suite":
+
+  # exec "nimble c -r tests_mock/tinkyframe"
+
+  # exec "piconim setup --project tests --source tests --board pico"
+
+  exec "piconim setup --project tests --source tests --board pico_w"
+
+  exec "piconim build --project tests tests/tgalactic_unicorn"
+
+task examples, "Build the examples":
+  discard
