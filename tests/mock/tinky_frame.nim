@@ -46,7 +46,7 @@ proc drawHslChart(kind: InkyFrameKind) =
   echo "Writing image to tinky_frame_" & $kind & "_hsl.png..."
   inky.image.writeFile("tinky_frame_" & $kind & "_hsl.png")
 
-proc drawFile(filename: string; kind: InkyFrameKind): bool =
+proc drawFile(filename: string; kind: InkyFrameKind; drawMode: DrawMode): bool =
   var inky = InkyFrame(kind: kind)
   inky.init()
 
@@ -60,11 +60,11 @@ proc drawFile(filename: string; kind: InkyFrameKind): bool =
 
   echo "Decoding jpeg file ", filename, "..."
 
-  if inky.drawJpeg(filename, x, y, w, h, gravity=(0.5, 0.5), DrawMode.ErrorDiffusion) == 1:
+  if inky.drawJpeg(filename, x, y, w, h, gravity=(0.5, 0.5), drawMode) == 1:
     echo "Converting image..."
     inky.update()
-    echo "Writing image to tinky_frame_" & $kind & "_file.png..."
-    inky.image.writeFile("tinky_frame_" & $kind & "_file.png")
+    echo "Writing image to tinky_frame_" & $kind & "_image_" & $drawMode & ".png..."
+    inky.image.writeFile("tinky_frame_" & $kind & "_image_" & $drawMode & ".png")
     return true
   else:
     echo "JPEGDEC error"
@@ -72,5 +72,6 @@ proc drawFile(filename: string; kind: InkyFrameKind): bool =
 
 
 for kind in InkyFrameKind:
-  doAssert drawFile(paramStr(1), kind)
+  for drawMode in DrawMode:
+    doAssert drawFile(paramStr(1), kind, drawMode)
   drawHslChart(kind)
