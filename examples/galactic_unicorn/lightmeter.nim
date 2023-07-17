@@ -6,12 +6,11 @@ unicorn.init()
 
 unicorn.setBrightness(0.5)
 
-var counter = 0
-
 while true:
+  let lightlevel = unicorn.light().int / 2000
+  let pos = int lightlevel * GalacticUnicornWidth
   for x in 0..<GalacticUnicornWidth:
     for y in 0..<GalacticUnicornHeight:
-      unicorn.setPixel((x + counter) mod GalacticUnicornWidth, y, uint8 x * 4, uint8 y *  15, 0)
-  inc(counter, 2)
+      unicorn.setPixel(x, y, if x < pos: 255 else: 0, 0, uint8 y *  15)
 
   tightLoopContents()

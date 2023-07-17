@@ -91,5 +91,6 @@ if(NOT PICO_CYW43_SUPPORTED)
 
 else()
   add_example(galactic_unicorn_simple simple)
+  add_example(galactic_unicorn_lightmeter lightmeter)
   add_example(inky_frame_slideshow slideshow)
 endif()

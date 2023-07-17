@@ -31,6 +31,7 @@ task test, "Runs the test suite":
 task examples, "Build the examples":
   const examples = [
     "galactic_unicorn/simple",
+    "galactic_unicorn/lightmeter",
     "inky_frame/slideshow"
   ]
 
