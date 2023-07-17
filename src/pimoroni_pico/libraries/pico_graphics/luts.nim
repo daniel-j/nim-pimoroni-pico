@@ -1,4 +1,5 @@
 import std/bitops
+import std/math
 
 import ./rgb
 export rgb
@@ -19,6 +20,14 @@ const
   cacheGreenBits = 4
   cacheBlueBits = 4
 
+func genereateGammaLut*[T](bitdepth: static[uint]; size: static[uint]; gamma = defaultGamma): array[size, T] =
+  let mult = float (1 shl bitdepth) - 1
+  for n in 0..<size:
+    result[n] = T pow(n / 255, gamma) * mult + 0.5
+
+const
+  Gamma8Bit* = genereateGammaLut[uint8](8, 256, 2.2)
+  Gamma14Bit* = genereateGammaLut[uint16](14, 256, 2.2)
 
 const rgb332ToRgb565Lut*: array[256, uint16] = [
     0x0000.uint16, 0x0800, 0x1000, 0x1800, 0x0001,

@@ -30,9 +30,13 @@ task test, "Runs the test suite":
 
 task examples, "Build the examples":
   const examples = [
-    "galactic_unicorn/simple",
+    # Galaxy Unicorn
     "galactic_unicorn/lightmeter",
-    "inky_frame/slideshow"
+    "galactic_unicorn/rainbow",
+    "galactic_unicorn/simple",
+
+    # Inky Frame
+    "inky_frame/slideshow",
   ]
 
   # exec "piconim setup --project examples --source examples --board pico"
@@ -43,6 +47,6 @@ task examples, "Build the examples":
   for ex in examples:
     let splitpath = ex.split("/")
     let (product, base) = (splitpath[0], splitpath[^1])
-    exec "piconim build --project examples examples/" & ex & " --target " & product & "_" & base #& " --compileOnly"
+    exec "piconim build --project examples examples/" & ex & " --target " & product & "_" & base & " --compileOnly"
 
-  # exec "cmake --build build/examples -- -j4"
+  exec "cmake --build build/examples -- -j4"

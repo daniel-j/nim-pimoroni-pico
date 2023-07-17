@@ -9,8 +9,9 @@ import picostdlib/hardware/gpio
 import picostdlib/hardware/pio
 import picostdlib/pico/platform
 import picostdlib/pico/time
-import ../common/pimoroni_common
 import ./pico_graphics
+
+export gpio, pico_graphics
 
 pioInclude(currentSourcePath.parentDir / ".." / "pio" / "galactic_unicorn.pio")
 
@@ -74,16 +75,16 @@ type
     bitstream* {.align: 4.}: array[BitstreamLength, uint8]
     bitstreamAddr*: uint32
 
-  Button* = enum
-    ButtonA = SwitchAPin
-    ButtonB = SwitchBPin
-    ButtonC = SwitchCPin
-    ButtonD = SwitchDPin
-    ButtonVolumeUp = SwitchVolumeUpPin
-    ButtonVolumeDown = SwitchVolumeDownPin
-    ButtonBrightnessUp = SwitchBrightnessUpPin
-    ButtonBrightnessDown = SwitchBrightnessDownPin
-    ButtonSleep = SwitchSleepPin
+  Switch* = enum
+    SwitchA = SwitchAPin
+    SwitchB = SwitchBPin
+    SwitchC = SwitchCPin
+    SwitchD = SwitchDPin
+    SwitchVolumeUp = SwitchVolumeUpPin
+    SwitchVolumeDown = SwitchVolumeDownPin
+    SwitchBrightnessUp = SwitchBrightnessUpPin
+    SwitchBrightnessDown = SwitchBrightnessDownPin
+    SwitchSleep = SwitchSleepPin
 
 var
   unicorn: ptr GalacticUnicorn = nil
@@ -237,10 +238,10 @@ proc init*(self: var GalacticUnicorn) =
   gpioSetDir(MutePin, Out)
   gpioPut(MutePin, High)
 
-  # setup button inputs
-  const buttonPinMask = {SwitchAPin, SwitchBPin, SwitchCPin, SwitchDPin, SwitchSleepPin, SwitchBrightnessUpPin, SwitchBrightnessDownPin, SwitchVolumeUpPin, SwitchVolumeDownPin}
-  gpioInitMask(buttonPinMask)
-  for pin in buttonPinMask:
+  # setup switch inputs
+  const switchPinMask = {SwitchAPin, SwitchBPin, SwitchCPin, SwitchDPin, SwitchSleepPin, SwitchBrightnessUpPin, SwitchBrightnessDownPin, SwitchVolumeUpPin, SwitchVolumeDownPin}
+  gpioInitMask(switchPinMask)
+  for pin in switchPinMask:
     gpioPullUp(pin)
 
   bitstreamPio = pio0
@@ -346,18 +347,7 @@ proc init*(self: var GalacticUnicorn) =
 
   unicorn = self.addr
 
-proc setPixel*(self: var GalacticUnicorn; x, y: int; r, g, b: uint8) =
-  if x < 0 or x >= GalacticUnicornWidth or y < 0 or y >= GalacticUnicornHeight:
-    return
-
-  # make those coordinates sane
-  let x2 = (GalacticUnicornWidth - 1) - x
-  let y2 = (GalacticUnicornHeight - 1) - y
-
-  var gammaR = Gamma14Bit[(r * self.brightness) shr 8].int
-  var gammaG = Gamma14Bit[(g * self.brightness) shr 8].int
-  var gammaB = Gamma14Bit[(b * self.brightness) shr 8].int
-
+proc setPixelFast*(self: var GalacticUnicorn; x, y: int; r, g, b: uint16) =
   # for each row:
   #   for each bcd frame:
   #            0: 00110110                           # row pixel count (minus one)
@@ -368,22 +358,40 @@ proc setPixel*(self: var GalacticUnicorn; x, y: int; r, g, b: uint8) =
   #
   #  .. and back to the start
 
-  let offsetBase = y2 * RowBytes + 2 + x2
+  var rvar = r
+  var gvar = g
+  var bvar = b
+
+  let offsetBase = y * RowBytes + 2 + x
 
   # set the appropriate bits in the separate bcd frames
   for frame in 0 ..< BcdFrameCount:
 
-    let redBit = gammaR and 0b1
-    let greenBit = gammaG and 0b1
-    let blueBit = gammaB and 0b1
+    let redBit = rvar and 0b1
+    let greenBit = gvar and 0b1
+    let blueBit = bvar and 0b1
 
     let offset = offsetBase + (BcdFrameBytes * frame)
 
     self.bitstream[offset] = uint8 blueBit or (greenBit shl 1) or (redBit shl 2)
 
-    gammaR = gammaR shr 1
-    gammaG = gammaG shr 1
-    gammaB = gammaB shr 1
+    rvar = rvar shr 1
+    gvar = gvar shr 1
+    bvar = bvar shr 1
+
+proc setPixel*(self: var GalacticUnicorn; x, y: int; r, g, b: uint8) =
+  if x < 0 or x >= GalacticUnicornWidth or y < 0 or y >= GalacticUnicornHeight:
+    return
+
+  # make those coordinates sane
+  let x2 = (GalacticUnicornWidth - 1) - x
+  let y2 = (GalacticUnicornHeight - 1) - y
+
+  let gammaR = Gamma14Bit[(r * self.brightness) shr 8]
+  let gammaG = Gamma14Bit[(g * self.brightness) shr 8]
+  let gammaB = Gamma14Bit[(b * self.brightness) shr 8]
+
+  self.setPixelFast(x2, y2, gammaR, gammaG, gammaB)
 
 proc clear*(self: var GalacticUnicorn) =
   if unicorn == self.addr:
@@ -407,8 +415,20 @@ proc getBrightness*(self: var GalacticUnicorn): float =
 proc adjustBrightness*(self: var GalacticUnicorn; delta: float) =
   self.setBrightness(self.getBrightness() + delta)
 
-proc isPressed*(self: var GalacticUnicorn; button: Button): bool =
-  button.Gpio.gpioGet() == Low
+proc isPressed*(self: var GalacticUnicorn; switch: Switch): bool =
+  gpioGet(Gpio(switch)) == Low
 
 proc update*(self: var GalacticUnicorn; graphics: var PicoGraphics) =
-  discard
+  if self.addr != unicorn: return
+
+  if graphics.penType == Pen_Rgb888:
+    for j in 0 ..< GalacticUnicornWidth * GalacticUnicornHeight:
+      let x = (GalacticUnicornWidth - 1) - (j mod GalacticUnicornWidth)
+      let y = (GalacticUnicornHeight - 1) - (j div GalacticUnicornWidth)
+      let offset = j * 3
+
+      let r = Gamma14Bit[(graphics.frameBuffer[offset + 0] * self.brightness) shr 8]
+      let g = Gamma14Bit[(graphics.frameBuffer[offset + 1] * self.brightness) shr 8]
+      let b = Gamma14Bit[(graphics.frameBuffer[offset + 2] * self.brightness) shr 8]
+
+      self.setPixelFast(x, y, r, g, b)

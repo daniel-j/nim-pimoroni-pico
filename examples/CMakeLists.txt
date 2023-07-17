@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.13)
 
 # Set CMake build type. Debug, Release, MinSizeRel, RelWithDebInfo
-set(CMAKE_BUILD_TYPE Debug)
+set(CMAKE_BUILD_TYPE Release)
 
 # Set standards
 set(CMAKE_C_STANDARD 11)
@@ -90,7 +90,11 @@ endfunction()
 if(NOT PICO_CYW43_SUPPORTED)
 
 else()
-  add_example(galactic_unicorn_simple simple)
+  # Galaxy Unicorn
   add_example(galactic_unicorn_lightmeter lightmeter)
+  add_example(galactic_unicorn_rainbow rainbow)
+  add_example(galactic_unicorn_simple simple)
+
+  # Inky Frame
   add_example(inky_frame_slideshow slideshow)
 endif()
