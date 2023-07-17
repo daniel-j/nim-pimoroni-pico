@@ -7,4 +7,3 @@ switch("nimcache", "build/tests/" & projectName() & "/nimcache")
 
 switch("d", "cmakeBinaryDir:" & getCurrentDir() & "/build/tests")
 switch("d", "piconimCsourceDir:" & getCurrentDir() & "/csource")
-

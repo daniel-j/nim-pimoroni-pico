@@ -21,13 +21,14 @@ before install:
 
 task test, "Runs the test suite":
 
-  # exec "nimble c -r tests_mock/tinkyframe"
-
   # exec "piconim setup --project tests --source tests --board pico"
 
   exec "piconim setup --project tests --source tests --board pico_w"
 
   exec "piconim build --project tests tests/tgalactic_unicorn"
+
+  # build and run mock tests
+  exec "nim c -r --skipParentCfg:on --hints:off tests/mock/tinky_frame resources/sample.jpg"
 
 task examples, "Build the examples":
   discard

@@ -9,7 +9,7 @@ var unicorn: GalacticUnicorn
 unicorn.init()
 echo "init ok"
 
-unicorn.setBrightness(0.25)
+unicorn.setBrightness(0.5)
 
 echo "light level: ", unicorn.light()
 echo "light ok"

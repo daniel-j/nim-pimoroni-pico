@@ -1,12 +1,14 @@
+import std/os
 import pimoroni_pico/libraries/inky_frame_mock
 import pimoroni_pico/libraries/pico_graphics/drawjpeg
 import pimoroni_pico/libraries/pico_graphics/error_diffusion
 
-var inky = InkyFrame(kind: InkyFrame7_3)
-inky.init()
 
-proc drawHslChart() =
+proc drawHslChart(kind: InkyFrameKind) =
   echo "Drawing HSL chart..."
+
+  var inky = InkyFrame(kind: kind)
+  inky.init()
 
   var errDiff: ErrorDiffusion
   errDiff.autobackend(inky.addr)
@@ -41,10 +43,13 @@ proc drawHslChart() =
 
   echo "Converting image..."
   inky.update()
-  echo "Writing image to inkyhsl.png..."
-  inky.image.writeFile("inkyhsl.png")
+  echo "Writing image to tinky_frame_" & $kind & "_hsl.png..."
+  inky.image.writeFile("tinky_frame_" & $kind & "_hsl.png")
 
-proc drawFile(filename: string) =
+proc drawFile(filename: string; kind: InkyFrameKind): bool =
+  var inky = InkyFrame(kind: kind)
+  inky.init()
+
   inky.setPen(White)
   inky.clear()
 
@@ -58,16 +63,14 @@ proc drawFile(filename: string) =
   if inky.drawJpeg(filename, x, y, w, h, gravity=(0.5, 0.5), DrawMode.ErrorDiffusion) == 1:
     echo "Converting image..."
     inky.update()
-    echo "Writing image to inky.png..."
-    inky.image.writeFile("inky.png")
+    echo "Writing image to tinky_frame_" & $kind & "_file.png..."
+    inky.image.writeFile("tinky_frame_" & $kind & "_file.png")
+    return true
   else:
     echo "JPEGDEC error"
+    return false
 
-proc inkyProc() =
-  echo "Starting..."
 
-  drawFile("image.jpg")
-
-  drawHslChart()
-
-inkyProc()
+for kind in InkyFrameKind:
+  doAssert drawFile(paramStr(1), kind)
+  drawHslChart(kind)

@@ -1,4 +1,4 @@
-switch("path", "$projectDir/../src")
+switch("path", "$projectDir/../../src")
 
 # switch("define", "release")
 # switch("opt", "size")
