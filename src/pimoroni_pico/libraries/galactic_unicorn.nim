@@ -1,6 +1,7 @@
 import std/os
 import std/math
 import std/bitops
+import std/endians
 import picostdlib/hardware/adc
 import picostdlib/hardware/base
 import picostdlib/hardware/dma
@@ -173,18 +174,8 @@ proc init*(self: var GalacticUnicorn) =
       self.bitstream[offset + 1] = row.uint8                 # row select
 
       # set the number of bcd ticks for this frame
-      let bcdTicks = uint32 1 shl frame
-      self.bitstream[offset + 56] = uint8 (bcdTicks and       0xff'u32) shr  0
-      self.bitstream[offset + 57] = uint8 (bcdTicks and     0xff00'u32) shr  8
-      self.bitstream[offset + 58] = uint8 (bcdTicks and   0xff0000'u32) shr 16
-      self.bitstream[offset + 59] = uint8 (bcdTicks and 0xff000000'u32) shr 24
-
-  # echo "bitstream:"
-  # for i, val in self.bitstream:
-  #   if i mod 30 == 0: stdout.write("\n")
-  #   stdout.write(val.BiggestUint.toHex(2) & " ")
-  # stdout.flushFile()
-  # echo ""
+      var bcdTicks = uint32 1 shl frame
+      littleEndian32(self.bitstream[offset + 56].addr, bcdTicks.addr)
 
   # setup light sensor adc
   if (adcHw.cs and ADC_CS_EN_BITS) == 0:
@@ -271,7 +262,7 @@ proc init*(self: var GalacticUnicorn) =
 
   var c = galacticUnicornProgramGetDefaultConfig(bitstreamSmOffset)
 
-  # osr shifts right, autopull on, autopull threshold 8
+  # osr shifts right, autopull on, autopull threshold 32
   c.setOutShift(true, true, 32)
 
   # configure out, set, and sideset pins
@@ -354,7 +345,6 @@ proc init*(self: var GalacticUnicorn) =
     irqSetEnabled(DmaIrq0, true)
 
   unicorn = self.addr
-
 
 proc setPixel*(self: var GalacticUnicorn; x, y: int; r, g, b: uint8) =
   if x < 0 or x >= GalacticUnicornWidth or y < 0 or y >= GalacticUnicornHeight:

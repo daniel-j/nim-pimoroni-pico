@@ -37,7 +37,7 @@
 pixels:
     
     ; red bit
-    out x, 1       side 0  [1]       ; pull in blue bit from OSR into register x, clear clock
+    out x, 1       side 0  [1]    ; pull in blue bit from OSR into register x, clear clock
     set pins, 0b100               ; clear data bit, blank high
     jmp !x endb                   ; if bit was zero jump
     set pins, 0b101               ; set data bit, blank high
@@ -58,13 +58,11 @@ pixels:
     jmp !x endr                   ; if bit was zero jump
     set pins, 0b101               ; set data bit, blank high
   endr:                      
-    out null, 5             side 1 [2]     ; clock in bit
-
-    ;out null, 5    side 0         ; discard the five dummy bits for this pixel
+    out null, 5    side 1 [2]     ; clock in bit
 
   jmp y-- pixels
 
-  out null, 8                    ; discard dummy bytes
+  out null, 8                     ; discard dummy bytes
 
 
   set pins, 0b110 [5]             ; latch high, blank high

@@ -32,7 +32,7 @@ execute_process(
 # note: this must happen before project()
 include(${PICOSTDLIB_DIR}/picostdlib/cmake/pico_sdk_import.cmake)
 
-project(tests C CXX ASM)
+project(examples C CXX ASM)
 
 # initialize the Raspberry Pi Pico SDK
 pico_sdk_init()
@@ -51,10 +51,7 @@ include(${PICOSTDLIB_DIR}/picostdlib/cmake/picostdlib.cmake)
 
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../src/pimoroni_pico/vendor vendor)
 
-function(add_test name)
-  # set(target "${PICO_BOARD}_${name}")
-  set(target "${name}")
-
+function(add_example target name)
   add_executable(${target})
 
   picostdlib_target(${target} ${name})
@@ -93,5 +90,6 @@ endfunction()
 if(NOT PICO_CYW43_SUPPORTED)
 
 else()
-  add_test(tgalactic_unicorn)
+  add_example(galactic_unicorn_simple simple)
+  add_example(inky_frame_slideshow slideshow)
 endif()

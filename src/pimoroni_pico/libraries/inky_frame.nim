@@ -3,10 +3,10 @@ import std/math, std/bitops, std/options, std/times
 import picostdlib
 import picostdlib/[hardware/i2c, hardware/pwm]
 
-import ../drivers/[eink_driver_wrapper, rtc_pcf85063a, shiftregister, fatfs, psram_display]
+import ../drivers/[eink_driver_wrapper, rtc_pcf85063a, shiftregister, fatfs, sdcard, psram_display]
 import ./pico_graphics
 
-export options, pico_graphics, fatfs, psram_display, Colour
+export options, pico_graphics, fatfs, sdcard, psram_display, Colour
 
 const
   PinHoldSysEn = 2.Gpio

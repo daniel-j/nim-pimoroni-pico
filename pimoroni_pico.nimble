@@ -23,12 +23,25 @@ task test, "Runs the test suite":
 
   # exec "piconim setup --project tests --source tests --board pico"
 
-  exec "piconim setup --project tests --source tests --board pico_w"
-
-  exec "piconim build --project tests tests/tgalactic_unicorn"
+  # exec "piconim setup --project tests --source tests --board pico_w"
 
   # build and run mock tests
   exec "nim c -r --skipParentCfg:on --hints:off tests/mock/tinky_frame resources/sample.jpg"
 
 task examples, "Build the examples":
-  discard
+  const examples = [
+    "galactic_unicorn/simple",
+    "inky_frame/slideshow"
+  ]
+
+  # exec "piconim setup --project examples --source examples --board pico"
+  # exec "cmake --build build/examples -- -j4"
+
+  exec "piconim setup --project examples --source examples --board pico_w"
+
+  for ex in examples:
+    let splitpath = ex.split("/")
+    let (product, base) = (splitpath[0], splitpath[^1])
+    exec "piconim build --project examples examples/" & ex & " --target " & product & "_" & base #& " --compileOnly"
+
+  # exec "cmake --build build/examples -- -j4"

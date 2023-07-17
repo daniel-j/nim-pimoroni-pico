@@ -65,6 +65,7 @@ importc:
 
   "ff.h"
 
+{.emit: "// picostdlib import: fatfs".}
 
 # Nim helpers
 
