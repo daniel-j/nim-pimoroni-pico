@@ -85,7 +85,10 @@ while true:
     let x = pos mod GalacticUnicornWidth
     let y = pos div GalacticUnicornWidth
     let hsvColor = hueMap[x]
-    let v: float32 = (sin((x + y).float32 / stripeWidth + (sinCache2[y] * curve) + idiv) + 1.5'f32) / 2.5'f32
+    var v: float32 = (sin((x + y).float32 / stripeWidth + (sinCache2[y] * curve) + idiv) + 1.5'f32) / 2.5'f32
+
+    if x > 0 and y > 0 and x < GalacticUnicornWidth - 1 and y < GalacticUnicornHeight - 1:
+      v *= 0.7'f32
 
     unicorn.setPixel(x, y, uint8 hsvColor.r.float32 * v, uint8 hsvColor.g.float32 * v, uint8 hsvColor.b.float32 * v)
 
