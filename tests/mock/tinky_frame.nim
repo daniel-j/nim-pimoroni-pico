@@ -12,7 +12,7 @@ proc drawHslChart(kind: InkyFrameKind) =
 
   var errDiff: ErrorDiffusion[PicoGraphicsPen3Bit]
   errDiff.autobackend(inky)
-  errDiff.init(0, 0, inky.width, inky.height, inky)
+  errDiff.init(0, 0, inky.width, inky.height, inky, Burkes)
   errDiff.orientation = 0
   if errDiff.backend == ErrorDiffusionBackend.BackendPsram:
     errDiff.psramAddress = PsramAddress inky.width * inky.height
@@ -46,9 +46,10 @@ proc drawHslChart(kind: InkyFrameKind) =
   echo "Writing image to tinky_frame_" & $kind & "_hsl.png..."
   inky.image.writeFile("tinky_frame_" & $kind & "_hsl.png")
 
-proc drawFile(filename: string; kind: InkyFrameKind; drawMode: DrawMode): bool =
+proc drawFile(filename: string; kind: InkyFrameKind; drawMode: DrawMode; matrix: ErrorDiffusionMatrix = ErrorDiffusionMatrix()): bool =
   var inky = InkyFrame(kind: kind)
   var jpegDecoder: JpegDecoder[PicoGraphicsPen3Bit]
+  # jpegDecoder.setErrorDiffusionMatrix(Sierra)
   inky.init()
 
   inky.setPen(White)
@@ -61,11 +62,15 @@ proc drawFile(filename: string; kind: InkyFrameKind; drawMode: DrawMode): bool =
 
   echo "Decoding jpeg file ", filename, "..."
 
-  if jpegDecoder.drawJpeg(inky, filename, x, y, w, h, gravity=(0.5f, 0.5f), drawMode) == 1:
+  if jpegDecoder.drawJpeg(inky, filename, x, y, w, h, gravity=(0.5f, 0.5f), drawMode, matrix) == 1:
     echo "Converting image..."
     inky.update()
-    echo "Writing image to tinky_frame_" & $kind & "_image_" & $drawMode & ".png..."
-    inky.image.writeFile("tinky_frame_" & $kind & "_image_" & $drawMode & ".png")
+    if matrix.s > 0:
+      echo "Writing image to tinky_frame_" & $kind & "_image_" & $drawMode & "_" & $ErrorDiffusionMatrices.find(matrix) & ".png..."
+      inky.image.writeFile("tinky_frame_" & $kind & "_image_" & $drawMode & "_" & $ErrorDiffusionMatrices.find(matrix) & ".png")
+    else:
+      echo "Writing image to tinky_frame_" & $kind & "_image_" & $drawMode & ".png..."
+      inky.image.writeFile("tinky_frame_" & $kind & "_image_" & $drawMode & ".png")
     return true
   else:
     echo "JPEGDEC error"
@@ -73,6 +78,11 @@ proc drawFile(filename: string; kind: InkyFrameKind; drawMode: DrawMode): bool =
 
 
 for kind in InkyFrameKind:
-  for drawMode in DrawMode:
-    doAssert drawFile(paramStr(1), kind, drawMode)
   drawHslChart(kind)
+
+  for drawMode in DrawMode:
+    if drawMode == DrawMode.ErrorDiffusion:
+      for matrix in ErrorDiffusionMatrices:
+        doAssert drawFile(paramStr(1), kind, drawMode, matrix)
+    else:
+      doAssert drawFile(paramStr(1), kind, drawMode)

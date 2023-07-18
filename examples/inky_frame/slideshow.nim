@@ -52,7 +52,9 @@ proc drawFile(filename: string) =
     of InkyFrame5_7: (0, -1, 600, 450)
     of InkyFrame7_3: (-27, 0, 854, 480)
 
-  if jpegDecoder.drawJpeg(inky, filename, x, y, w, h, gravity=(0.5f, 0.5f), DrawMode.ErrorDiffusion) == 1:
+  let matrix = Burkes
+
+  if jpegDecoder.drawJpeg(inky, filename, x, y, w, h, gravity=(0.5f, 0.5f), DrawMode.ErrorDiffusion, matrix) == 1:
     let endTime = getAbsoluteTime()
     echo "Time: ", absoluteTimeDiffUs(startTime, endTime) div 1000, "ms"
     inky.led(LedActivity, 100)

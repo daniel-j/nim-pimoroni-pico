@@ -67,9 +67,9 @@ func constructRgb*(r, g, b: int16): Rgb {.constructor.} =
   result.b = b
 
 func constructRgb*(r, g, b: float32): Rgb {.constructor.} =
-  result.r = int16 round(r * 255)
-  result.g = int16 round(g * 255)
-  result.b = int16 round(b * 255)
+  result.r = int16 round(r * 255.0f)
+  result.g = int16 round(g * 255.0f)
+  result.b = int16 round(b * 255.0f)
 
 func constructRgb*(l: int16): Rgb {.constructor.} =
   result.r = l
@@ -105,9 +105,9 @@ func saturate*(self: Rgb; factor: float32): Rgb =
   result.clamp()
 
 func level*(self: Rgb; black: float32 = 0; white: float32 = 1; gamma: float32 = 1): Rgb =
-  var r = self.r / 255
-  var g = self.g / 255
-  var b = self.b / 255
+  var r = self.r.float32 / 255.0f
+  var g = self.g.float32 / 255.0f
+  var b = self.b.float32 / 255.0f
 
   if black > 0 or white < 1:
     let wb = white - black
@@ -124,9 +124,9 @@ func level*(self: Rgb; black: float32 = 0; white: float32 = 1; gamma: float32 = 
     g = pow(g, ngamma)
     b = pow(b, ngamma)
 
-  result.r = (r * 255).int16
-  result.g = (g * 255).int16
-  result.b = (b * 255).int16
+  result.r = (r * 255.0f).int16
+  result.g = (g * 255.0f).int16
+  result.b = (b * 255.0f).int16
 
 func toRgb*(hsv: Hsv): Rgb =
   ## Converts from HSV to RGB

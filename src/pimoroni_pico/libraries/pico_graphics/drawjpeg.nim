@@ -1,4 +1,3 @@
-import std/math
 import ../pico_graphics
 import ../jpegdec
 when not defined(mock):
@@ -21,51 +20,6 @@ type
     graphics: ptr PGT
     drawMode: DrawMode
     errDiff: ErrorDiffusion[PGT]
-
-# var errorMatrix: seq[seq[RgbLinear]]
-
-# proc processErrorMatrix(drawY: int) =
-#   # echo "processing errorMatrix ", drawY
-#   let imgW = self.w
-#   let imgH = self.chunkHeight + 1
-
-#   let graphics = self.graphics
-
-#   let ox = self.x
-#   let oy = self.y
-#   let dx = 0
-#   let dy = drawY * self.h div self.jpegH
-
-#   let jpegOrientation = jpeg.getOrientation()
-
-#   for y in 0 ..< imgH - 1:
-#     for x in 0 ..< imgW:
-#       let pos = case jpegOrientation:
-#       of 3: Point(x: ox + self.w - (dx + x), y: oy + self.h - (dy + y))
-#       of 6: Point(x: ox + self.h - (dy + y), y: oy + (dx + x))
-#       of 8: Point(x: ox + (dy + y), y: oy + self.w - (dx + x))
-#       else: Point(x: ox + dx + x, y: oy + dy + y)
-
-#       let oldPixel = errorMatrix[y][x].clamp()
-
-#       # find closest color using distance function
-#       let color = graphics[].createPenNearest(oldPixel)
-#       graphics[].setPen(color)
-#       graphics[].setPixel(pos)
-
-#       let newPixel = graphics[].getPenColor(color)
-
-#       let quantError = oldPixel - newPixel
-
-#       if x + 1 < imgW:
-#         errorMatrix[y][x + 1] += (quantError * 7) shr 4  # 7/16
-
-#       if y + 1 < imgH:
-#         if x > 0:
-#           errorMatrix[y + 1][x - 1] += (quantError * 3) shr 4  # 3/16
-#         errorMatrix[y + 1][x] += (quantError * 5) shr 4  # 5/16
-#         if x + 1 < imgW:
-#           errorMatrix[y + 1][x + 1] += (quantError) shr 4  # 1/16
 
 proc jpegdecOpenCallback(filename: cstring, size: ptr int32): pointer {.cdecl.} =
   when not defined(mock):
@@ -213,7 +167,7 @@ proc getJpegdecDrawCallback(jpegDecoder: var JpegDecoder): auto =
 
     return 1
 
-proc drawJpeg*(self: var JpegDecoder; graphics: var PicoGraphics; filename: string; x, y: int = 0; w, h: int; gravity: tuple[x, y: float32] = (0.0f, 0.0f); drawMode: DrawMode = Default): int =
+proc drawJpeg*(self: var JpegDecoder; graphics: var PicoGraphics; filename: string; x, y: int = 0; w, h: int; gravity: tuple[x, y: float32] = (0.0f, 0.0f); drawMode: DrawMode = Default; matrix: ErrorDiffusionMatrix = FloydSteinberg): int =
   self.x = x
   self.y = y
   self.w = w
@@ -288,7 +242,7 @@ proc drawJpeg*(self: var JpegDecoder; graphics: var PicoGraphics; filename: stri
 
     if self.drawMode == ErrorDiffusion:
       self.errDiff.autobackend(graphics)
-      self.errDiff.init(self.x, self.y, self.w, self.h, graphics)
+      self.errDiff.init(self.x, self.y, self.w, self.h, graphics, matrix)
       self.errDiff.orientation = jpeg.getOrientation()
       if self.errDiff.backend == ErrorDiffusionBackend.BackendPsram:
         self.errDiff.psramAddress = PsramAddress graphics.bounds.w * graphics.bounds.h

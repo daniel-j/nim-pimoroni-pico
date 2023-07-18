@@ -15,24 +15,141 @@ type
   ErrorDiffusionBackend* = enum
     BackendMemory, BackendPsram, BackendFile
 
+  ErrorDiffusionMatrix* = object
+    s*: int # stride
+    m*: seq[float32] # matrix
+
   ErrorDiffusion*[PGT: PicoGraphics] = object
     x*, y*: int
     width*, height*: int
     orientation*: int
     graphics*: ptr PGT
+    matrix*: ErrorDiffusionMatrix
     case backend*: ErrorDiffusionBackend:
     of BackendMemory: fbMemory*: seq[RgbLinear]
     of BackendPsram: psramAddress*: PsramAddress
     of BackendFile:
       fbFile*: FIL
 
-proc init*(self: var ErrorDiffusion; x, y, width, height: int; graphics: var PicoGraphics) =
+# Inspired by https://github.com/makew0rld/dither/blob/master/error_diffusers.go
+func matrixCurrentPixel(e: openArray[float32]; stride: int): int =
+  # The current pixel is assumed to be the right-most zero value in the top row.
+  for i, v in e[0..<stride]:
+    if v != 0: return i - 1
+  # The whole first line is zeros, which doesn't make sense
+  # Just default to returning the middle of the row.
+  return stride div 2
+
+const
+  Simple2D* = ErrorDiffusionMatrix(
+    s: 2,
+    m: @[
+      0.0, 0.5,
+      0.5, 0.0
+    ]
+  )
+
+  FloydSteinberg* = ErrorDiffusionMatrix(
+    s: 3,
+    m: @[
+      0.0,      0.0,      7.0 / 16,
+      3.0 / 16, 5.0 / 16, 1.0 / 16
+    ]
+  )
+
+  FalseFloydSteinberg* = ErrorDiffusionMatrix(
+    s: 2,
+    m: @[
+      0.0,     3.0 / 8,
+      3.0 / 8, 2.0 / 8
+    ]
+  )
+
+  JarvisJudiceNinke* = ErrorDiffusionMatrix(
+    s: 5,
+    m: @[
+      0.0,      0.0,      0.0,      7.0 / 48, 5.0 / 48,
+      3.0 / 48, 5.0 / 48, 7.0 / 48, 5.0 / 48, 3.0 / 48,
+      1.0 / 48, 3.0 / 48, 5.0 / 48, 3.0 / 48, 1.0 / 48
+    ]
+  )
+
+  Stucki* = ErrorDiffusionMatrix(
+    s: 5,
+    m: @[
+      0.0,      0.0,      0.0,      8.0 / 42, 4.0 / 42,
+      2.0 / 42, 4.0 / 42, 8.0 / 42, 4.0 / 42, 2.0 / 42,
+      1.0 / 42, 2.0 / 42, 4.0 / 42, 2.0 / 42, 1.0 / 42
+    ]
+  )
+
+  Burkes* = ErrorDiffusionMatrix(
+    s: 5,
+    m: @[
+      0.0,      0.0,      0.0,      8.0 / 32, 4.0 / 32,
+      2.0 / 32, 4.0 / 32, 8.0 / 32, 4.0 / 32, 2.0 / 32
+    ]
+  )
+
+  Sierra* = ErrorDiffusionMatrix(
+    s: 5,
+    m: @[
+      0.0,      0.0,      0.0,      5.0 / 32, 3.0 / 32,
+      2.0 / 32, 4.0 / 32, 5.0 / 32, 4.0 / 32, 2.0 / 32,
+      0.0,      2.0 / 32, 3.0 / 32, 2.0 / 32, 0.0
+    ]
+  )
+
+  TwoRowSierra* = ErrorDiffusionMatrix(
+    s: 5,
+    m: @[
+      0.0,      0.0,      0.0,      4.0 / 16, 3.0 / 16,
+      1.0 / 16, 2.0 / 16, 3.0 / 16, 2.0 / 16, 1.0 / 16
+    ]
+  )
+
+  SierraLite* = ErrorDiffusionMatrix(
+    s: 3,
+    m: @[
+      0.0,     0.0,     2.0 / 4,
+      1.0 / 4, 1.0 / 4, 0.0
+    ]
+  )
+
+  Atkinson* = ErrorDiffusionMatrix(
+    s: 4,
+    m: @[
+      0.0,     0.0,     1.0 / 8, 1.0 / 8,
+      1.0 / 8, 1.0 / 8, 1.0 / 8, 0.0,
+      0.0,     1.0 / 8, 0.0,     0.0
+    ]
+  )
+
+  StevenPigeon* = ErrorDiffusionMatrix(
+    s: 5,
+    m: @[
+      0.0,      0.0,      0.0,      2.0 / 14, 1.0 / 14,
+      0.0,      2.0 / 14, 2.0 / 14, 2.0 / 14, 0.0,
+      1.0 / 14, 0.0,      1.0 / 14, 0.0,      1.0 / 14
+    ]
+  )
+
+  ErrorDiffusionMatrices* = [
+    Simple2D,
+    FloydSteinberg, FalseFloydSteinberg,
+    JarvisJudiceNinke, Stucki, Burkes,
+    Sierra, TwoRowSierra, SierraLite,
+    Atkinson, StevenPigeon
+  ]
+
+proc init*(self: var ErrorDiffusion; x, y, width, height: int; graphics: var PicoGraphics; matrix: ErrorDiffusionMatrix = FloydSteinberg) =
   echo "Initializing ErrorDiffusion with backend ", self.backend
   self.x = x
   self.y = y
   self.width = width
   self.height = height
   self.graphics = graphics.addr
+  self.matrix = matrix
   case self.backend:
   of BackendMemory: self.fbMemory = newSeq[RgbLinear](self.width * self.height)
   of BackendPsram: discard
@@ -116,20 +233,23 @@ proc process*(self: var ErrorDiffusion) =
   let dx = 0
   let dy = 0 # drawY * jpegDecodeOptions.h div jpegDecodeOptions.jpegH
 
-  echo "Processing error matrix ", (imgW, imgH)
+  echo "Processing error matrix ", (imgW, imgH), " ", self.matrix
 
-  var rowCurrent: seq[RgbLinear]
-  var rowNext: seq[RgbLinear]
+  let matrixRows = self.matrix.m.len div self.matrix.s
+  let curPix = matrixCurrentPixel(self.matrix.m, self.matrix.s)
+
+  var rows = newSeq[seq[RgbLinear]](imgH)
 
   var lastProgress = -1
 
   for y in 0 ..< imgH:
-    if y == 0:
-      rowCurrent = self.readRow(y)
-    else:
-      swap(rowCurrent, rowNext)
-    if y < imgH - 1:
-      rowNext = self.readRow(y + 1)
+    if y > 0:
+      rows[y - 1] = @[] # destroy row
+
+    for i in 0..<matrixRows:
+      if y + i < imgH and rows[y + i].len == 0:
+        rows[y + i] = self.readRow(y + i)
+
     for x in 0 ..< imgW:
       let pos = case self.orientation:
       of 3: Point(x: ox + imgW - (dx + x), y: oy + imgH - (dy + y))
@@ -137,7 +257,7 @@ proc process*(self: var ErrorDiffusion) =
       of 8: Point(x: ox + (dy + y), y: oy + imgW - (dx + x))
       else: Point(x: ox + dx + x, y: oy + dy + y)
 
-      let oldPixel = rowCurrent[x].clamp()
+      let oldPixel = rows[y][x].clamp()
 
       # find closest color using distance function
       let color = self.graphics[].createPenNearest(oldPixel)
@@ -148,19 +268,14 @@ proc process*(self: var ErrorDiffusion) =
 
       let quantError = oldPixel - newPixel
 
-      if x + 1 < imgW:
-        rowCurrent[x + 1] += (quantError * 7) shr 4  # 7/16
-
-      if y + 1 < imgH:
-        if x > 0:
-          rowNext[x - 1] += (quantError * 3) shr 4  # 3/16
-        rowNext[x] += (quantError * 5) shr 4  # 5/16
-        if x + 1 < imgW:
-          rowNext[x + 1] += (quantError) shr 4  # 1/16
-
-    # self.write(0, y, rowCurrent)
-    # if y == imgH - 1:
-    #   self.write(0, imgH - 1, rowNext)
+      for i, m in self.matrix.m:
+        if m == 0: continue
+        # Get the coords of the pixel the error is being applied to
+        let mx = x + (i mod self.matrix.s) - curPix
+        let my = y + (i div self.matrix.s)
+        if mx < 0 or mx >= imgW or my < 0 or my >= imgH:
+          continue
+        rows[my][mx] += quantError * m
 
     let currentProgress = y * 100 div imgH
     if lastProgress != currentProgress:
