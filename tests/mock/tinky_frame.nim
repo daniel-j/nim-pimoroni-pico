@@ -12,7 +12,7 @@ proc drawHslChart(kind: InkyFrameKind) =
 
   var errDiff: ErrorDiffusion[PicoGraphicsPen3Bit]
   errDiff.autobackend(inky)
-  errDiff.init(0, 0, inky.width, inky.height, inky, Burkes)
+  errDiff.init(0, 0, inky.width, inky.height, inky, Burkes.strength(0.85))
   errDiff.orientation = 0
   if errDiff.backend == ErrorDiffusionBackend.BackendPsram:
     errDiff.psramAddress = PsramAddress inky.width * inky.height
@@ -62,7 +62,7 @@ proc drawFile(filename: string; kind: InkyFrameKind; drawMode: DrawMode; matrix:
 
   echo "Decoding jpeg file ", filename, "..."
 
-  if jpegDecoder.drawJpeg(inky, filename, x, y, w, h, gravity=(0.5f, 0.5f), drawMode, matrix) == 1:
+  if jpegDecoder.drawJpeg(inky, filename, x, y, w, h, gravity=(0.5f, 0.5f), drawMode, matrix.strength(0.85)) == 1:
     echo "Converting image..."
     inky.update()
     if matrix.s > 0:

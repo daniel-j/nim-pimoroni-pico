@@ -32,13 +32,28 @@ type
       fbFile*: FIL
 
 # Inspired by https://github.com/makew0rld/dither/blob/master/error_diffusers.go
-func matrixCurrentPixel(e: openArray[float32]; stride: int): int =
+func currentPixel(matrix: ErrorDiffusionMatrix): int =
   # The current pixel is assumed to be the right-most zero value in the top row.
-  for i, v in e[0..<stride]:
-    if v != 0: return i - 1
+  for i, m in matrix.m[0..<matrix.s]:
+    if m != 0: return i - 1
   # The whole first line is zeros, which doesn't make sense
   # Just default to returning the middle of the row.
-  return stride div 2
+  return matrix.s div 2
+
+func strength*(matrix: ErrorDiffusionMatrix; strength: float32): ErrorDiffusionMatrix =
+  ## matrix.strength(x) modifies an existing error diffusion matrix so that it will
+  ## be applied with the specified strength.
+  ##
+  ## strength is usually a value from 0 to 1.0, where 1.0 means 100% strength, and will
+  ## not modify the matrix at all. It is inversely proportional to contrast - reducing the
+  ## strength increases the contrast. It can be useful at values like 0.8 for reducing
+  ## noise in the dithered image.
+  if strength == 1.0: return matrix
+
+  result.s = matrix.s
+  result.m.setLen(matrix.m.len)
+  for i, m in matrix.m:
+    result.m[i] = m * strength
 
 const
   Simple2D* = ErrorDiffusionMatrix(
@@ -236,7 +251,7 @@ proc process*(self: var ErrorDiffusion) =
   echo "Processing error matrix ", (imgW, imgH), " ", self.matrix
 
   let matrixRows = self.matrix.m.len div self.matrix.s
-  let curPix = matrixCurrentPixel(self.matrix.m, self.matrix.s)
+  let curPix = self.matrix.currentPixel()
 
   var rows = newSeq[seq[RgbLinear]](imgH)
 
