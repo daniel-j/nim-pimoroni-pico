@@ -114,7 +114,7 @@ proc powerOffAc073tc1a*(self: var EinkDriver) =
   self.command(Pof) ##  turn off
 
 proc updateAc073tc1a*(self: var EinkDriver; graphics: var PicoGraphics) =
-  assert(graphics.penType == Pen_3Bit, "Pen type must be 3Bit")
+  static: doAssert(graphics is PicoGraphicsPen3Bit, "Pen type must be 3Bit")
 
   if self.blocking:
     self.busyWait()
@@ -131,7 +131,7 @@ proc updateAc073tc1a*(self: var EinkDriver; graphics: var PicoGraphics) =
   let spiPtr = self.spi
   let csPin = self.csPin
   gpioPut(csPin, High)
-  graphics.frameConvert(Pen_P4, (proc (buf: pointer; length: uint) =
+  graphics.frameConvert(PicoGraphicsPenP4, (proc (buf: pointer; length: uint) =
     if length > 0:
       gpioPut(csPin, Low)
       discard spiWriteBlocking(spiPtr, cast[ptr uint8](buf), length.csize_t)

@@ -141,7 +141,7 @@ proc getDitherError*(kind: static[DitherKind]; dim: static[Natural]; index: int)
       const p = bayerMatrix[RgbLinearComponent](dim, multiplier)
       return p[index]
 
-    when kind == BlueNoise:
+    elif kind == BlueNoise:
       const p = when dim == 4:
           convertPattern(blueNoise16x16, multiplier, 256)
         elif dim == 5:
@@ -152,7 +152,7 @@ proc getDitherError*(kind: static[DitherKind]; dim: static[Natural]; index: int)
           static: {.error: "getDitherError: No blue noise dither pattern with dim " & $dim.}
       return p[index]
 
-    when kind == Cluster:
+    elif kind == Cluster:
       const p = when dim == 2:
         convertPattern(clusterMatrix4x4, multiplier, clusterMatrix4x4.len)
       elif dim == 3:

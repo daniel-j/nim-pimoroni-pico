@@ -17,13 +17,10 @@ proc init*(self: var DisplayDriver; width: uint16; height: uint16; rotation: Rot
   self.height = height
   self.rotation = rotation
 
-proc constructDisplayDriver*(width: uint16; height: uint16; rotation: Rotation = Rotate_0): DisplayDriver {.constructor.} =
-  init(result, width, height, rotation)
-
-method update*(self: var DisplayDriver; display: var PicoGraphics) {.base.} =
+method update*(self: var DisplayDriver; display: var PicoGraphicsBase) {.base.} =
   discard
 
-method partialUpdate*(self: var DisplayDriver; display: var PicoGraphics; region: Rect) {.base.} =
+method partialUpdate*(self: var DisplayDriver; display: var PicoGraphicsBase; region: Rect) {.base.} =
   discard
 
 method setUpdateSpeed*(self: var DisplayDriver; updateSpeed: int): bool {.base.} =

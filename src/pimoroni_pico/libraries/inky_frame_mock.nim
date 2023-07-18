@@ -78,7 +78,7 @@ proc update*(self: var InkyFrame) =
   let image = self.image
   let palette = if self.kind == InkyFrame7_3: palette7_3 else: palette5_7
   var y = 0
-  self.frameConvert(Pen_P4, (proc (buf: pointer; length: uint) =
+  self.frameConvert(PicoGraphicsPenP4, (proc (buf: pointer; length: uint) =
     if length > 0:
       let arr = cast[ptr UncheckedArray[uint8]](buf)
       for i in 0..<length.int * 2:

@@ -421,7 +421,7 @@ proc isPressed*(self: var GalacticUnicorn; switch: Switch): bool =
 proc update*(self: var GalacticUnicorn; graphics: var PicoGraphics) =
   if self.addr != unicorn: return
 
-  if graphics.penType == Pen_Rgb888:
+  when graphics is PicoGraphicsPenRgb888:
     for j in 0 ..< GalacticUnicornWidth * GalacticUnicornHeight:
       let x = (GalacticUnicornWidth - 1) - (j mod GalacticUnicornWidth)
       let y = (GalacticUnicornHeight - 1) - (j div GalacticUnicornWidth)

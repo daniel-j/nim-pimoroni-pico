@@ -10,9 +10,9 @@ proc drawHslChart(kind: InkyFrameKind) =
   var inky = InkyFrame(kind: kind)
   inky.init()
 
-  var errDiff: ErrorDiffusion
-  errDiff.autobackend(inky.addr)
-  errDiff.init(0, 0, inky.width, inky.height, inky.addr)
+  var errDiff: ErrorDiffusion[PicoGraphicsPen3Bit]
+  errDiff.autobackend(inky)
+  errDiff.init(0, 0, inky.width, inky.height, inky)
   errDiff.orientation = 0
   if errDiff.backend == ErrorDiffusionBackend.BackendPsram:
     errDiff.psramAddress = PsramAddress inky.width * inky.height
@@ -48,6 +48,7 @@ proc drawHslChart(kind: InkyFrameKind) =
 
 proc drawFile(filename: string; kind: InkyFrameKind; drawMode: DrawMode): bool =
   var inky = InkyFrame(kind: kind)
+  var jpegDecoder: JpegDecoder[PicoGraphicsPen3Bit]
   inky.init()
 
   inky.setPen(White)
@@ -60,7 +61,7 @@ proc drawFile(filename: string; kind: InkyFrameKind; drawMode: DrawMode): bool =
 
   echo "Decoding jpeg file ", filename, "..."
 
-  if inky.drawJpeg(filename, x, y, w, h, gravity=(0.5, 0.5), drawMode) == 1:
+  if jpegDecoder.drawJpeg(inky, filename, x, y, w, h, gravity=(0.5, 0.5), drawMode) == 1:
     echo "Converting image..."
     inky.update()
     echo "Writing image to tinky_frame_" & $kind & "_image_" & $drawMode & ".png..."

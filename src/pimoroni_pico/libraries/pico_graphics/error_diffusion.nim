@@ -8,31 +8,31 @@ else:
   import ../../drivers/psram_display_mock
   export psram_display_mock
 
+when defined(mock):
+  type FIL* = File
+
 type
   ErrorDiffusionBackend* = enum
     BackendMemory, BackendPsram, BackendFile
 
-  ErrorDiffusion* = object
+  ErrorDiffusion*[PGT: PicoGraphics] = object
     x*, y*: int
     width*, height*: int
     orientation*: int
-    graphics*: ptr PicoGraphics
+    graphics*: ptr PGT
     case backend*: ErrorDiffusionBackend:
     of BackendMemory: fbMemory*: seq[RgbLinear]
     of BackendPsram: psramAddress*: PsramAddress
     of BackendFile:
-      when not defined(mock):
-        fbFile*: FIL
-      else:
-        fbFile*: File
+      fbFile*: FIL
 
-proc init*(self: var ErrorDiffusion; x, y, width, height: int; graphics: ptr PicoGraphics) =
+proc init*(self: var ErrorDiffusion; x, y, width, height: int; graphics: var PicoGraphics) =
   echo "Initializing ErrorDiffusion with backend ", self.backend
   self.x = x
   self.y = y
   self.width = width
   self.height = height
-  self.graphics = graphics
+  self.graphics = graphics.addr
   case self.backend:
   of BackendMemory: self.fbMemory = newSeq[RgbLinear](self.width * self.height)
   of BackendPsram: discard
@@ -43,7 +43,7 @@ proc init*(self: var ErrorDiffusion; x, y, width, height: int; graphics: ptr Pic
     else:
       discard self.fbFile.open("error_diffusion.bin", fmReadWrite)
 
-proc autobackend*(self: var ErrorDiffusion; graphics: ptr PicoGraphics) =
+proc autobackend*(self: var ErrorDiffusion; graphics: var PicoGraphics) =
   when defined(mock):
     self.backend = ErrorDiffusionBackend.BackendMemory
     # can also be BackendFile in mock mode

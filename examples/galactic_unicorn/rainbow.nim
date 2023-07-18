@@ -44,8 +44,8 @@ proc drawRows(first, last: int) =
         (hsvColor.g.float * v).uint.clamp(0, 255) shl 8 or
         (hsvColor.b.float * v).uint.clamp(0, 255) shl 16
 
-      graphics.setPenImpl(color)
-      graphics.setPixelImpl(p)
+      graphics.setPen(color)
+      graphics.setPixel(p)
 
 while true:
 

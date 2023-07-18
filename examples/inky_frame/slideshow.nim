@@ -1,5 +1,6 @@
 import std/strutils
 import std/random
+import std/typetraits
 
 import picostdlib
 import picostdlib/pico/rand
@@ -12,6 +13,7 @@ var inky: InkyFrame
 inky.boot()
 
 var fs: FATFS
+var jpegDecoder: JpegDecoder[PicoGraphicsPen3Bit]
 
 let m = detectInkyFrameModel()
 if m.isSome:
@@ -50,7 +52,7 @@ proc drawFile(filename: string) =
     of InkyFrame5_7: (0, -1, 600, 450)
     of InkyFrame7_3: (-27, 0, 854, 480)
 
-  if inky.drawJpeg(filename, x, y, w, h, gravity=(0.5, 0.5), DrawMode.ErrorDiffusion) == 1:
+  if jpegDecoder.drawJpeg(inky, filename, x, y, w, h, gravity=(0.5, 0.5), DrawMode.ErrorDiffusion) == 1:
     let endTime = getAbsoluteTime()
     echo "Time: ", absoluteTimeDiffUs(startTime, endTime) div 1000, "ms"
     inky.led(LedActivity, 100)
@@ -91,9 +93,9 @@ proc inkyProc() =
     echo "Drawing HSL chart..."
     let startTime = getAbsoluteTime()
 
-    var errDiff: ErrorDiffusion
-    errDiff.autobackend(inky.addr)
-    errDiff.init(0, 0, inky.width, inky.height, inky.addr)
+    var errDiff: ErrorDiffusion[PicoGraphicsPen3Bit]
+    errDiff.autobackend(inky)
+    errDiff.init(0, 0, inky.width, inky.height, inky)
     errDiff.orientation = 0
     if errDiff.backend == ErrorDiffusionBackend.BackendPsram:
       errDiff.psramAddress = PsramAddress inky.width * inky.height
