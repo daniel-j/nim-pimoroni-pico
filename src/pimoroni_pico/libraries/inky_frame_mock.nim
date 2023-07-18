@@ -16,21 +16,21 @@ const paletteGamma = 1.8
 # ]
 
 const palette7_3 = [
-  hsvToRgb(100/360, 1, 0).toLinear(paletteGamma), ##  black
-  hsvToRgb(30/360, 0.07, 0.97).toLinear(paletteGamma), ##  white
-  hsvToRgb( 90/360, 1.00, 0.65).toLinear(paletteGamma), ##  green
-  hsvToRgb(215/360, 0.60, 0.60).toLinear(paletteGamma), ##  blue
-  hsvToRgb(350/360, 0.75, 0.80).toLinear(paletteGamma), ##  red
-  hsvToRgb( 56/360, 0.55, 0.95).toLinear(paletteGamma), ##  yellow
-  hsvToRgb( 24/360, 0.75, 0.90).toLinear(paletteGamma), ##  orange
+  Hsv(h: 100/360, s: 1.00, v: 0.00).toRgb().toLinear(paletteGamma), ##  black
+  Hsv(h:  30/360, s: 0.07, v: 0.97).toRgb().toLinear(paletteGamma), ##  white
+  Hsv(h:  90/360, s: 1.00, v: 0.65).toRgb().toLinear(paletteGamma), ##  green
+  Hsv(h: 215/360, s: 0.60, v: 0.60).toRgb().toLinear(paletteGamma), ##  blue
+  Hsv(h: 350/360, s: 0.75, v: 0.80).toRgb().toLinear(paletteGamma), ##  red
+  Hsv(h:  56/360, s: 0.55, v: 0.95).toRgb().toLinear(paletteGamma), ##  yellow
+  Hsv(h:  24/360, s: 0.75, v: 0.90).toRgb().toLinear(paletteGamma), ##  orange
   constructRgb(255, 0, 255).toLinear(paletteGamma), ##  clean - do not use on inky7 as colour
 ]
 
 const palette5_7 = [
   palette7_3[0], ##  black
   palette7_3[1], ##  white
-  hsvToRgb(113/360, 1.00, 0.85).toLinear(paletteGamma), ##  green
-  hsvToRgb(215/360, 0.55, 0.75).toLinear(paletteGamma), ##  blue
+  Hsv(h: 113/360, s: 1.00, v: 0.85).toRgb().toLinear(paletteGamma), ##  green
+  Hsv(h: 215/360, s: 0.55, v: 0.75).toRgb().toLinear(paletteGamma), ##  blue
   palette7_3[4], ##  red
   palette7_3[5], ##  yellow
   palette7_3[6], ##  orange

@@ -2,7 +2,7 @@ import std/math
 import picostdlib
 import pimoroni_pico/libraries/galactic_unicorn
 
-# discard setSysClockKhz(200000, false)
+# discard setSysClockKhz(200_000, false)
 
 stdioInitAll()
 
@@ -14,43 +14,33 @@ unicorn.init()
 
 unicorn.setBrightness(0.5)
 
+const PI2: float32 = PI * 2.0
+
 const hueMap = static:
-  var result: array[GalacticUnicornWidth, Rgb]
-  for i, _ in result:
-    result[i] = hslToRgb((h: i.float / GalacticUnicornWidth.float, s: 1.0, l: 0.5))
-  result
+  var arr: array[GalacticUnicornWidth, Rgb]
+  for i, _ in arr:
+    arr[i] = Hsl(h: i / GalacticUnicornWidth, s: 1.0, l: 0.5).toRgb()
+  arr
+
+const sinCache2 = static:
+  var arr: array[GalacticUnicornHeight, float32]
+  for y in 0 ..< GalacticUnicornHeight:
+    arr[y] = sin((y.float32 * PI2) / 11.0'f32)
+  arr
 
 var i: float32 = 0.0
 var animate = true
 var stripeWidth: float32 = 3.0
 var speed: float32 = 1.0
 var curve: float32 = 0.0
-var p = Point()
 
 var lastTime = getAbsoluteTime()
 var deltaTime: float32
 
-proc drawRows(first, last: int) =
-  for x in 0 ..< GalacticUnicornWidth:
-    p.x = x
-    let hsvColor = hueMap[x]
-    for y in first ..< last:
-      p.y = y
-      let v = (sin((x + y).float32 / stripeWidth + (sin((y.float32 * PI.float32 * 2.0) / 11.0) * curve) + i / 15.0) + 1.5) / 2.5
-
-      let color = constructRgb(
-        int16 hsvColor.r.float * v,
-        int16 hsvColor.g.float * v,
-        int16 hsvColor.b.float * v
-      )
-
-      graphics.setPen(color)
-      graphics.setPixel(p)
-
 while true:
 
   if animate:
-    i += deltaTime * 100 * speed
+    i += deltaTime * 10 * speed
   
 
   if unicorn.isPressed(SwitchVolumeUp):
@@ -90,15 +80,32 @@ while true:
     stripeWidth -= 0.05
     stripeWidth = if stripeWidth <= 1.0: 1.0 else: stripeWidth
 
-  drawRows(0, GalacticUnicornHeight)
+  let idiv: float32 = i / 15.0
+
+  for pos in 0 ..< GalacticUnicornWidth * GalacticUnicornHeight:
+    let x = pos mod GalacticUnicornWidth
+    let y = pos div GalacticUnicornWidth
+    let hsvColor = hueMap[x]
+    let v: float32 = (sin((x + y).float32 / stripeWidth + (sinCache2[y] * curve) + idiv) + 1.5) / 2.5
+
+    let color = constructRgb(
+      int16 hsvColor.r.float32 * v,
+      int16 hsvColor.g.float32 * v,
+      int16 hsvColor.b.float32 * v
+    )
+
+    graphics.setPen(color)
+    graphics.setPixel(Point(x: x, y: y))
+
+
 
   unicorn.update(graphics)
 
-  # while absoluteTimeDiffUs(lastTime, getAbsoluteTime()) < 1000_000 div 10:
+  # while absoluteTimeDiffUs(lastTime, getAbsoluteTime()) < 1000_000 div 30:
   #   tightLoopContents()
 
   let now = getAbsoluteTime()
-  let diff = absoluteTimeDiffUs(lastTime, now)
-  deltaTime = diff.float / 1000_1000
-  echo diff
+  let diff = absoluteTimeDiffUs(lastTime, now).int
+  deltaTime = diff / 1000_000
+  echo "fps: ", (1000_000 / diff)
   lastTime = now

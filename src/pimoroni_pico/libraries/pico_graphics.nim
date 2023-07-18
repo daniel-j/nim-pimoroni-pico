@@ -195,25 +195,25 @@ const paletteGamma = 2.4
 # ]
 
 const PicoGraphicsPen3BitPalette7_3* = [
-  hslToRgb((h: 110/360, s: 0.99, l: 0.03)).toLinear(paletteGamma), ##  black
-  hslToRgb((h:   0/360, s: 0.00, l: 0.98)).toLinear(paletteGamma), ##  white
-  hslToRgb((h:  95/360, s: 0.90, l: 0.35)).toLinear(paletteGamma), ##  green
-  hslToRgb((h: 215/360, s: 0.88, l: 0.42)).toLinear(paletteGamma), ##  blue
-  hslToRgb((h: 350/360, s: 0.98, l: 0.49)).toLinear(paletteGamma), ##  red
-  hslToRgb((h:  60/360, s: 0.97, l: 0.55)).toLinear(paletteGamma), ##  yellow
-  hslToRgb((h:  26/360, s: 0.98, l: 0.47)).toLinear(paletteGamma), ##  orange
-  hslToRgb((h:   0/360, s: 0.00, l: 1.00)).toLinear(paletteGamma), ##  clean - do not use on inky7 as colour
+  Hsl(h: 110/360, s: 0.99, l: 0.03).toRgb().toLinear(paletteGamma), ##  black
+  Hsl(h:   0/360, s: 0.00, l: 0.98).toRgb().toLinear(paletteGamma), ##  white
+  Hsl(h:  95/360, s: 0.90, l: 0.35).toRgb().toLinear(paletteGamma), ##  green
+  Hsl(h: 215/360, s: 0.88, l: 0.42).toRgb().toLinear(paletteGamma), ##  blue
+  Hsl(h: 350/360, s: 0.98, l: 0.49).toRgb().toLinear(paletteGamma), ##  red
+  Hsl(h:  60/360, s: 0.97, l: 0.55).toRgb().toLinear(paletteGamma), ##  yellow
+  Hsl(h:  26/360, s: 0.98, l: 0.47).toRgb().toLinear(paletteGamma), ##  orange
+  Hsl(h:   0/360, s: 0.00, l: 1.00).toRgb().toLinear(paletteGamma), ##  clean - do not use on inky7 as colour
 ]
 
 const PicoGraphicsPen3BitPalette5_7* = [
   PicoGraphicsPen3BitPalette7_3[0], ##  black
   PicoGraphicsPen3BitPalette7_3[1], ##  white
-  hslToRgb((h: 113/360, s: 1.0, l: 0.45)).toLinear(paletteGamma), ##  green
-  hslToRgb((h: 215/360, s: 0.95, l: 0.52)).toLinear(paletteGamma), ##  blue
+  Hsl(h: 113/360, s: 1.0, l: 0.45).toRgb().toLinear(paletteGamma), ##  green
+  Hsl(h: 215/360, s: 0.95, l: 0.52).toRgb().toLinear(paletteGamma), ##  blue
   PicoGraphicsPen3BitPalette7_3[4], ##  red
   PicoGraphicsPen3BitPalette7_3[5], ##  yellow
-  hslToRgb((h: 26/360, s: 0.98, l: 0.47)).toLinear(paletteGamma), ##  orange
-  hslToRgb((h: 20/360, s: 0.98, l: 0.90)).toLinear(paletteGamma), ##  clean
+  Hsl(h: 26/360, s: 0.98, l: 0.47).toRgb().toLinear(paletteGamma), ##  orange
+  Hsl(h: 20/360, s: 0.98, l: 0.90).toRgb().toLinear(paletteGamma), ##  clean
 ]
 
 static:
@@ -262,9 +262,9 @@ proc createPen*(self: PicoGraphicsPen3Bit; c: Rgb): uint =
   c.toRgb888().uint or RGB_FLAG
 
 proc createPenHsv*(self: PicoGraphicsBase; h, s, v: float): Rgb =
-  hsvToRgb(h, s, v)
+  Hsv(h: h, s: s, v: v).toRgb()
 proc createPenHsl*(self: PicoGraphicsBase; h, s, l: float): Rgb =
-  hslToRgb(Hsl (h, s, l))
+  Hsl(h: h, s: s, l: l).toRgb()
 
 proc createPenNearestLut*(self: var PicoGraphicsPen3Bit; c: RgbLinear): uint =
   if not self.cacheNearestBuilt:

@@ -21,10 +21,10 @@ type
     r*, g*, b*: RgbLinearComponent
   Lab* {.packed.} = object
     L*, a*, b*: float
-  Hsl* {.packed.} = tuple
-    h: float
-    s: float
-    l: float
+  Hsv* {.packed.} = object
+    h*, s*, v*: float
+  Hsl* {.packed.} = object
+    h*, s*, l*: float
 
 func clamp*(self: Rgb): Rgb =
   result.r = self.r.clamp(0, 255)
@@ -128,11 +128,15 @@ func level*(self: Rgb; black: float = 0; white: float = 1; gamma: float = 1): Rg
   result.g = (g * 255).int16
   result.b = (b * 255).int16
 
-func hsvToRgb*(h, s, v: float): Rgb =
+func toRgb*(hsv: Hsv): Rgb =
   ## Converts from HSV to RGB
   ## HSV values are between 0.0 and 1.0
+  let s = hsv.s
+  let v = hsv.v
   if s <= 0.0:
     return constructRgb(v, v, v)
+
+  let h = hsv.h
 
   let i = int(h * 6.0)
   let f = h * 6.0 - float(i)
@@ -149,12 +153,15 @@ func hsvToRgb*(h, s, v: float): Rgb =
     of 5: return constructRgb(v, p, q)
     else: return constructRgb(0, 0, 0)
 
-func hslToRgb*(hsl: Hsl): Rgb =
+func toRgb*(hsl: Hsl): Rgb =
   ## Converts from HSL to RGB
   ## HSL values are between 0.0 and 1.0
-  let (h, s, l) = hsl
+  let s = hsl.s
+  let l = hsl.l
   if s <= 0.0:
     return constructRgb(l, l, l)
+
+  let h = hsl.h
 
   proc hue2rgb(p, q, t: float): float =
     var t2 = t
@@ -172,7 +179,7 @@ func hslToRgb*(hsl: Hsl): Rgb =
   result.g = int16 round(hue2rgb(p, q, h).clamp(0, 1) * 255.0)
   result.b = int16 round(hue2rgb(p, q, h - 1/3).clamp(0, 1) * 255.0)
 
-func rgbToHsl*(col: Rgb): Hsl =
+func toHsl*(col: Rgb): Hsl =
   let r = col.r / 255
   let g = col.g / 255
   let b = col.b / 255
