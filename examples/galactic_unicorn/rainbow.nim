@@ -2,12 +2,12 @@ import std/math
 import picostdlib
 import pimoroni_pico/libraries/galactic_unicorn
 
-# discard setSysClockKhz(200_000, false)
+# discard setSysClockKhz(250_000, false)
 
 stdioInitAll()
 
-var graphics: PicoGraphicsPenRgb888
-graphics.init(GalacticUnicornWidth, GalacticUnicornHeight)
+# var graphics: PicoGraphicsPenRgb888
+# graphics.init(GalacticUnicornWidth, GalacticUnicornHeight)
 
 var unicorn: GalacticUnicorn
 unicorn.init()
@@ -39,19 +39,15 @@ var deltaTime: float32
 
 while true:
 
-  if animate:
-    i += deltaTime * 10 * speed
-  
-
   if unicorn.isPressed(SwitchVolumeUp):
     curve += 0.05
-    if curve > 1.0:
-      curve = 1.0
+    if curve > 2.0:
+      curve = 2.0
 
   if unicorn.isPressed(SwitchVolumeDown):
     curve -= 0.05
-    if curve < -1.0:
-      curve = -1.0
+    if curve < -2.0:
+      curve = -2.0
 
   if unicorn.isPressed(SwitchBrightnessUp):
     unicorn.adjustBrightness(+0.01)
@@ -80,26 +76,31 @@ while true:
     stripeWidth -= 0.05
     stripeWidth = if stripeWidth <= 1.0: 1.0 else: stripeWidth
 
-  let idiv: float32 = i / 15.0
+  if animate:
+    i += deltaTime * 30 * speed
+
+  let idiv: float32 = i / 15.0'f32
 
   for pos in 0 ..< GalacticUnicornWidth * GalacticUnicornHeight:
     let x = pos mod GalacticUnicornWidth
     let y = pos div GalacticUnicornWidth
     let hsvColor = hueMap[x]
-    let v: float32 = (sin((x + y).float32 / stripeWidth + (sinCache2[y] * curve) + idiv) + 1.5) / 2.5
+    let v: float32 = (sin((x + y).float32 / stripeWidth + (sinCache2[y] * curve) + idiv) + 1.5'f32) / 2.5'f32
 
-    let color = constructRgb(
-      int16 hsvColor.r.float32 * v,
-      int16 hsvColor.g.float32 * v,
-      int16 hsvColor.b.float32 * v
-    )
+    unicorn.setPixel(x, y, uint8 hsvColor.r.float32 * v, uint8 hsvColor.g.float32 * v, uint8 hsvColor.b.float32 * v)
 
-    graphics.setPen(color)
-    graphics.setPixel(Point(x: x, y: y))
+    # let color = constructRgb(
+    #   int16 hsvColor.r.float32 * v,
+    #   int16 hsvColor.g.float32 * v,
+    #   int16 hsvColor.b.float32 * v
+    # )
+
+    # graphics.setPen(color)
+    # graphics.setPixel(Point(x: x, y: y))
 
 
 
-  unicorn.update(graphics)
+  # unicorn.update(graphics)
 
   # while absoluteTimeDiffUs(lastTime, getAbsoluteTime()) < 1000_000 div 30:
   #   tightLoopContents()
