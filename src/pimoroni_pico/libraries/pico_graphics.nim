@@ -216,13 +216,13 @@ const PicoGraphicsPen3BitPalette5_7* = [
   Hsl(h: 20/360, s: 0.98, l: 0.90).toRgb().toLinear(paletteGamma), ##  clean
 ]
 
-static:
-  echo "Inky Frame 7.3\" palette:"
-  for c in PicoGraphicsPen3BitPalette7_3:
-    echo c.fromLinear()
-  echo "Inky Frame 5.7\" palette:"
-  for c in PicoGraphicsPen3BitPalette5_7:
-    echo c.fromLinear()
+# static:
+#   echo "Inky Frame 7.3\" palette:"
+#   for c in PicoGraphicsPen3BitPalette7_3:
+#     echo c.fromLinear()
+#   echo "Inky Frame 5.7\" palette:"
+#   for c in PicoGraphicsPen3BitPalette5_7:
+#     echo c.fromLinear()
 
 
 const RGB_FLAG*: uint = 0x7f000000

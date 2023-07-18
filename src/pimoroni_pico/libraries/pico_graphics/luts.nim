@@ -104,7 +104,7 @@ func getCacheKey*(c: RgbLinear): uint =
 func bayerMatrix*[T](M: static[Natural]; multiplier: float = 1 shl M shl M): array[1 shl M shl M, T] {.compileTime.} =
   const length = 1 shl M shl M
   const dim = 1 shl M
-  static: echo "Generating Bayer matrix " & $dim & "x" & $dim
+  # echo "Generating Bayer matrix " & $dim & "x" & $dim
   var i = 0
   for y in 0 ..< dim:
     let yc = y
@@ -126,7 +126,7 @@ func bayerMatrix*[T](M: static[Natural]; multiplier: float = 1 shl M shl M): arr
 # See convThresholdToAddition()
 func convertPattern*(pattern: static[openArray[uint8]]; scale: float32; max: int = 256): array[pattern.len, RgbLinearComponent] {.compileTime.} =
   ## Convert threshold pattern to be used for adding to a Rgb() value
-  static: echo "Converting dither pattern " & $pattern.len
+  # echo "Converting dither pattern " & $pattern.len
   for i, value in pattern:
     result[i] = int16 scale * (float32(value + 1) / float32(max) - 0.50000006'f32)
 
