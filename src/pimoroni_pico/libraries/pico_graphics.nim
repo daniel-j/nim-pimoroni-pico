@@ -91,7 +91,7 @@ type
 func bufferSize*(self: PicoGraphicsPen1Bit; w: uint; h: uint): uint =
   return w * h div 8
 
-proc init*(self: var PicoGraphicsPen1Bit; width: uint16; height: uint16; backend: PicoGraphicsBackend = BackendMemory; frameBuffer: seq[uint8] = @[]) {.constructor.} =
+proc init*(self: var PicoGraphicsPen1Bit; width: uint16; height: uint16; backend: PicoGraphicsBackend = BackendMemory; frameBuffer: seq[uint8] = @[]) =
   init(PicoGraphicsBase(self), width, height, backend, frameBuffer)
   if self.backend == BackendMemory:
     if self.frameBuffer.len == 0:
@@ -501,26 +501,26 @@ func bufferSize*(self: PicoGraphicsPenRgb565; w: uint; h: uint): uint =
 
 type
   PicoGraphicsPenRgb888* = object of PicoGraphicsBase
-    # srcColor*: Rgb
+    srcColor*: Rgb
     color*: Rgb888
 
 
 func bufferSize*(self: PicoGraphicsPenRgb888; w: uint; h: uint): uint =
   return w * h * 3
 
-proc init*(self: var PicoGraphicsPenRgb888; width: uint16; height: uint16; backend: PicoGraphicsBackend = BackendMemory; frameBuffer: seq[uint8] = @[]) {.constructor.} =
+proc init*(self: var PicoGraphicsPenRgb888; width: uint16; height: uint16; backend: PicoGraphicsBackend = BackendMemory; frameBuffer: seq[uint8] = @[]) =
   init(PicoGraphicsBase(self), width, height, backend, frameBuffer)
   if self.backend == BackendMemory:
     if self.frameBuffer.len == 0:
       self.frameBuffer = newSeq[uint8](self.bufferSize(width, height))
 
 proc setPen*(self: var PicoGraphicsPenRgb888; c: uint) =
+  self.srcColor = constructRgb(c.Rgb888)
   self.color = c.Rgb888
-  # self.srcColor = constructRgb(c.Rgb888)
 
 proc setPen*(self: var PicoGraphicsPenRgb888; c: Rgb) =
+  self.srcColor = c
   self.color = c.toRgb888()
-  # self.srcColor = c
 
 proc createPen*(self: var PicoGraphicsPenRgb888; c: Rgb): uint =
   c.toRgb888().uint
@@ -528,9 +528,9 @@ proc createPen*(self: var PicoGraphicsPenRgb888; c: Rgb): uint =
 proc setPixel*(self: var PicoGraphicsPenRgb888; p: Point) =
   let offset = (p.y * self.bounds.w + p.x) * 3
 
-  self.frameBuffer[offset + 0] = self.color.uint8
+  self.frameBuffer[offset + 0] = (self.color.uint32 shr 16).uint8
   self.frameBuffer[offset + 1] = (self.color.uint32 shr 8).uint8
-  self.frameBuffer[offset + 2] = (self.color.uint32 shr 16).uint8
+  self.frameBuffer[offset + 2] = self.color.uint8
 
 proc setPixelSpan*(self: var PicoGraphicsPenRgb888; p: Point; l: uint) =
   let r = uint8 self.color.uint32 and 0xff

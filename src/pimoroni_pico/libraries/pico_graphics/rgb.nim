@@ -445,7 +445,7 @@ func toRgb888*(self: Rgb): Rgb888 =
   Rgb888(
     (c.r.uint32 shl 16) or
     (c.g.uint32 shl 8) or
-    (c.b.uint32 shl 0)
+    (c.b.uint32)
   )
 
 func rgbToRgb332*(r, g, b: uint8): Rgb332 =

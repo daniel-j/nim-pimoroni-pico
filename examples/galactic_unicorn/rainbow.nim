@@ -34,15 +34,15 @@ proc drawRows(first, last: int) =
   for x in 0 ..< GalacticUnicornWidth:
     p.x = x
     let hsvColor = hueMap[x]
-    # let hsvColor = hsvToRgb((x / GalacticUnicornWidth + hueOffset) mod 1.0, 1.0, 1.0)
     for y in first ..< last:
       p.y = y
       let v = (sin((x + y).float32 / stripeWidth + (sin((y.float32 * PI.float32 * 2.0) / 11.0) * curve) + i / 15.0) + 1.5) / 2.5
 
-      let color = 
-        (hsvColor.r.float * v).uint.clamp(0, 255) or
-        (hsvColor.g.float * v).uint.clamp(0, 255) shl 8 or
-        (hsvColor.b.float * v).uint.clamp(0, 255) shl 16
+      let color = constructRgb(
+        int16 hsvColor.r.float * v,
+        int16 hsvColor.g.float * v,
+        int16 hsvColor.b.float * v
+      )
 
       graphics.setPen(color)
       graphics.setPixel(p)
