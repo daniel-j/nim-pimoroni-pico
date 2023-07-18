@@ -406,13 +406,13 @@ proc light*(self: var GalacticUnicorn): uint16 =
   adcSelectInput(Adc28)
   return adcRead()
 
-proc setBrightness*(self: var GalacticUnicorn; value: float) =
-  self.brightness = uint16 floor(value.clamp(0.0, 1.0) * 255.0)
+proc setBrightness*(self: var GalacticUnicorn; value: float32) =
+  self.brightness = uint16 floor(value.clamp(0.0f, 1.0f) * 255.0f)
 
-proc getBrightness*(self: var GalacticUnicorn): float =
-  self.brightness.float / 255.0
+proc getBrightness*(self: var GalacticUnicorn): float32 =
+  self.brightness.float32 / 255.0f
 
-proc adjustBrightness*(self: var GalacticUnicorn; delta: float) =
+proc adjustBrightness*(self: var GalacticUnicorn; delta: float32) =
   self.setBrightness(self.getBrightness() + delta)
 
 proc isPressed*(self: var GalacticUnicorn; switch: Switch): bool =

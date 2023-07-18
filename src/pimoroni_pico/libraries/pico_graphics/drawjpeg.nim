@@ -155,15 +155,15 @@ proc getJpegdecDrawCallback(jpegDecoder: var JpegDecoder): auto =
 
     for y in 0 ..< dh:
       # if dy + y < 0 or dy + y >= imgH: continue
-      let symin = floor(y * self.jpegH / imgH).int
+      let symin = y * self.jpegH div imgH
       if symin >= draw.iHeight: continue
-      let symax = min(floor((y + 1) * self.jpegH / imgH).int, draw.iHeight)
+      let symax = min((y + 1) * self.jpegH div imgH, draw.iHeight)
 
       for x in 0 ..< realdw:
         # if dx + x < 0 or dx + x >= imgW: continue
-        let sxmin = floor(x * self.jpegW / imgW).int
+        let sxmin = x * self.jpegW div imgW
         if sxmin >= draw.iWidth: continue
-        let sxmax = min(floor((x + 1) * self.jpegW / imgW).int, draw.iWidth)
+        let sxmax = min((x + 1) * self.jpegW div imgW, draw.iWidth)
 
         let pos = case jpeg.getOrientation():
         of 3: Point(x: self.x + imgW - (dx + x), y: self.y + imgH - (dy + y))
@@ -187,7 +187,7 @@ proc getJpegdecDrawCallback(jpegDecoder: var JpegDecoder): auto =
         #   color = constructRgb(Rgb565(p[sxmin + symin * draw.iWidth]))
         color = constructRgb(Rgb565(p[sxmin + symin * draw.iWidth]))
 
-        color = color.level(black=0.00, white=0.97) #.saturate(1.00)
+        color = color.level(black=0.00f, white=0.97f) #.saturate(1.00)
 
         case self.drawMode:
         of Default:
@@ -195,10 +195,10 @@ proc getJpegdecDrawCallback(jpegDecoder: var JpegDecoder): auto =
           self.graphics[].setPen(pen)
           self.graphics[].setPixel(pos)
         of OrderedDither:
-          color = color.saturate(1.50) #.level(black=0.04, white=0.97)
+          color = color.saturate(1.50f) #.level(black=0.04, white=0.97)
           self.graphics[].setPixelDither(pos, color.toLinear())
         of ErrorDiffusion:
-          color = color.saturate(1.30).level(gamma=1.6)
+          color = color.saturate(1.30f).level(gamma=1.6f)
           # errorMatrix[y][dx + x] += color.toLinear()
           row[x] = color.toLinear()
 
@@ -213,7 +213,7 @@ proc getJpegdecDrawCallback(jpegDecoder: var JpegDecoder): auto =
 
     return 1
 
-proc drawJpeg*(self: var JpegDecoder; graphics: var PicoGraphics; filename: string; x, y: int = 0; w, h: int; gravity: tuple[x, y: float] = (0.0, 0.0); drawMode: DrawMode = Default): int =
+proc drawJpeg*(self: var JpegDecoder; graphics: var PicoGraphics; filename: string; x, y: int = 0; w, h: int; gravity: tuple[x, y: float32] = (0.0f, 0.0f); drawMode: DrawMode = Default): int =
   self.x = x
   self.y = y
   self.w = w
@@ -253,17 +253,17 @@ proc drawJpeg*(self: var JpegDecoder; graphics: var PicoGraphics; filename: stri
     let boxRatio = self.w / self.h
     let imgRatio = self.jpegW / self.jpegH
     if (if contains: imgRatio > boxRatio else: imgRatio <= boxRatio):
-      self.h = (self.w.float / imgRatio).int
+      self.h = (self.w.float32 / imgRatio).int
     else:
-      self.w = (self.h.float * imgRatio).int
+      self.w = (self.h.float32 * imgRatio).int
 
     case jpeg.getOrientation():
       of 6, 8: # vertical
-        self.x = ((w - self.h).float * gravity.x).int + x
-        self.y = ((h - self.w).float * gravity.y).int + y
+        self.x = ((w - self.h).float32 * gravity.x).int + x
+        self.y = ((h - self.w).float32 * gravity.y).int + y
       else: # horizontal
-        self.x = ((w - self.w).float * gravity.x).int + x
-        self.y = ((h - self.h).float * gravity.y).int + y
+        self.x = ((w - self.w).float32 * gravity.x).int + x
+        self.y = ((h - self.h).float32 * gravity.y).int + y
 
     var jpegScaleFactor = 0
     if self.jpegW > self.w * 8 and self.jpegH > self.h * 8:

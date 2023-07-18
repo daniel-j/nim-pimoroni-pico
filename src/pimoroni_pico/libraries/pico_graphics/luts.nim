@@ -124,7 +124,7 @@ func bayerMatrix*[T](M: static[Natural]; multiplier: float = 1 shl M shl M): arr
 
 # https://github.com/makew0rld/dither/blob/master/pixelmappers.go
 # See convThresholdToAddition()
-func convertPattern*(pattern: static[openArray[uint8]]; scale: float; max: int = 256): array[pattern.len, RgbLinearComponent] {.compileTime.} =
+func convertPattern*(pattern: static[openArray[uint8]]; scale: float32; max: int = 256): array[pattern.len, RgbLinearComponent] {.compileTime.} =
   ## Convert threshold pattern to be used for adding to a Rgb() value
   static: echo "Converting dither pattern " & $pattern.len
   for i, value in pattern:

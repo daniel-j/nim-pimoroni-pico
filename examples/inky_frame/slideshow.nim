@@ -52,7 +52,7 @@ proc drawFile(filename: string) =
     of InkyFrame5_7: (0, -1, 600, 450)
     of InkyFrame7_3: (-27, 0, 854, 480)
 
-  if jpegDecoder.drawJpeg(inky, filename, x, y, w, h, gravity=(0.5, 0.5), DrawMode.ErrorDiffusion) == 1:
+  if jpegDecoder.drawJpeg(inky, filename, x, y, w, h, gravity=(0.5f, 0.5f), DrawMode.ErrorDiffusion) == 1:
     let endTime = getAbsoluteTime()
     echo "Time: ", absoluteTimeDiffUs(startTime, endTime) div 1000, "ms"
     inky.led(LedActivity, 100)
@@ -108,17 +108,17 @@ proc inkyProc() =
       stdout.write $(y+1) & " of " & $inky.height & "\r"
       stdout.flushFile()
       p.y = y
-      let yd = y / inky.height
+      let yd = y.float32 / inky.height.float32
       let l = yd
       for x in 0..<inky.width:
         p.x = x
-        let xd = x / inky.width
+        let xd = x.float32 / inky.width.float32
         let hue = xd
-        let color = inky.createPenHsl(hue, 1.0, 1.02 - l * 1.04)
+        let color = inky.createPenHsl(hue, 1.0f, 1.02f - l * 1.04f)
         #let color = LChToLab(1 - l, 0.15, hue).fromLab()
         # inky.setPen(color)
         # inky.setPixel(p)
-        row[x] = color.level(gamma=1.5).toLinear()
+        row[x] = color.level(gamma=1.5f).toLinear()
       errDiff.write(0, y, row)
 
     errDiff.process()
@@ -149,7 +149,7 @@ proc inkyProc() =
       inky.setPen(Black)
       inky.circle(p, size)
 
-      inky.setPen(inky.createPenHsl(rand(1.0), 0.5 + rand(0.5), 0.25 + rand(0.5)))
+      inky.setPen(inky.createPenHsl(rand(1.0f).float32, 0.5f + rand(0.5f).float32, 0.25f + rand(0.5f).float32))
       # inky.setPen(uint 2 + rand(4))
       inky.circle(p, size - 2)
 
@@ -205,7 +205,7 @@ proc inkyProc() =
       var p2 = p1 + Point(x: size, y: size)
       var p3 = p1 + Point(x: -size, y: size)
 
-      inky.setPen(inky.createPenHsl(rand(1.0), 0.5 + rand(0.5), 0.25 + rand(0.5)))
+      inky.setPen(inky.createPenHsl(rand(1.0f).float32, 0.5f + rand(0.5f).float32, 0.25f + rand(0.5f).float32))
       # inky.setPen(uint 2 + rand(4))
       inky.triangle(p1, p2, p3)
 
@@ -219,7 +219,7 @@ proc inkyProc() =
       var p1 = Point(x: x - rand(size), y: y - rand(size))
       var p2 = Point(x: x + rand(size), y: y + rand(size))
 
-      inky.setPen(inky.createPenHsl(rand(1.0), 0.5 + rand(0.5), 0.25 + rand(0.5)))
+      inky.setPen(inky.createPenHsl(rand(1.0f).float32, 0.5f + rand(0.5f).float32, 0.25f + rand(0.5).float32))
       # inky.setPen(uint 2 + rand(4))
       inky.thickLine(p1, p2, thickness)
 

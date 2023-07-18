@@ -61,7 +61,7 @@ proc drawFile(filename: string; kind: InkyFrameKind; drawMode: DrawMode): bool =
 
   echo "Decoding jpeg file ", filename, "..."
 
-  if jpegDecoder.drawJpeg(inky, filename, x, y, w, h, gravity=(0.5, 0.5), drawMode) == 1:
+  if jpegDecoder.drawJpeg(inky, filename, x, y, w, h, gravity=(0.5f, 0.5f), drawMode) == 1:
     echo "Converting image..."
     inky.update()
     echo "Writing image to tinky_frame_" & $kind & "_image_" & $drawMode & ".png..."

@@ -261,9 +261,9 @@ proc setPen*(self: var PicoGraphicsPen3Bit; c: Rgb) =
 proc createPen*(self: PicoGraphicsPen3Bit; c: Rgb): uint =
   c.toRgb888().uint or RGB_FLAG
 
-proc createPenHsv*(self: PicoGraphicsBase; h, s, v: float): Rgb =
+proc createPenHsv*(self: PicoGraphicsBase; h, s, v: float32): Rgb =
   Hsv(h: h, s: s, v: v).toRgb()
-proc createPenHsl*(self: PicoGraphicsBase; h, s, l: float): Rgb =
+proc createPenHsl*(self: PicoGraphicsBase; h, s, l: float32): Rgb =
   Hsl(h: h, s: s, l: l).toRgb()
 
 proc createPenNearestLut*(self: var PicoGraphicsPen3Bit; c: RgbLinear): uint =
@@ -663,7 +663,7 @@ proc polygon*(self: var PicoGraphics; points: openArray[Point]) =
       if (sy < fy and ey >= fy) or (ey < fy and sy >= fy):
         let sx = points[i].x
         let ex = points[j].x
-        let px = int(sx.float + float(fy - sy) / float(ey - sy) * float(ex - sx))
+        let px = int(sx.float32 + float32(fy - sy) / float32(ey - sy) * float32(ex - sx))
         nodes[n] =
           if px < self.clip.x:
             self.clip.x

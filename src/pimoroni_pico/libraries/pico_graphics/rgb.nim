@@ -20,11 +20,11 @@ type
   RgbLinear* {.packed.} = object
     r*, g*, b*: RgbLinearComponent
   Lab* {.packed.} = object
-    L*, a*, b*: float
+    L*, a*, b*: float32
   Hsv* {.packed.} = object
-    h*, s*, v*: float
+    h*, s*, v*: float32
   Hsl* {.packed.} = object
-    h*, s*, l*: float
+    h*, s*, l*: float32
 
 func clamp*(self: Rgb): Rgb =
   result.r = self.r.clamp(0, 255)
@@ -66,7 +66,7 @@ func constructRgb*(r, g, b: int16): Rgb {.constructor.} =
   result.g = g
   result.b = b
 
-func constructRgb*(r, g, b: float): Rgb {.constructor.} =
+func constructRgb*(r, g, b: float32): Rgb {.constructor.} =
   result.r = int16 round(r * 255)
   result.g = int16 round(g * 255)
   result.b = int16 round(b * 255)
@@ -77,10 +77,10 @@ func constructRgb*(l: int16): Rgb {.constructor.} =
   result.b = l
 
 
-func saturate*(self: Rgb; factor: float): Rgb =
-  const luR = 0.3086
-  const luG = 0.6094
-  const luB = 0.0820
+func saturate*(self: Rgb; factor: float32): Rgb =
+  const luR = 0.3086'f32
+  const luG = 0.6094'f32
+  const luB = 0.0820'f32
 
   let nfactor = (1 - factor)
 
@@ -104,7 +104,7 @@ func saturate*(self: Rgb; factor: float): Rgb =
 
   result.clamp()
 
-func level*(self: Rgb; black: float = 0; white: float = 1; gamma: float = 1): Rgb =
+func level*(self: Rgb; black: float32 = 0; white: float32 = 1; gamma: float32 = 1): Rgb =
   var r = self.r / 255
   var g = self.g / 255
   var b = self.b / 255
@@ -138,11 +138,11 @@ func toRgb*(hsv: Hsv): Rgb =
 
   let h = hsv.h
 
-  let i = int(h * 6.0)
-  let f = h * 6.0 - float(i)
-  let p = v * (1.0 - s)
-  let q = v * (1.0 - f * s)
-  let t = v * (1.0 - (1.0 - f) * s)
+  let i = int(h * 6.0f)
+  let f = h * 6.0f - float32(i)
+  let p = v * (1.0f - s)
+  let q = v * (1.0f - f * s)
+  let t = v * (1.0f - (1.0f - f) * s)
 
   case i mod 6:
     of 0: return constructRgb(v, t, p)
@@ -163,7 +163,7 @@ func toRgb*(hsl: Hsl): Rgb =
 
   let h = hsl.h
 
-  proc hue2rgb(p, q, t: float): float =
+  proc hue2rgb(p, q, t: float32): float32 =
     var t2 = t
     if t2 < 0.0: t2 += 1.0
     if t2 > 1.0: t2 -= 1.0
@@ -172,24 +172,24 @@ func toRgb*(hsl: Hsl): Rgb =
     if t2 < 2/3: return p + (q - p) * (2/3 - t2) * 6
     return p
 
-  let q = if l < 0.5: l * (1 + s) else: l + s - l * s
-  let p = 2 * l - q
+  let q = if l < 0.5f: l * (1 + s) else: l + s - l * s
+  let p = 2.0f * l - q
 
-  result.r = int16 round(hue2rgb(p, q, h + 1/3).clamp(0, 1) * 255.0)
-  result.g = int16 round(hue2rgb(p, q, h).clamp(0, 1) * 255.0)
-  result.b = int16 round(hue2rgb(p, q, h - 1/3).clamp(0, 1) * 255.0)
+  result.r = int16 round(hue2rgb(p, q, h + 1.0f/3.0f).clamp(0, 1) * 255.0f)
+  result.g = int16 round(hue2rgb(p, q, h).clamp(0, 1) * 255.0f)
+  result.b = int16 round(hue2rgb(p, q, h - 1.0f/3.0f).clamp(0, 1) * 255.0f)
 
 func toHsl*(col: Rgb): Hsl =
-  let r = col.r / 255
-  let g = col.g / 255
-  let b = col.b / 255
+  let r = col.r.float32 / 255.0f
+  let g = col.g.float32 / 255.0f
+  let b = col.b.float32 / 255.0f
   let valMin = min(r, min(g, b))
   let valMax = max(r, max(g, b))
   let delta = valMax - valMin
-  var h = 0.0
+  var h = 0.0f
 
-  if delta == 0:
-    h = 0
+  if delta == 0.0f:
+    h = 0.0f
   elif valMax == r:
     h = ((g - b) / delta)
   elif valMax == g:
@@ -197,16 +197,16 @@ func toHsl*(col: Rgb): Hsl =
   elif valMax == b:
     h = (r - g) / delta + 4
 
-  h = h * 60.0 / 360.0
+  h = h * 60.0f / 360.0f
 
-  if h < 0: h += 1.0
+  if h < 0: h += 1.0f
 
   let l = (valMin + valMax) / 2
 
   let s = (
-    if delta == 0:
-      0.0
-    elif l <= 0.5:
+    if delta == 0.0f:
+      0.0f
+    elif l <= 0.5f:
       delta / (valMax + valMin)
     else:
       delta / (2 - valMax - valMin)
@@ -225,8 +225,8 @@ func `-`*(self: RgbLinear; c: RgbLinear): RgbLinear =
   return RgbLinear(r: self.r - c.r, g: self.g - c.g, b: self.b - c.b)
 func `*`*(self: RgbLinear; i: RgbLinearComponent): RgbLinear =
   return RgbLinear(r: self.r * i, g: self.g * i, b: self.b * i)
-func `*`*(self: RgbLinear; i: float): RgbLinear =
-  return RgbLinear(r: RgbLinearComponent self.r.float * i, g: RgbLinearComponent self.g.float * i, b: RgbLinearComponent self.b.float * i)
+func `*`*(self: RgbLinear; i: float32): RgbLinear =
+  return RgbLinear(r: RgbLinearComponent self.r.float32 * i, g: RgbLinearComponent self.g.float32 * i, b: RgbLinearComponent self.b.float32 * i)
 func `div`*(self: RgbLinear; i: RgbLinearComponent): RgbLinear =
   return RgbLinear(r: self.r div i, g: self.g div i, b: self.b div i)
 func `shr`*(self: RgbLinear; i: RgbLinearComponent): RgbLinear =
@@ -245,80 +245,80 @@ func clamp*(self: RgbLinear): RgbLinear =
   result.b = self.b.clamp(0, rgbMultiplier)
 
 # From https://github.com/makew0rld/dither/blob/master/color_spaces.go
-func linearize1*(v: float; gamma = defaultGamma): float =
-  if v <= 0.04045:
-    return v / 12.92
-  return ((v+0.055)/1.055).pow(gamma)
+func linearize1*(v: float32; gamma: float32 = defaultGamma): float32 =
+  if v <= 0.04045f:
+    return v / 12.92f
+  return ((v + 0.055f) / 1.055f).pow(gamma)
 
-func delinearize1*(v: float; gamma = defaultGamma): float =
-  if v <= 0.0031308:
-    return v * 12.92
-  return (v * 1.055).pow(1 / gamma) - 0.055
+func delinearize1*(v: float32; gamma: float32 = defaultGamma): float32 =
+  if v <= 0.0031308f:
+    return v * 12.92f
+  return (v * 1.055f).pow(1.0f / gamma) - 0.055f
 
 # From https://github.com/makew0rld/dither/blob/master/color_spaces.go
-func toLinear*(c: Rgb; gamma = defaultGamma; cheat = false): RgbLinear =
+func toLinear*(c: Rgb; gamma: float32 = defaultGamma; cheat = false): RgbLinear =
   if cheat:
-    result.r = RgbLinearComponent round((c.r.float / 255.0).clamp(0, 1).pow(gamma) * rgbMultiplier)
-    result.g = RgbLinearComponent round((c.g.float / 255.0).clamp(0, 1).pow(gamma) * rgbMultiplier)
-    result.b = RgbLinearComponent round((c.b.float / 255.0).clamp(0, 1).pow(gamma) * rgbMultiplier)
+    result.r = RgbLinearComponent round((c.r.float32 / 255.0f).clamp(0, 1).pow(gamma) * rgbMultiplier)
+    result.g = RgbLinearComponent round((c.g.float32 / 255.0f).clamp(0, 1).pow(gamma) * rgbMultiplier)
+    result.b = RgbLinearComponent round((c.b.float32 / 255.0f).clamp(0, 1).pow(gamma) * rgbMultiplier)
   else:
-    result.r = RgbLinearComponent round((c.r.float / 255.0).clamp(0, 1).linearize1(gamma) * rgbMultiplier)
-    result.g = RgbLinearComponent round((c.g.float / 255.0).clamp(0, 1).linearize1(gamma) * rgbMultiplier)
-    result.b = RgbLinearComponent round((c.b.float / 255.0).clamp(0, 1).linearize1(gamma) * rgbMultiplier)
+    result.r = RgbLinearComponent round((c.r.float32 / 255.0f).clamp(0, 1).linearize1(gamma) * rgbMultiplier)
+    result.g = RgbLinearComponent round((c.g.float32 / 255.0f).clamp(0, 1).linearize1(gamma) * rgbMultiplier)
+    result.b = RgbLinearComponent round((c.b.float32 / 255.0f).clamp(0, 1).linearize1(gamma) * rgbMultiplier)
 
-func fromLinear*(c: RgbLinear; gamma = defaultGamma; cheat = false): Rgb =
+func fromLinear*(c: RgbLinear; gamma: float32 = defaultGamma; cheat = false): Rgb =
   if cheat:
-    result.r = int16 round(c.r.float / (rgbMultiplier.float / 255)).clamp(0, 255)
-    result.g = int16 round(c.g.float / (rgbMultiplier.float / 255)).clamp(0, 255)
-    result.b = int16 round(c.b.float / (rgbMultiplier.float / 255)).clamp(0, 255)
+    result.r = int16 round(c.r.float32 / (rgbMultiplier.float32 / 255)).clamp(0, 255)
+    result.g = int16 round(c.g.float32 / (rgbMultiplier.float32 / 255)).clamp(0, 255)
+    result.b = int16 round(c.b.float32 / (rgbMultiplier.float32 / 255)).clamp(0, 255)
   else:
-    result.r = int16 round((c.r.float / rgbMultiplier).delinearize1(gamma).clamp(0, 1) * 255.0)
-    result.g = int16 round((c.g.float / rgbMultiplier).delinearize1(gamma).clamp(0, 1) * 255.0)
-    result.b = int16 round((c.b.float / rgbMultiplier).delinearize1(gamma).clamp(0, 1) * 255.0)
+    result.r = int16 round((c.r.float32 / rgbMultiplier).delinearize1(gamma).clamp(0, 1) * 255.0f)
+    result.g = int16 round((c.g.float32 / rgbMultiplier).delinearize1(gamma).clamp(0, 1) * 255.0f)
+    result.b = int16 round((c.b.float32 / rgbMultiplier).delinearize1(gamma).clamp(0, 1) * 255.0f)
 
 # https://bottosson.github.io/posts/oklab/
 # See linear_srgb_to_oklab() and oklab_to_linear_srgb()
 func toLab*(c: RgbLinear): Lab =
-  let r = c.r.float / rgbMultiplier
-  let g = c.g.float / rgbMultiplier
-  let b = c.b.float / rgbMultiplier
+  let r = c.r.float32 / rgbMultiplier
+  let g = c.g.float32 / rgbMultiplier
+  let b = c.b.float32 / rgbMultiplier
 
-  let l = cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b)
-  let m = cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b)
-  let s = cbrt(0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b)
+  let l = cbrt(0.4122214708f * r + 0.5363325363f * g + 0.0514459929f * b)
+  let m = cbrt(0.2119034982f * r + 0.6806995451f * g + 0.1073969566f * b)
+  let s = cbrt(0.0883024619f * r + 0.2817188376f * g + 0.6299787005f * b)
 
-  result.L = 0.2104542553 * l + 0.7936177850 * m - 0.0040720468 * s
-  result.a = 1.9779984951 * l - 2.4285922050 * m + 0.4505937099 * s
-  result.b = 0.0259040371 * l + 0.7827717662 * m - 0.8086757660 * s
+  result.L = 0.2104542553f * l + 0.7936177850f * m - 0.0040720468f * s
+  result.a = 1.9779984951f * l - 2.4285922050f * m + 0.4505937099f * s
+  result.b = 0.0259040371f * l + 0.7827717662f * m - 0.8086757660f * s
 
 func fromLab*(c: Lab): RgbLinear =
-  let l = c.L + 0.3963377774 * c.a + 0.2158037573 * c.b;
-  let m = c.L - 0.1055613458 * c.a - 0.0638541728 * c.b;
-  let s = c.L - 0.0894841775 * c.a - 1.2914855480 * c.b;
+  let l = c.L + 0.3963377774f * c.a + 0.2158037573f * c.b;
+  let m = c.L - 0.1055613458f * c.a - 0.0638541728f * c.b;
+  let s = c.L - 0.0894841775f * c.a - 1.2914855480f * c.b;
 
   let l3 = l * l * l
   let m3 = m * m * m
   let s3 = s * s * s
 
-  result.r = int16 round((+4.0767416621 * l3 - 3.3077115913 * m3 + 0.2309699292 * s3) * rgbMultiplier)
-  result.g = int16 round((-1.2684380046 * l3 + 2.6097574011 * m3 - 0.3413193965 * s3) * rgbMultiplier)
-  result.b = int16 round((-0.0041960863 * l3 - 0.7034186147 * m3 + 1.7076147010 * s3) * rgbMultiplier)
+  result.r = int16 round((+4.0767416621f * l3 - 3.3077115913f * m3 + 0.2309699292f * s3) * rgbMultiplier)
+  result.g = int16 round((-1.2684380046f * l3 + 2.6097574011f * m3 - 0.3413193965f * s3) * rgbMultiplier)
+  result.b = int16 round((-0.0041960863f * l3 - 0.7034186147f * m3 + 1.7076147010f * s3) * rgbMultiplier)
 
-func LChToLab*(L, C, h: float): Lab =
+func LChToLab*(L, C, h: float32): Lab =
   result.L = L
-  let rad = degToRad(h * 360)
+  let rad = degToRad(h * 360.0f)
   result.a = C * cos(rad)
   result.b = C * sin(rad)
 
 # Simple euclidian distance function
-func deltaE76*(col1, col2: Lab): float =
+func deltaE76*(col1, col2: Lab): float32 =
   let dL = col2.L - col1.L
   let da = col2.a - col1.a
   let db = col2.b - col1.b
   return sqrt(dL * dL + da * da + db * db)
 
 # https://github.com/svgeesus/svgeesus.github.io/blob/master/Color/OKLab-notes.md
-func deltaEOK*(col1, col2: Lab): float =
+func deltaEOK*(col1, col2: Lab): float32 =
   let dL = col1.L - col2.L
   let C1 = sqrt(col1.a * col1.a + col1.b * col1.b)
   let C2 = sqrt(col2.a * col2.a + col2.b * col2.b)
