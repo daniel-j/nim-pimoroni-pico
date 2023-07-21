@@ -102,7 +102,7 @@ proc drawFile(filename: string; kind: InkyFrameKind; drawMode: DrawMode; matrix:
     echo "JPEGDEC error"
     return false
 
-const strengths = 90 ..< 91
+const strength = 0.85
 const matrices = [FloydSteinberg, SierraLite]
 
 for kind in InkyFrameKind:
@@ -116,7 +116,6 @@ for kind in InkyFrameKind:
   for drawMode in DrawMode:
     if drawMode == DrawMode.ErrorDiffusion:
       for matrix in matrices:
-        for s in strengths:
-          doAssert drawFile(paramStr(1), kind, drawMode, matrix, s / 100)
+        doAssert drawFile(paramStr(1), kind, drawMode, matrix, strength)
     else:
       doAssert drawFile(paramStr(1), kind, drawMode)

@@ -52,7 +52,7 @@ proc drawFile(filename: string) =
     of InkyFrame5_7: (0, -1, 600, 450)
     of InkyFrame7_3: (-27, 0, 854, 480)
 
-  jpegDecoder.errDiff.matrix = SierraLite.strength(0.90)
+  jpegDecoder.errDiff.matrix = SierraLite.strength(0.85)
   jpegDecoder.errDiff.alternateRow = true
 
   if jpegDecoder.drawJpeg(inky, filename, x, y, w, h, gravity=(0.5f, 0.5f), DrawMode.OrderedDither) == 1:
