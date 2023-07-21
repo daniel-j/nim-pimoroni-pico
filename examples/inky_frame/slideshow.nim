@@ -55,7 +55,7 @@ proc drawFile(filename: string) =
   jpegDecoder.errDiff.matrix = SierraLite.strength(0.85)
   jpegDecoder.errDiff.alternateRow = true
 
-  if jpegDecoder.drawJpeg(inky, filename, x, y, w, h, gravity=(0.5f, 0.5f), DrawMode.OrderedDither) == 1:
+  if jpegDecoder.drawJpeg(inky, filename, x, y, w, h, gravity=(0.5f, 0.5f), DrawMode.ErrorDiffusion) == 1:
     let endTime = getAbsoluteTime()
     echo "Time: ", absoluteTimeDiffUs(startTime, endTime) div 1000, "ms"
     inky.led(LedActivity, 100)
