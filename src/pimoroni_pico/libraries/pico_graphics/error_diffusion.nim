@@ -20,11 +20,11 @@ type
     m*: seq[float32] # matrix
 
   ErrorDiffusion*[PGT: PicoGraphics] = object
-    x*, y*: int
-    width*, height*: int
+    x*, y*, width*, height*: int
     orientation*: int
     graphics*: ptr PGT
     matrix*: ErrorDiffusionMatrix
+    alternateRow*: bool
     case backend*: ErrorDiffusionBackend:
     of BackendMemory: fbMemory*: seq[RgbLinear]
     of BackendPsram: psramAddress*: PsramAddress
@@ -157,14 +157,16 @@ const
     Atkinson, StevenPigeon
   ]
 
-proc init*(self: var ErrorDiffusion; x, y, width, height: int; graphics: var PicoGraphics; matrix: ErrorDiffusionMatrix = FloydSteinberg) =
+proc init*(self: var ErrorDiffusion; graphics: var PicoGraphics; x, y, width, height: int; matrix: ErrorDiffusionMatrix = FloydSteinberg; alternateRow: bool = false) =
   echo "Initializing ErrorDiffusion with backend ", self.backend
+  self.graphics = graphics.addr
   self.x = x
   self.y = y
   self.width = width
   self.height = height
-  self.graphics = graphics.addr
   self.matrix = matrix
+  self.alternateRow = alternateRow
+
   case self.backend:
   of BackendMemory: self.fbMemory = newSeq[RgbLinear](self.width * self.height)
   of BackendPsram: discard
@@ -265,7 +267,8 @@ proc process*(self: var ErrorDiffusion) =
       if y + i < imgH and rows[y + i].len == 0:
         rows[y + i] = self.readRow(y + i)
 
-    for x in 0 ..< imgW:
+    for xraw in 0 ..< imgW:
+      let x = if self.alternateRow and y mod 2 == 0: xraw else: imgW - 1 - xraw
       let pos = case self.orientation:
       of 3: Point(x: ox + imgW - (dx + x), y: oy + imgH - (dy + y))
       of 6: Point(x: ox + imgH - (dy + y), y: oy + (dx + x))
@@ -286,7 +289,7 @@ proc process*(self: var ErrorDiffusion) =
       for i, m in self.matrix.m:
         if m == 0: continue
         # Get the coords of the pixel the error is being applied to
-        let mx = x + (i mod self.matrix.s) - curPix
+        let mx = if self.alternateRow and y mod 2 == 0: x + (i mod self.matrix.s) - curPix else: x - (i mod self.matrix.s) + curPix
         let my = y + (i div self.matrix.s)
         if mx < 0 or mx >= imgW or my < 0 or my >= imgH:
           continue

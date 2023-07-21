@@ -52,9 +52,10 @@ proc drawFile(filename: string) =
     of InkyFrame5_7: (0, -1, 600, 450)
     of InkyFrame7_3: (-27, 0, 854, 480)
 
-  let matrix = Burkes.strength(0.85)
+  jpegDecoder.errDiff.matrix = SierraLite.strength(0.90)
+  jpegDecoder.errDiff.alternateRow = true
 
-  if jpegDecoder.drawJpeg(inky, filename, x, y, w, h, gravity=(0.5f, 0.5f), DrawMode.ErrorDiffusion, matrix) == 1:
+  if jpegDecoder.drawJpeg(inky, filename, x, y, w, h, gravity=(0.5f, 0.5f), DrawMode.OrderedDither) == 1:
     let endTime = getAbsoluteTime()
     echo "Time: ", absoluteTimeDiffUs(startTime, endTime) div 1000, "ms"
     inky.led(LedActivity, 100)
@@ -95,9 +96,9 @@ proc inkyProc() =
     echo "Drawing HSL chart..."
     let startTime = getAbsoluteTime()
 
-    var errDiff: ErrorDiffusion[PicoGraphicsPen3Bit]
+    var errDiff: ErrorDiffusion[inky]
     errDiff.autobackend(inky)
-    errDiff.init(0, 0, inky.width, inky.height, inky, Burkes.strength(0.85))
+    errDiff.init(inky, 0, 0, inky.width, inky.height, SierraLite.strength(0.85), alternateRow = true)
     errDiff.orientation = 0
     if errDiff.backend == ErrorDiffusionBackend.BackendPsram:
       errDiff.psramAddress = PsramAddress inky.width * inky.height

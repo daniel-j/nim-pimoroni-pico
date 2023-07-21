@@ -19,7 +19,7 @@ type
     chunkHeight: int
     graphics: ptr PGT
     drawMode: DrawMode
-    errDiff: ErrorDiffusion[PGT]
+    errDiff*: ErrorDiffusion[PGT]
 
 proc jpegdecOpenCallback(filename: cstring, size: ptr int32): pointer {.cdecl.} =
   when not defined(mock):
@@ -149,7 +149,7 @@ proc getJpegdecDrawCallback(jpegDecoder: var JpegDecoder): auto =
           self.graphics[].setPen(pen)
           self.graphics[].setPixel(pos)
         of OrderedDither:
-          color = color.saturate(1.50f) #.level(black=0.04, white=0.97)
+          color = color.saturate(0.75f).level(black=0.03f, white=1.5f, gamma=defaultGamma) # .saturate(1.50f) #.level(black=0.04, white=0.97)
           self.graphics[].setPixelDither(pos, color.toLinear())
         of ErrorDiffusion:
           color = color.saturate(1.30f).level(gamma=1.6f)
@@ -167,7 +167,7 @@ proc getJpegdecDrawCallback(jpegDecoder: var JpegDecoder): auto =
 
     return 1
 
-proc drawJpeg*(self: var JpegDecoder; graphics: var PicoGraphics; filename: string; x, y: int = 0; w, h: int; gravity: tuple[x, y: float32] = (0.0f, 0.0f); drawMode: DrawMode = Default; matrix: ErrorDiffusionMatrix = FloydSteinberg): int =
+proc drawJpeg*(self: var JpegDecoder; graphics: var PicoGraphics; filename: string; x, y: int = 0; w, h: int; gravity: tuple[x, y: float32] = (0.0f, 0.0f); drawMode: DrawMode = Default): int =
   self.x = x
   self.y = y
   self.w = w
@@ -242,7 +242,7 @@ proc drawJpeg*(self: var JpegDecoder; graphics: var PicoGraphics; filename: stri
 
     if self.drawMode == ErrorDiffusion:
       self.errDiff.autobackend(graphics)
-      self.errDiff.init(self.x, self.y, self.w, self.h, graphics, matrix)
+      self.errDiff.init(graphics, self.x, self.y, self.w, self.h, self.errDiff.matrix, self.errDiff.alternateRow)
       self.errDiff.orientation = jpeg.getOrientation()
       if self.errDiff.backend == ErrorDiffusionBackend.BackendPsram:
         self.errDiff.psramAddress = PsramAddress graphics.bounds.w * graphics.bounds.h

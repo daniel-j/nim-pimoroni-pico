@@ -29,8 +29,8 @@ const palette7_3 = [
 const palette5_7 = [
   palette7_3[0], ##  black
   palette7_3[1], ##  white
-  Hsv(h: 113/360, s: 1.00, v: 0.85).toRgb().toLinear(paletteGamma), ##  green
-  Hsv(h: 215/360, s: 0.55, v: 0.75).toRgb().toLinear(paletteGamma), ##  blue
+  Hsv(h: 113/360, s: 1.00, v: 0.70).toRgb().toLinear(paletteGamma), ##  green
+  Hsv(h: 215/360, s: 0.55, v: 0.70).toRgb().toLinear(paletteGamma), ##  blue
   palette7_3[4], ##  red
   palette7_3[5], ##  yellow
   palette7_3[6], ##  orange

@@ -198,7 +198,7 @@ const PicoGraphicsPen3BitPalette7_3* = [
   Hsl(h: 110/360, s: 0.99, l: 0.03).toRgb().toLinear(paletteGamma), ##  black
   Hsl(h:   0/360, s: 0.00, l: 0.98).toRgb().toLinear(paletteGamma), ##  white
   Hsl(h:  95/360, s: 0.90, l: 0.35).toRgb().toLinear(paletteGamma), ##  green
-  Hsl(h: 215/360, s: 0.88, l: 0.42).toRgb().toLinear(paletteGamma), ##  blue
+  Hsl(h: 215/360, s: 0.88, l: 0.44).toRgb().toLinear(paletteGamma), ##  blue
   Hsl(h: 350/360, s: 0.98, l: 0.49).toRgb().toLinear(paletteGamma), ##  red
   Hsl(h:  60/360, s: 0.97, l: 0.55).toRgb().toLinear(paletteGamma), ##  yellow
   Hsl(h:  26/360, s: 0.98, l: 0.47).toRgb().toLinear(paletteGamma), ##  orange
@@ -208,11 +208,11 @@ const PicoGraphicsPen3BitPalette7_3* = [
 const PicoGraphicsPen3BitPalette5_7* = [
   PicoGraphicsPen3BitPalette7_3[0], ##  black
   PicoGraphicsPen3BitPalette7_3[1], ##  white
-  Hsl(h: 113/360, s: 1.0, l: 0.45).toRgb().toLinear(paletteGamma), ##  green
+  Hsl(h: 111/360, s: 1.00, l: 0.35).toRgb().toLinear(paletteGamma), ##  green
   Hsl(h: 215/360, s: 0.95, l: 0.52).toRgb().toLinear(paletteGamma), ##  blue
   PicoGraphicsPen3BitPalette7_3[4], ##  red
   PicoGraphicsPen3BitPalette7_3[5], ##  yellow
-  Hsl(h: 26/360, s: 0.98, l: 0.47).toRgb().toLinear(paletteGamma), ##  orange
+  Hsl(h: 26/360, s: 1.00, l: 0.49).toRgb().toLinear(paletteGamma), ##  orange
   Hsl(h: 20/360, s: 0.98, l: 0.90).toRgb().toLinear(paletteGamma), ##  clean
 ]
 
@@ -321,7 +321,7 @@ proc setPixelDither*(self: var PicoGraphicsPen3Bit; p: Point; c: RgbLinear) =
   # 4 = 16x16
   # 5 = 32x32
   # 6 = 64x64
-  const patternSize = 5
+  const patternSize = 3
   const kind = DitherKind.Bayer
 
   const mask = (1 shl patternSize) - 1
