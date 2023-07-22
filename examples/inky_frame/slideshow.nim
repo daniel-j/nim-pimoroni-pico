@@ -52,7 +52,7 @@ proc drawFile(filename: string) =
     of InkyFrame5_7: (0, -1, 600, 450)
     of InkyFrame7_3: (-27, 0, 854, 480)
 
-  jpegDecoder.errDiff.matrix = SierraLite.strength(0.85)
+  jpegDecoder.errDiff.matrix = FloydSteinberg
   jpegDecoder.errDiff.alternateRow = true
 
   if jpegDecoder.drawJpeg(inky, filename, x, y, w, h, gravity=(0.5f, 0.5f), DrawMode.ErrorDiffusion) == 1:
@@ -98,7 +98,7 @@ proc inkyProc() =
 
     var errDiff: ErrorDiffusion[inky]
     errDiff.autobackend(inky)
-    errDiff.init(inky, 0, 0, inky.width, inky.height, SierraLite.strength(0.85), alternateRow = true)
+    errDiff.init(inky, 0, 0, inky.width, inky.height, FloydSteinberg, alternateRow = true)
     errDiff.orientation = 0
     if errDiff.backend == ErrorDiffusionBackend.BackendPsram:
       errDiff.psramAddress = PsramAddress inky.width * inky.height
@@ -121,7 +121,7 @@ proc inkyProc() =
         #let color = LChToLab(1 - l, 0.15, hue).fromLab()
         # inky.setPen(color)
         # inky.setPixel(p)
-        row[x] = color.level(gamma=1.5f).toLinear()
+        row[x] = color.saturate(1.50f).level(white=0.98f, gamma=1.2f).toLinear()
       errDiff.write(0, y, row)
 
     errDiff.process()
@@ -151,8 +151,9 @@ proc inkyProc() =
 
       inky.setPen(Black)
       inky.circle(p, size)
-
-      inky.setPen(inky.createPenHsl(rand(1.0f).float32, 0.5f + rand(0.5f).float32, 0.25f + rand(0.5f).float32))
+      var color = inky.createPenHsl(rand(1.0f).float32, 0.5f + rand(0.5f).float32, 0.25f + rand(0.5f).float32)
+      color = color.saturate(1.50f).level(black=0.05f, white=0.97f, gamma=1.8f)
+      inky.setPen(color)
       # inky.setPen(uint 2 + rand(4))
       inky.circle(p, size - 2)
 

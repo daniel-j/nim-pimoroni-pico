@@ -20,6 +20,7 @@ type
     graphics: ptr PGT
     drawMode: DrawMode
     errDiff*: ErrorDiffusion[PGT]
+    errDiffRow: seq[RgbLinear]
 
 proc jpegdecOpenCallback(filename: cstring, size: ptr int32): pointer {.cdecl.} =
   when not defined(mock):
@@ -74,74 +75,38 @@ proc getJpegdecDrawCallback(jpegDecoder: var JpegDecoder): auto =
     let dy = (draw.y * imgH div self.jpegH)
     let dw = ((draw.x + draw.iWidth) * imgW div self.jpegW) - dx
     let dh = ((draw.y + draw.iHeight) * imgH div self.jpegH) - dy
-
-    # if self.drawMode == ErrorDiffusion and false:
-    #   if draw.x == 0 and draw.y == 0:
-    #     # echo "Free heap before errorMatrix: ", getFreeHeap()
-    #     echo draw[]
-    #     self.chunkHeight = dh
-
-    #     errorMatrix.setLen(self.chunkHeight + 1)
-
-    #     for i in 0 .. self.chunkHeight:
-    #       errorMatrix[i] = newSeq[RgbLinear](imgW)
-    #     # echo "Free heap after errorMatrix alloc: ", getFreeHeap()
-
-    #   if self.lastY != draw.y:
-    #     processErrorMatrix(self.lastY)
-    #     swap(errorMatrix[0], errorMatrix[self.chunkHeight])
-
-    #     self.chunkHeight = dh
-    #     errorMatrix.setLen(self.chunkHeight + 1)
-
-    #     for i in 1 .. self.chunkHeight:
-    #       errorMatrix[i] = newSeq[RgbLinear](imgW)
-
-    #   self.lastY = draw.y
+    let realdw = min(dx + dw, imgW) - dx
 
     let lastProgress = (self.progress * 100) div (imgW * imgH)
 
-    var row: seq[RgbLinear]
+    if self.drawMode == ErrorDiffusion and dw > self.errDiffRow.len:
+      self.errDiffRow.setLen(dw + 1)
 
-    let realdw = min(dx + dw, imgW) - dx
-    if self.drawMode == ErrorDiffusion:
-      row = newSeq[RgbLinear](realdw)
+    var pos = Point()
 
     for y in 0 ..< dh:
-      # if dy + y < 0 or dy + y >= imgH: continue
       let symin = y * self.jpegH div imgH
       if symin >= draw.iHeight: continue
-      let symax = min((y + 1) * self.jpegH div imgH, draw.iHeight)
+
+      case jpeg.getOrientation():
+      of 3: pos.y = self.y + imgH - 1 - (dy + y)
+      of 6: pos.x = self.x + imgH - 1 - (dy + y)
+      of 8: pos.x = self.x + (dy + y)
+      else: pos.y = self.y + dy + y
+
+      let poffset = symin * draw.iWidth
 
       for x in 0 ..< realdw:
-        # if dx + x < 0 or dx + x >= imgW: continue
         let sxmin = x * self.jpegW div imgW
         if sxmin >= draw.iWidth: continue
-        let sxmax = min((x + 1) * self.jpegW div imgW, draw.iWidth)
 
-        let pos = case jpeg.getOrientation():
-        of 3: Point(x: self.x + imgW - (dx + x), y: self.y + imgH - (dy + y))
-        of 6: Point(x: self.x + imgH - (dy + y), y: self.y + (dx + x))
-        of 8: Point(x: self.x + (dy + y), y: self.y + imgW - (dx + x))
-        else: Point(x: self.x + dx + x, y: self.y + dy + y)
+        var color = constructRgb(Rgb565(p[poffset + sxmin]))
 
-        var color = Rgb()
-
-        # linear interpolation
-        # var colorv = RgbLinear()
-        # var divider: RgbLinearComponent = 0
-        # for sx in sxmin..<sxmax:
-        #   for sy in symin..<symax:
-        #     colorv += constructRgb(Rgb565(p[sx + sy * draw.iWidth])).toLinear()
-        #     inc(divider)
-        # if divider > 0:
-        #   color = (colorv div divider).fromLinear()
-        # else:
-        #   # fallback
-        #   color = constructRgb(Rgb565(p[sxmin + symin * draw.iWidth]))
-        color = constructRgb(Rgb565(p[sxmin + symin * draw.iWidth]))
-
-        color = color.level(black=0.00f, white=0.97f) #.saturate(1.00)
+        case jpeg.getOrientation():
+        of 3: pos.x = self.x + imgW - 1 - (dx + x)
+        of 6: pos.y = self.y + (dx + x)
+        of 8: pos.y = self.y + imgW - 1 - (dx + x)
+        else: pos.x = self.x + dx + x
 
         case self.drawMode:
         of Default:
@@ -149,16 +114,16 @@ proc getJpegdecDrawCallback(jpegDecoder: var JpegDecoder): auto =
           self.graphics[].setPen(pen)
           self.graphics[].setPixel(pos)
         of OrderedDither:
-          color = color.saturate(0.75f).level(black=0.03f, white=1.5f, gamma=defaultGamma) # .saturate(1.50f) #.level(black=0.04, white=0.97)
+          color = color.saturate(1.60f).level(black=0.05f, white=0.96f, gamma=1.3f) #.saturate(0.75f) # .saturate(1.50f) #.level(black=0.04, white=0.97)
           self.graphics[].setPixelDither(pos, color.toLinear())
         of ErrorDiffusion:
-          color = color.saturate(1.30f).level(gamma=1.6f)
-          # errorMatrix[y][dx + x] += color.toLinear()
-          row[x] = color.toLinear()
+          color = color.saturate(1.80f).level(gamma=1.2f)
+          self.errDiffRow[x] = color.toLinear()
 
         self.progress.inc()
+
       if self.drawMode == ErrorDiffusion:
-        self.errDiff.write(dx, dy + y, row)
+        self.errDiff.write(dx, dy + y, self.errDiffRow, realdw)
 
     let currentProgress = (self.progress * 100) div (imgW * imgH)
     if lastProgress != currentProgress:
@@ -254,6 +219,8 @@ proc drawJpeg*(self: var JpegDecoder; graphics: var PicoGraphics; filename: stri
       echo "error: ", system.getCurrentException().msg, system.getCurrentException().getStackTrace()
       echo jpeg.getLastError()
       jpegErr = 0
+    finally:
+      self.errDiffRow.reset()
     if jpegErr != 1:
       echo "- jpeg decoding error: ", jpeg.getLastError()
       return jpegErr
@@ -262,7 +229,7 @@ proc drawJpeg*(self: var JpegDecoder; graphics: var PicoGraphics; filename: stri
     if self.drawMode == ErrorDiffusion:
       self.errDiff.process()
       self.errDiff.deinit()
-    
+
     # if self.drawMode == ErrorDiffusion and false:
     #   processErrorMatrix(self.lastY)
     # errorMatrix.setLen(0)

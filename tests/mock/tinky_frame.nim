@@ -5,7 +5,7 @@ import pimoroni_pico/libraries/pico_graphics/drawjpeg
 import pimoroni_pico/libraries/pico_graphics/error_diffusion
 
 
-proc drawHslChart(kind: InkyFrameKind; drawMode: DrawMode; matrix: ErrorDiffusionMatrix = ErrorDiffusionMatrix(); strength: float32 = 1.0) =
+proc drawHslChart(kind: InkyFrameKind; drawMode: DrawMode; matrix: ErrorDiffusionMatrix = ErrorDiffusionMatrix()) =
   echo "Drawing HSL chart..."
 
   var inky = InkyFrame(kind: kind)
@@ -14,7 +14,7 @@ proc drawHslChart(kind: InkyFrameKind; drawMode: DrawMode; matrix: ErrorDiffusio
   var errDiff: ErrorDiffusion[inky]
   if drawMode == DrawMode.ErrorDiffusion:
     errDiff.autobackend(inky)
-    errDiff.init(inky, 0, 0, inky.width, inky.height, matrix.strength(strength), alternateRow = true)
+    errDiff.init(inky, 0, 0, inky.width, inky.height, matrix, alternateRow = true)
     errDiff.orientation = 0
     if errDiff.backend == ErrorDiffusionBackend.BackendPsram:
       errDiff.psramAddress = PsramAddress inky.width * inky.height
@@ -44,10 +44,10 @@ proc drawHslChart(kind: InkyFrameKind; drawMode: DrawMode; matrix: ErrorDiffusio
         inky.setPen(pen)
         inky.setPixel(p)
       of OrderedDither:
-        color = color.saturate(0.75f).level(black=0.03f, white=1.5f, gamma=defaultGamma)
+        color = color.saturate(1.50f).level(black=0.05f, white=0.96f, gamma=1.8f) #.saturate(0.75f).level(black=0.03f, white=1.5f, gamma=defaultGamma)
         inky.setPixelDither(p, color.toLinear())
       of DrawMode.ErrorDiffusion:
-        row[x] = color.saturate(1.30f).level(gamma=1.6f).toLinear()
+        row[x] = color.saturate(1.50f).level(white=0.98f, gamma=1.2f).toLinear()
     if drawMode == DrawMode.ErrorDiffusion:
       errDiff.write(0, y, row)
 
@@ -58,7 +58,7 @@ proc drawHslChart(kind: InkyFrameKind; drawMode: DrawMode; matrix: ErrorDiffusio
   echo "Converting image..."
   inky.update()
   if drawMode == DrawMode.ErrorDiffusion:
-    let filename = "tinky_frame_" & $kind & "_hsl_" & $ErrorDiffusionMatrices.find(matrix) & "_" & strength.formatFloat(ffDecimal, 2) & ".png"
+    let filename = "tinky_frame_" & $kind & "_hsl_" & $ErrorDiffusionMatrices.find(matrix) & ".png"
     echo "Writing image to " & filename & "..."
     inky.image.writeFile(filename)
   else:
@@ -66,7 +66,7 @@ proc drawHslChart(kind: InkyFrameKind; drawMode: DrawMode; matrix: ErrorDiffusio
     echo "Writing image to " & filename & "..."
     inky.image.writeFile(filename)
 
-proc drawFile(filename: string; kind: InkyFrameKind; drawMode: DrawMode; matrix: ErrorDiffusionMatrix = ErrorDiffusionMatrix(); strength: float32 = 1.0): bool =
+proc drawFile(filename: string; kind: InkyFrameKind; drawMode: DrawMode; matrix: ErrorDiffusionMatrix = ErrorDiffusionMatrix()): bool =
   var inky = InkyFrame(kind: kind)
   var jpegDecoder: JpegDecoder[PicoGraphicsPen3Bit]
   # jpegDecoder.setErrorDiffusionMatrix(Sierra)
@@ -82,15 +82,14 @@ proc drawFile(filename: string; kind: InkyFrameKind; drawMode: DrawMode; matrix:
 
   echo "Decoding jpeg file ", filename, "..."
 
-  jpegDecoder.errDiff.matrix = matrix.strength(strength)
+  jpegDecoder.errDiff.matrix = matrix
   jpegDecoder.errDiff.alternateRow = true
-
 
   if jpegDecoder.drawJpeg(inky, filename, x, y, w, h, gravity=(0.5f, 0.5f), drawMode) == 1:
     echo "Converting image..."
     inky.update()
     if matrix.s > 0:
-      let filename = "tinky_frame_" & $kind & "_image_" & $ErrorDiffusionMatrices.find(matrix) & "_" & strength.formatFloat(ffDecimal, 2) & ".png"
+      let filename = "tinky_frame_" & $kind & "_image_" & $ErrorDiffusionMatrices.find(matrix) & ".png"
       echo "Writing image to " & filename & "..."
       inky.image.writeFile(filename)
     else:
@@ -102,20 +101,20 @@ proc drawFile(filename: string; kind: InkyFrameKind; drawMode: DrawMode; matrix:
     echo "JPEGDEC error"
     return false
 
-const strength = 0.85
-const matrices = [FloydSteinberg, SierraLite]
+const matrices = [FloydSteinberg]
+const drawModes = [OrderedDither, ErrorDiffusion]
 
 for kind in InkyFrameKind:
-  for drawMode in DrawMode:
+  for drawMode in drawModes:
     if drawMode == DrawMode.ErrorDiffusion:
       for matrix in matrices:
-        drawHslChart(kind, drawMode, matrix, 1.0)
+        drawHslChart(kind, drawMode, matrix)
     else:
       drawHslChart(kind, drawMode)
 
-  for drawMode in DrawMode:
+  for drawMode in drawModes:
     if drawMode == DrawMode.ErrorDiffusion:
       for matrix in matrices:
-        doAssert drawFile(paramStr(1), kind, drawMode, matrix, strength)
+        doAssert drawFile(paramStr(1), kind, drawMode, matrix)
     else:
       doAssert drawFile(paramStr(1), kind, drawMode)

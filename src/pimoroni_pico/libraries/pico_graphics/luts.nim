@@ -12,7 +12,7 @@ type
   DitherKind* = enum
     NoDither, Bayer, BlueNoise, Cluster
 
-const multiplier = rgbMultiplier * 0.5
+const multiplier = rgbMultiplier * 1.0
 
 # How many bits for each colour in cache
 const
@@ -21,7 +21,7 @@ const
   cacheBlueBits = 4
 
 func genereateGammaLut*[T](bitdepth: static[uint]; size: static[uint]; gamma = defaultGamma): array[size, T] =
-  let mult = float (1 shl bitdepth) - 1
+  let mult = float32 (1 shl bitdepth) - 1
   for n in 0..<size:
     result[n] = T pow(n / 255, gamma) * mult + 0.5
 
@@ -114,7 +114,7 @@ func getCacheKey*(c: RgbLinear): uint =
   return cacheKey
 
 # code from https://nelari.us/post/quick_and_dirty_dithering/#bayer-matrix
-func bayerMatrix*[T](M: static[Natural]; multiplier: float = 1 shl M shl M): array[1 shl M shl M, T] {.compileTime.} =
+func bayerMatrix*[T](M: static[Natural]; multiplier: float32 = 1 shl M shl M; gamma: float32 = defaultGamma): array[1 shl M shl M, T] {.compileTime.} =
   const length = 1 shl M shl M
   const dim = 1 shl M
   # echo "Generating Bayer matrix " & $dim & "x" & $dim
@@ -132,16 +132,20 @@ func bayerMatrix*[T](M: static[Natural]; multiplier: float = 1 shl M shl M): arr
         v.setMask ((xc shr mask) and 1) shl bit
         inc(bit)
         dec(mask)
-      result[i] = T(multiplier * ((v + 1) / length - 0.50000006'f32))
+      # result[i] = T(multiplier * ((v + 1) / length - 0.50000006'f32))
+      let value = (v + 1) / length # - 0.50000006'f32
+      result[i] = T((value.linearize1(gamma) - 0.50000006'f32) * multiplier)
       inc(i)
 
 # https://github.com/makew0rld/dither/blob/master/pixelmappers.go
 # See convThresholdToAddition()
-func convertPattern*(pattern: static[openArray[uint8]]; scale: float32; max: int = 256): array[pattern.len, RgbLinearComponent] {.compileTime.} =
+func convertPattern*(pattern: static[openArray[uint8]]; scale: float32; max: int = 256; gamma: float32 = defaultGamma): array[pattern.len, RgbLinearComponent] {.compileTime.} =
   ## Convert threshold pattern to be used for adding to a Rgb() value
   # echo "Converting dither pattern " & $pattern.len
-  for i, value in pattern:
-    result[i] = int16 scale * (float32(value + 1) / float32(max) - 0.50000006'f32)
+  for i, v in pattern:
+    # result[i] = RgbLinearComponent scale * (float32(v + 1) / float32(max) - 0.50000006'f32)
+    let value =  (v + 1).float32 / max.float32
+    result[i] = RgbLinearComponent((value.linearize1(gamma) - 0.50000006'f32) * multiplier)
 
 # For backwards compatability
 const dither16Pattern* = bayerMatrix[uint8](2)
