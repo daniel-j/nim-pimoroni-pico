@@ -211,14 +211,14 @@ const paletteGamma = 2.2
 # ]
 
 const PicoGraphicsPen3BitPalette7_3* = [
-   LChToLab(0.17, 0.13, 139).fromLab(), ##  black
-   LChToLab(1.00, 0.00,  90).fromLab(), ##  white
-   LChToLab(0.68, 0.50, 136).fromLab(), ##  green
-   LChToLab(0.53, 0.46, 258).fromLab(), ##  blue
-   LChToLab(0.61, 0.62,  23).fromLab(), ##  red
-   LChToLab(0.96, 0.50, 110).fromLab(), ##  yellow
-   LChToLab(0.68, 0.45,  50).fromLab(), ##  orange
-   LChToLab(0.99, 0.00,  90).fromLab(), ##  clean - do not use on inky7 as colour
+  LChToLab(0.17, 0.13, 139).fromLab(), ##  black
+  LChToLab(1.00, 0.00,  90).fromLab(), ##  white
+  LChToLab(0.68, 0.50, 136).fromLab(), ##  green
+  LChToLab(0.53, 0.46, 258).fromLab(), ##  blue
+  LChToLab(0.61, 0.62,  23).fromLab(), ##  red
+  LChToLab(0.96, 0.50, 110).fromLab(), ##  yellow
+  LChToLab(0.68, 0.45,  50).fromLab(), ##  orange
+  LChToLab(0.99, 0.00,  90).fromLab(), ##  clean - do not use on inky7 as colour
 ]
 
 # const PicoGraphicsPen3BitPalette5_7* = [
