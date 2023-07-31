@@ -6,7 +6,7 @@ proc builtinBswap16(a: uint16): uint16 {.importc: "__builtin_bswap16", nodecl, n
 ## RGB
 ##
 
-const defaultGamma* = 2.2
+const defaultGamma*: float32 = 2.2
 const rgbBits* = 10
 const rgbMultiplier* = (1 shl rgbBits) - 1
 
@@ -246,14 +246,22 @@ func clamp*(self: RgbLinear): RgbLinear =
 
 # From https://github.com/makew0rld/dither/blob/master/color_spaces.go
 func linearize1*(v: float32; gamma: float32 = defaultGamma): float32 =
+  assert v >= 0
   if v <= 0.04045f:
     return v / 12.92f
   return ((v + 0.055f) / 1.055f).pow(gamma)
 
 func delinearize1*(v: float32; gamma: float32 = defaultGamma): float32 =
+  assert v >= 0
   if v <= 0.0031308f:
     return v * 12.92f
   return (v * 1.055f).pow(1.0f / gamma) - 0.055f
+
+func generateRgbLinearCache(gamma: float32 = defaultGamma): array[256, RgbLinearComponent] {.compileTime.} =
+  for i, _ in result:
+    result[i] = RgbLinearComponent round((i / 255).linearize1(gamma) * rgbMultiplier)
+
+const rgbLinearCache = generateRgbLinearCache(defaultGamma)
 
 # From https://github.com/makew0rld/dither/blob/master/color_spaces.go
 func toLinear*(c: Rgb; gamma: float32 = defaultGamma; cheat = false): RgbLinear =
@@ -262,9 +270,14 @@ func toLinear*(c: Rgb; gamma: float32 = defaultGamma; cheat = false): RgbLinear 
     result.g = RgbLinearComponent round((c.g.float32 / 255.0f).clamp(0, 1).pow(gamma) * rgbMultiplier)
     result.b = RgbLinearComponent round((c.b.float32 / 255.0f).clamp(0, 1).pow(gamma) * rgbMultiplier)
   else:
-    result.r = RgbLinearComponent round((c.r.float32 / 255.0f).clamp(0, 1).linearize1(gamma) * rgbMultiplier)
-    result.g = RgbLinearComponent round((c.g.float32 / 255.0f).clamp(0, 1).linearize1(gamma) * rgbMultiplier)
-    result.b = RgbLinearComponent round((c.b.float32 / 255.0f).clamp(0, 1).linearize1(gamma) * rgbMultiplier)
+    if gamma != defaultGamma:
+      result.r = RgbLinearComponent round((c.r.float32 / 255.0f).clamp(0, 1).linearize1(gamma) * rgbMultiplier)
+      result.g = RgbLinearComponent round((c.g.float32 / 255.0f).clamp(0, 1).linearize1(gamma) * rgbMultiplier)
+      result.b = RgbLinearComponent round((c.b.float32 / 255.0f).clamp(0, 1).linearize1(gamma) * rgbMultiplier)
+    else:
+      result.r = rgbLinearCache[c.r.clamp(0, 255)]
+      result.g = rgbLinearCache[c.g.clamp(0, 255)]
+      result.b = rgbLinearCache[c.b.clamp(0, 255)]
 
 func fromLinear*(c: RgbLinear; gamma: float32 = defaultGamma; cheat = false): Rgb =
   if cheat:
@@ -300,15 +313,15 @@ func fromLab*(c: Lab): RgbLinear =
   let m3 = m * m * m
   let s3 = s * s * s
 
-  result.r = int16 round((+4.0767416621f * l3 - 3.3077115913f * m3 + 0.2309699292f * s3) * rgbMultiplier)
-  result.g = int16 round((-1.2684380046f * l3 + 2.6097574011f * m3 - 0.3413193965f * s3) * rgbMultiplier)
-  result.b = int16 round((-0.0041960863f * l3 - 0.7034186147f * m3 + 1.7076147010f * s3) * rgbMultiplier)
+  result.r = RgbLinearComponent round((+4.0767416621f * l3 - 3.3077115913f * m3 + 0.2309699292f * s3) * rgbMultiplier)
+  result.g = RgbLinearComponent round((-1.2684380046f * l3 + 2.6097574011f * m3 - 0.3413193965f * s3) * rgbMultiplier)
+  result.b = RgbLinearComponent round((-0.0041960863f * l3 - 0.7034186147f * m3 + 1.7076147010f * s3) * rgbMultiplier)
 
 func LChToLab*(L, C, h: float32): Lab =
   result.L = L
   let rad = degToRad(h * 360.0f)
-  result.a = C * cos(rad)
-  result.b = C * sin(rad)
+  result.a = 0.4 * C * cos(rad)
+  result.b = 0.4 * C * sin(rad)
 
 # Simple euclidian distance function
 func deltaE76*(col1, col2: Lab): float32 =
@@ -318,7 +331,7 @@ func deltaE76*(col1, col2: Lab): float32 =
   return sqrt(dL * dL + da * da + db * db)
 
 # https://github.com/svgeesus/svgeesus.github.io/blob/master/Color/OKLab-notes.md
-func deltaEOK*(col1, col2: Lab): float32 =
+func deltaEOK*(col1, col2: Lab): float =
   let dL = col1.L - col2.L
   let C1 = sqrt(col1.a * col1.a + col1.b * col1.b)
   let C2 = sqrt(col2.a * col2.a + col2.b * col2.b)
@@ -327,65 +340,6 @@ func deltaEOK*(col1, col2: Lab): float32 =
   let db = col1.b - col2.b
   let dH = sqrt(da * da + db * db - dC * dC)
   return sqrt(dL * dL + dC * dC + dH * dH)
-
-# http://www.brucelindbloom.com/index.html?Eqn_DeltaE_CIE2000.html
-# https://github.com/hamada147/IsThisColourSimilar/blob/master/Colour.js#L252
-func deltaE00*(col1, col2: Lab): float =
-  let avgL = (col1.L + col2.L) / 2
-  let c1 = sqrt(col1.a * col1.a + col1.b * col1.b)
-  let c2 = sqrt(col2.a * col2.a + col2.b * col2.b)
-  let avgC = (c1 + c2) / 2
-  let avgC7 = pow(avgC, 7)
-  const pow25_7 = pow(25.0, 7)
-  let g = (1 - sqrt(avgC7 / (avgC7 + pow25_7))) / 2
-
-  let a1p = col1.a * (1 + g)
-  let a2p = col2.a * (1 + g)
-
-  let c1p = sqrt(a1p * a1p + col1.b * col1.b)
-  let c2p = sqrt(a2p * a2p + col2.b * col2.b)
-
-  let avgCp = (c1p + c2p) / 2
-
-  var h1p = radToDeg(arctan2(col1.b, a1p))
-  var h2p = radToDeg(arctan2(col2.b, a2p))
-  if h1p < 0:
-    h1p += 360
-  if h2p < 0:
-    h2p += 360
-
-  let avghp = if abs(h1p - h2p) > 180: (h1p + h2p + 360) / 2 else: (h1p + h2p) / 360
-
-  let t = 1 - 0.17 * cos(degToRad(avghp - 30)) + 0.24 * cos(degToRad(2 * avghp)) + 0.32 * cos(degToRad(3 * avghp + 6)) - 0.2 * cos(degToRad(4 * avghp - 63))
-
-  var deltahp = h2p - h1p
-  if abs(deltahp) > 180:
-    if h2p <= h1p:
-      deltahp += 360
-    else:
-      deltahp -= 360
-
-  let deltalp = col2.L - col1.L
-  let deltacp = c2p - c1p
-
-  deltahp = 2 * sqrt(c1p * c2p) * sin(degToRad(deltahp) / 2)
-
-  let sl = 1 + ((0.015 * pow(avgL - 50, 2)) / sqrt(20 + pow(avgL - 50, 2)))
-  let sc = 1 + 0.045 * avgCp
-  let sh = 1 + 0.015 * avgCp * t
-
-
-  let deltaro = 30 * exp(-(pow((avghp - 275) / 25, 2)))
-  let avgCp7 = pow(avgCp, 7)
-  let rc = 2 * sqrt(avgCp7 / (avgCp7 + pow25_7))
-  let rt = -rc * sin(2 * degToRad(deltaro))
-
-  const kl = 1
-  const kc = 1
-  const kh = 1
-
-  return sqrt(pow(deltalp / (kl * sl), 2) + pow(deltacp / (kc * sc), 2) + pow(deltahp / (kh * sh), 2) + rt * (deltacp / (kc * sc)) * (deltahp / (kh * sh)))
-
 
 # From https://github.com/makew0rld/dither/blob/master/dither.go
 # See sqDiff()
