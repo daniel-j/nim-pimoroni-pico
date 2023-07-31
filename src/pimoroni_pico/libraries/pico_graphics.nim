@@ -186,64 +186,31 @@ type
     cacheNearest*: array[colorCacheSize, uint8]
     cacheNearestBuilt*: bool
 
-const paletteGamma = 2.2
-
-# const PicoGraphicsPen3BitPalette* = [
-#   Rgb(r:   0, g:   0, b:   0).toLinear(paletteGamma), ##  black
-#   Rgb(r: 255, g: 255, b: 255).toLinear(paletteGamma), ##  white
-#   Rgb(r:  10, g: 155, b:  20).toLinear(paletteGamma), ##  green
-#   Rgb(r:  40, g:  15, b: 165).toLinear(paletteGamma), ##  blue
-#   Rgb(r: 255, g:  95, b:  45).toLinear(paletteGamma), ##  red
-#   Rgb(r: 255, g: 245, b:  60).toLinear(paletteGamma), ##  yellow
-#   Rgb(r: 255, g: 180, b:  11).toLinear(paletteGamma), ##  orange
-#   Rgb(r: 245, g: 215, b: 191).toLinear(paletteGamma), ##  clean - do not use on inky7 as colour
-# ]
-
-# const PicoGraphicsPen3BitPalette7_3* = [
-#   Hsl(h: 110/360, s: 0.99, l: 0.03).toRgb().toLinear(paletteGamma), ##  black
-#   Hsl(h:   0/360, s: 0.00, l: 1.00).toRgb().toLinear(paletteGamma), ##  white
-#   Hsl(h:  95/360, s: 0.90, l: 0.36).toRgb().toLinear(paletteGamma), ##  green
-#   Hsl(h: 215/360, s: 0.88, l: 0.44).toRgb().toLinear(paletteGamma), ##  blue
-#   Hsl(h: 350/360, s: 0.98, l: 0.49).toRgb().toLinear(paletteGamma), ##  red
-#   Hsl(h:  60/360, s: 0.97, l: 0.55).toRgb().toLinear(paletteGamma), ##  yellow
-#   Hsl(h:  26/360, s: 0.98, l: 0.47).toRgb().toLinear(paletteGamma), ##  orange
-#   Hsl(h:   0/360, s: 0.00, l: 1.00).toRgb().toLinear(paletteGamma), ##  clean - do not use on inky7 as colour
-# ]
-
 const PicoGraphicsPen3BitPalette7_3* = [
-  LChToLab(0.17, 0.13, 139).fromLab(), ##  black
-  LChToLab(1.00, 0.00,  90).fromLab(), ##  white
-  LChToLab(0.68, 0.50, 136).fromLab(), ##  green
-  LChToLab(0.53, 0.46, 258).fromLab(), ##  blue
-  LChToLab(0.61, 0.62,  23).fromLab(), ##  red
-  LChToLab(0.96, 0.50, 110).fromLab(), ##  yellow
-  LChToLab(0.68, 0.45,  50).fromLab(), ##  orange
-  LChToLab(0.99, 0.00,  90).fromLab(), ##  clean - do not use on inky7 as colour
+  LChToLab(0.10, 0.09, 142).fromLab(), ##  black
+  LChToLab(0.98, 0.00,  89).fromLab(), ##  white
+  LChToLab(0.50, 0.31, 130).fromLab(), ##  green
+  LChToLab(0.52, 0.33, 258).fromLab(), ##  blue
+  LChToLab(0.50, 0.49,  30).fromLab(), ##  red
+  LChToLab(0.79, 0.38, 109).fromLab(), ##  yellow
+  LChToLab(0.61, 0.45,  60).fromLab(), ##  orange
+  LChToLab(0.96, 0.00,  89).fromLab(), ##  clean - do not use on inky7 as colour
 ]
 
-# const PicoGraphicsPen3BitPalette5_7* = [
-#   Hsl(h: 215/360, s: 0.99, l: 0.03).toRgb().toLinear(paletteGamma, cheat=true), ##  black
-#   Hsl(h:   0/360, s: 0.00, l: 1.00).toRgb().toLinear(paletteGamma, cheat=true), ##  white
-#   Hsl(h: 115/360, s: 0.85, l: 0.45).toRgb().toLinear(paletteGamma), ##  green
-#   Hsl(h: 230/360, s: 0.85, l: 0.58).toRgb().toLinear(paletteGamma), ##  blue
-#   Hsl(h: 350/360, s: 0.98, l: 0.50).toRgb().toLinear(paletteGamma), ##  red
-#   Hsl(h:  55/360, s: 0.95, l: 0.55).toRgb().toLinear(paletteGamma), ##  yellow
-#   Hsl(h:  28/360, s: 0.99, l: 0.47).toRgb().toLinear(paletteGamma), ##  orange
-#   Hsl(h:  20/360, s: 0.98, l: 0.90).toRgb().toLinear(paletteGamma), ##  clean
-# ]
-
-# const PicoGraphicsPen3BitPalette5_7* = PicoGraphicsPen3BitPalette7_3
+const PicoGraphicsPen3BitPaletteLut7_3* = generateNearestCache(PicoGraphicsPen3BitPalette7_3[0..<7])
 
 const PicoGraphicsPen3BitPalette5_7* = [
-  LChToLab(0.10, 0.08, 200).fromLab(), ##  black
-  LChToLab(1.00, 0.02, 266).fromLab(), ##  white
-  LChToLab(0.65, 0.88, 130).fromLab(), ##  green
-  LChToLab(0.55, 0.80, 245).fromLab(), ##  blue
-  LChToLab(0.52, 0.70,  30).fromLab(), ##  red
-  LChToLab(0.90, 0.80, 110).fromLab(), ##  yellow
-  LChToLab(0.75, 0.75,  70).fromLab(), ##  orange
-  LChToLab(1.00, 0.50,  20).fromLab(), ##  clean
+  LChToLab(0.00, 0.09, 142).fromLab(), ##  black
+  LChToLab(0.98, 0.02,  60).fromLab(), ##  white
+  LChToLab(0.58, 0.65, 120).fromLab(), ##  green
+  LChToLab(0.51, 0.30, 258).fromLab(), ##  blue
+  LChToLab(0.50, 0.49,  30).fromLab(), ##  red
+  LChToLab(0.80, 0.41, 105).fromLab(), ##  yellow
+  LChToLab(0.64, 0.47,  60).fromLab(), ##  orange
+  LChToLab(0.92, 0.13,  50).fromLab(), ##  clean
 ]
+
+const PicoGraphicsPen3BitPaletteLut5_7* = generateNearestCache(PicoGraphicsPen3BitPalette5_7[0..<7])
 
 static:
   echo "Inky Frame 7.3\" palette:"

@@ -1,5 +1,4 @@
 import std/os
-import std/strutils
 import pimoroni_pico/libraries/inky_frame_mock
 import pimoroni_pico/libraries/pico_graphics/drawjpeg
 import pimoroni_pico/libraries/pico_graphics/error_diffusion
@@ -44,10 +43,10 @@ proc drawHslChart(kind: InkyFrameKind; drawMode: DrawMode; matrix: ErrorDiffusio
         inky.setPen(pen)
         inky.setPixel(p)
       of OrderedDither:
-        color = color.saturate(1.50f).level(black=0.05f, white=0.96f, gamma=1.8f) #.saturate(0.75f).level(black=0.03f, white=1.5f, gamma=defaultGamma)
+        color = color.level(black=0.05f, white=0.96f, gamma=1.4f) #.saturate(0.75f).level(black=0.03f, white=1.5f, gamma=defaultGamma)
         inky.setPixelDither(p, color.toLinear())
       of DrawMode.ErrorDiffusion:
-        row[x] = color.saturate(1.50f).level(white=0.98f, gamma=1.2f).toLinear()
+        row[x] = color.toLinear()
     if drawMode == DrawMode.ErrorDiffusion:
       errDiff.write(0, y, row)
 

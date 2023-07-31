@@ -16,24 +16,24 @@ const paletteGamma = 1.8
 # ]
 
 const palette7_3 = [
-  Hsv(h: 100/360, s: 1.00, v: 0.00).toRgb().toLinear(paletteGamma), ##  black
-  Hsv(h:  30/360, s: 0.07, v: 0.95).toRgb().toLinear(paletteGamma), ##  white
-  Hsv(h:  90/360, s: 1.00, v: 0.65).toRgb().toLinear(paletteGamma), ##  green
+  Hsv(h: 200/360, s: 0.80, v: 0.10).toRgb().toLinear(paletteGamma), ##  black
+  Hsv(h:  30/360, s: 0.07, v: 0.88).toRgb().toLinear(paletteGamma), ##  white
+  Hsv(h:  90/360, s: 1.00, v: 0.53).toRgb().toLinear(paletteGamma), ##  green
   Hsv(h: 215/360, s: 0.60, v: 0.60).toRgb().toLinear(paletteGamma), ##  blue
-  Hsv(h: 350/360, s: 0.75, v: 0.80).toRgb().toLinear(paletteGamma), ##  red
-  Hsv(h:  56/360, s: 0.55, v: 0.95).toRgb().toLinear(paletteGamma), ##  yellow
-  Hsv(h:  24/360, s: 0.75, v: 0.90).toRgb().toLinear(paletteGamma), ##  orange
+  Hsv(h:   0/360, s: 0.75, v: 0.70).toRgb().toLinear(paletteGamma), ##  red
+  Hsv(h:  54/360, s: 0.50, v: 0.85).toRgb().toLinear(paletteGamma), ##  yellow
+  Hsv(h:  24/360, s: 0.62, v: 0.87).toRgb().toLinear(paletteGamma), ##  orange
   constructRgb(255, 0, 255).toLinear(paletteGamma), ##  clean - do not use on inky7 as colour
 ]
 
 const palette5_7 = [
-  Hsv(h: 215/360, s: 1.00, v: 0.30).toRgb().toLinear(paletteGamma), ##  black
+  Hsv(h: 215/360, s: 1.00, v: 0.15).toRgb().toLinear(paletteGamma), ##  black
   palette7_3[1], ##  white
-  Hsv(h: 113/360, s: 1.00, v: 0.75).toRgb().toLinear(paletteGamma), ##  green
-  Hsv(h: 215/360, s: 0.55, v: 0.70).toRgb().toLinear(paletteGamma), ##  blue
-  palette7_3[4], ##  red
+  Hsv(h: 90/360, s: 1.00, v: 0.60).toRgb().toLinear(paletteGamma), ##  green
+  Hsv(h: 215/360, s: 0.60, v: 0.60).toRgb().toLinear(paletteGamma), ##  blue
+  Hsv(h: 350/360, s: 0.85, v: 0.75).toRgb().toLinear(paletteGamma), ##  red
   palette7_3[5], ##  yellow
-  Hsv(h:  35/360, s: 0.75, v: 0.90).toRgb().toLinear(paletteGamma), ##  orange
+  Hsv(h:  32/360, s: 0.65, v: 0.90).toRgb().toLinear(paletteGamma), ##  orange
   Rgb(r: 245, g: 215, b: 191).toLinear(paletteGamma), ##  clean
 ]
 
@@ -71,6 +71,8 @@ proc init*(self: var InkyFrame) =
     palette = if self.kind == InkyFrame7_3: PicoGraphicsPen3BitPalette7_3 else: PicoGraphicsPen3BitPalette5_7,
     # paletteSize = if self.kind == InkyFrame5_7: 8 else: 7 # clean colour is a greenish gradient on inky7, so avoid it
   )
+  self.cacheNearest = if self.kind == InkyFrame7_3: PicoGraphicsPen3BitPaletteLut7_3 else: PicoGraphicsPen3BitPaletteLut5_7
+  self.cacheNearestBuilt = true
 
   self.image = newImage(self.width, self.height)
 

@@ -114,10 +114,10 @@ proc getJpegdecDrawCallback(jpegDecoder: var JpegDecoder): auto =
           self.graphics[].setPen(pen)
           self.graphics[].setPixel(pos)
         of OrderedDither:
-          color = color.saturate(1.60f).level(black=0.05f, white=0.96f, gamma=1.3f) #.saturate(0.75f) # .saturate(1.50f) #.level(black=0.04, white=0.97)
+          color = color.saturate(1.50f).level(black=0.05f, white=0.98f, gamma=1.1f)
           self.graphics[].setPixelDither(pos, color.toLinear())
         of ErrorDiffusion:
-          color = color.saturate(1.80f).level(gamma=1.2f)
+          color = color.level(gamma=1.1f)
           self.errDiffRow[x] = color.toLinear()
 
         self.progress.inc()

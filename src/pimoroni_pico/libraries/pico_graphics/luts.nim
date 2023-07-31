@@ -16,11 +16,11 @@ const multiplier = rgbMultiplier * 1.0
 
 # How many bits for each colour in cache
 const
-  cacheRedBits = 4
-  cacheGreenBits = 4
-  cacheBlueBits = 4
+  cacheRedBits = 3
+  cacheGreenBits = 3
+  cacheBlueBits = 2
 
-func genereateGammaLut*[T](bitdepth: static[uint]; size: static[uint]; gamma = defaultGamma): array[size, T] =
+func genereateGammaLut*[T](bitdepth: static[uint]; size: static[uint]; gamma = defaultGamma): array[size, T] {.compileTime.} =
   let mult = float32 (1 shl bitdepth) - 1
   for n in 0..<size:
     result[n] = T pow(n / 255, gamma) * mult + 0.5
@@ -103,6 +103,9 @@ func generateNearestCache*(cache: var array[colorCacheSize, uint8]; palette: ope
     paletteLab[i] = col.toLab()
   for i, col in cacheColors():
     cache[i] = col.toLab().closest(paletteLab).uint8
+
+func generateNearestCache*(palette: openArray[RgbLinear]): array[colorCacheSize, uint8] =
+  result.generateNearestCache(palette)
 
 func getCacheKey*(c: RgbLinear): uint =
   let col = c.clamp()

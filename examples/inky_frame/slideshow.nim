@@ -121,7 +121,7 @@ proc inkyProc() =
         #let color = LChToLab(1 - l, 0.15, hue).fromLab()
         # inky.setPen(color)
         # inky.setPixel(p)
-        row[x] = color.saturate(1.50f).level(white=0.98f, gamma=1.2f).toLinear()
+        row[x] = color.level(black=0.05f, white=0.96f, gamma=1.4f).toLinear()
       errDiff.write(0, y, row)
 
     errDiff.process()
