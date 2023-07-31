@@ -319,9 +319,14 @@ func fromLab*(c: Lab): RgbLinear =
 
 func LChToLab*(L, C, h: float32): Lab =
   result.L = L
-  let rad = degToRad(h * 360.0f)
+  let rad = degToRad(h)
   result.a = 0.4 * C * cos(rad)
   result.b = 0.4 * C * sin(rad)
+
+func toLCh*(lab: Lab): tuple[L, C, h: float32] =
+  result.L = lab.L
+  result.C = sqrt(lab.a * lab.a + lab.b * lab.b) / 0.4
+  result.h = (arctan2(lab.b, lab.a).radToDeg() + 360) mod 360
 
 # Simple euclidian distance function
 func deltaE76*(col1, col2: Lab): float32 =
