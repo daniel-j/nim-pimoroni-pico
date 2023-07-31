@@ -12,6 +12,7 @@
 
 import std/algorithm, std/bitops
 import ./pico_graphics/[rgb, shapes, luts]
+import ./hershey_fonts
 when not defined(mock):
   import ../drivers/psram_display
 else:
@@ -40,8 +41,8 @@ type
     thickness*: Natural
     conversionCallbackFunc*: PicoGraphicsConversionCallbackFunc
     # nextPixelFunc*: proc (): T
-    # bitmapFont*: ref Font
-    # hersheyFont*: ref Font
+    bitmapFont*: pointer # ptr BitmapFont
+    hersheyFont*: ptr HersheyFont
 
 proc setDimensions*(self: var PicoGraphicsBase; width: uint16; height: uint16) =
   self.bounds.x = 0
@@ -65,8 +66,12 @@ proc init*(self: var PicoGraphicsBase; width: uint16; height: uint16; backend: P
 
 func setThickness*(self: var PicoGraphicsBase; thickness: Positive) = self.thickness = thickness
 
-# proc setFont*(self: var PicoGraphicsBase; font: BitmapFont) = discard
-# proc setFont*(self: var PicoGraphicsBase; font: HersheyFont) = discard
+# proc setFont*(self: var PicoGraphicsBase; font: BitmapFont) =
+#   self.bitmapFont = font.unsafeAddr
+#   self.hersheyFont = nil
+proc setFont*(self: var PicoGraphicsBase; font: HersheyFont) =
+  self.bitmapFont = nil
+  self.hersheyFont = font.unsafeAddr
 # proc setFont*(self: var PicoGraphicsBase; font: string) = discard
 
 func setFramebuffer*(self: var PicoGraphicsBase; frameBuffer: seq[uint8]) = self.frameBuffer = frameBuffer
@@ -615,28 +620,28 @@ proc circle*(self: var PicoGraphics; p: Point; radius: int) =
 
 proc clear*(self: var PicoGraphics) = self.rectangle(self.clip)
 
-# proc character*(self: var PicoGraphicsBase; c: char; p: Point; s: float = 2.0; a: float = 0.0) =
-#   if self.bitmapFont:
-#     character(self.bitmapFont, (proc (x: int32; y: int32; w: int32; h: int32) =
-#       rectangle(Rect(x: x, y: y, w: w, h: h))), c, p.x, p.y, max(1.0f, s))
-#   elif self.hersheyFont:
-#     glyph(self.hersheyFont, (proc (x1: int32; y1: int32; x2: int32; y2: int32) =
-#       line(Point(x: x1, y: y1), Point(x: x2, y: y2))), c, p.x, p.y, s, a)
+proc character*(self: var PicoGraphics; c: char; p: Point; s: float32 = 2.0; a: float32 = 0.0) =
+  if self.bitmapFont:
+    self.bitmapFont.character((proc (x: int32; y: int32; w: int32; h: int32) =
+      self.rectangle(Rect(x: x, y: y, w: w, h: h))), c, p.x, p.y, max(1.0f, s))
+  elif self.hersheyFont:
+    self.hersheyFont.glyph((proc (x1: int32; y1: int32; x2: int32; y2: int32) =
+      self.line(Point(x: x1, y: y1), Point(x: x2, y: y2))), c, p.x, p.y, s, a)
 
-# proc text*(self: var PicoGraphicsBase; t: string; p: Point; wrap: int32; s: float = 2.0; a: float = 0.0; letterSpacing: uint8 = 1) =
-#   if self.bitmapFont:
-#     text(self.bitmapFont, (proc (x: int32; y: int32; w: int32; h: int32) =
-#       rectangle(Rect(x: x, y: y, w: w, h: h))), t, p.x, p.y, wrap, max(1.0f, s), letter_spacing)
-#   elif self.hersheyFont:
-#     text(self.hersheyFont, (proc (x1: int32; y1: int32; x2: int32; y2: int32) =
-#       line(Point(x: x1, y: y1), Point(x: x2, y: y2))), t, p.x, p.y, s, a)
+proc text*(self: var PicoGraphics; t: string; p: Point; wrap: int32; s: float32 = 2.0; a: float32 = 0.0; letterSpacing: uint8 = 1) =
+  if self.bitmapFont:
+    self.bitmapFont.text((proc (x: int32; y: int32; w: int32; h: int32) =
+      self.rectangle(Rect(x: x, y: y, w: w, h: h))), t, p.x, p.y, wrap, max(1.0f, s), letterSpacing)
+  elif self.hersheyFont:
+    self.hersheyFont.text((proc (x1: int32; y1: int32; x2: int32; y2: int32) =
+      self.line(Point(x: x1, y: y1), Point(x: x2, y: y2))), t, p.x, p.y, s, a)
 
-# proc measureText*(self: var PicoGraphicsBase; t: string; s: float = 2.0; letterSpacing: uint8 = 1): int32 =
-#   if self.bitmapFont:
-#     return measureText(self.bitmapFont, t, max(1.0, s), letterSpacing)
-#   elif self.hersheyFont:
-#     return measureText(self.hersheyFont, t, s)
-#   return 0
+proc measureText*(self: var PicoGraphics; t: string; s: float32 = 2.0; letterSpacing: uint8 = 1): int32 =
+  if self.bitmapFont:
+    return self.bitmapFont.measureText(t, max(1.0, s), letterSpacing)
+  elif self.hersheyFont:
+    return self.hersheyFont.measureText(t, s)
+  return 0
 
 proc polygon*(self: var PicoGraphics; points: openArray[Point]) =
   var
