@@ -189,24 +189,24 @@ type
 const PicoGraphicsPen3BitPalette7_3* = [
   LChToLab(0.10, 0.09, 142).fromLab(), ##  black
   LChToLab(0.98, 0.00,  89).fromLab(), ##  white
-  LChToLab(0.49, 0.32, 140).fromLab(), ##  green
-  LChToLab(0.52, 0.45, 258).fromLab(), ##  blue
-  LChToLab(0.50, 0.49,  30).fromLab(), ##  red
-  LChToLab(0.79, 0.38, 109).fromLab(), ##  yellow
-  LChToLab(0.61, 0.43,  60).fromLab(), ##  orange
+  LChToLab(0.50, 0.50, 140).fromLab(), ##  green
+  LChToLab(0.51, 0.48, 258).fromLab(), ##  blue
+  LChToLab(0.50, 0.54,  35).fromLab(), ##  red
+  LChToLab(0.88, 0.55, 100).fromLab(), ##  yellow
+  LChToLab(0.61, 0.44,  62).fromLab(), ##  orange
   LChToLab(0.96, 0.00,  89).fromLab(), ##  clean - do not use on inky7 as colour
 ]
 
 const PicoGraphicsPen3BitPaletteLut7_3* = generateNearestCache(PicoGraphicsPen3BitPalette7_3[0..<7])
 
 const PicoGraphicsPen3BitPalette5_7* = [
-  LChToLab(0.00, 0.09, 142).fromLab(), ##  black
-  LChToLab(0.98, 0.02,  60).fromLab(), ##  white
-  LChToLab(0.55, 0.65, 125).fromLab(), ##  green
-  LChToLab(0.51, 0.45, 258).fromLab(), ##  blue
-  LChToLab(0.50, 0.49,  30).fromLab(), ##  red
-  LChToLab(0.80, 0.41, 105).fromLab(), ##  yellow
-  LChToLab(0.65, 0.49,  60).fromLab(), ##  orange
+  LChToLab(0.15, 0.00, 200).fromLab(), ##  black
+  LChToLab(1.00, 0.00,  60).fromLab(), ##  white
+  LChToLab(0.59, 0.70, 130).fromLab(), ##  green
+  LChToLab(0.51, 0.48, 258).fromLab(), ##  blue
+  LChToLab(0.50, 0.54,  35).fromLab(), ##  red
+  LChToLab(0.85, 0.55, 100).fromLab(), ##  yellow
+  LChToLab(0.65, 0.55,  62).fromLab(), ##  orange
   LChToLab(0.92, 0.13,  50).fromLab(), ##  clean
 ]
 
