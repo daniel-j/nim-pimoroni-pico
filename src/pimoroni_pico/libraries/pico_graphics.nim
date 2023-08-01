@@ -33,9 +33,9 @@ type
     BackendMemory, BackendPsram
 
   PicoGraphicsBase* = object of RootObj
-    case backend*: PicoGraphicsBackend:
-    of BackendMemory: frameBuffer*: seq[uint8]
-    of BackendPsram: fbPsram*: PsramDisplay
+    backend*: PicoGraphicsBackend
+    frameBuffer*: seq[uint8]
+    fbPsram*: PsramDisplay
     bounds*: Rect
     clip*: Rect
     thickness*: Natural

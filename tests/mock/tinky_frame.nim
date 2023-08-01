@@ -102,7 +102,7 @@ proc drawFile(filename: string; kind: InkyFrameKind; drawMode: DrawMode; matrix:
     echo "JPEGDEC error"
     return false
 
-const matrices = [FloydSteinberg]
+const matrices = [FloydSteinberg, SierraLite]
 const drawModes = [OrderedDither, ErrorDiffusion]
 
 for kind in InkyFrameKind:

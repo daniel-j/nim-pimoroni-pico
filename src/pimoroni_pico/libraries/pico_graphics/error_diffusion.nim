@@ -186,7 +186,7 @@ proc autobackend*(graphics: PicoGraphics): ErrorDiffusionBackend =
 
 proc deinit*(self: var ErrorDiffusion) =
   case self.backend:
-  of BackendMemory: self.fbMemory = @[]
+  of BackendMemory: self.fbMemory.reset()
   of BackendPsram: discard
   of BackendFile:
     when not defined(mock):

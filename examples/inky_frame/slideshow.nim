@@ -37,8 +37,13 @@ inky.init()
 
 inky.led(Led.LedActivity, 100)
 
-
 echo "Wake Up Events: ", inky.getWakeUpEvents()
+
+jpegDecoder.init(inky)
+
+jpegDecoder.errDiff.matrix = SierraLite
+jpegDecoder.errDiff.alternateRow = true
+
 
 proc drawFile(filename: string) =
   inky.led(LedActivity, 50)
@@ -51,11 +56,6 @@ proc drawFile(filename: string) =
     of InkyFrame4_0: (0, 0, inky.width, inky.height)
     of InkyFrame5_7: (0, -1, 600, 450)
     of InkyFrame7_3: (-27, 0, 854, 480)
-
-  jpegDecoder.init(inky)
-
-  jpegDecoder.errDiff.matrix = FloydSteinberg
-  jpegDecoder.errDiff.alternateRow = true
 
   if jpegDecoder.drawJpeg(filename, x, y, w, h, gravity=(0.5f, 0.5f), DrawMode.ErrorDiffusion) == 1:
     let endTime = getAbsoluteTime()
