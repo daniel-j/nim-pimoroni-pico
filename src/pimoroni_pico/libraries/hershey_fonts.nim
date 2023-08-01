@@ -9,7 +9,7 @@ type
   HersheyFont* {.byref.} = object
     name*: string
     chars*: array[95, HersheyFontGlyph]
-  
+
   LineFunc* = proc(x1, y1, x2, y2: int32)
 
 proc glyphData*(font: HersheyFont; c: char): ptr HersheyFontGlyph =

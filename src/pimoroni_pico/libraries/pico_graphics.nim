@@ -620,18 +620,22 @@ proc character*(self: var PicoGraphics; c: char; p: Point; s: float32 = 2.0; a: 
       self.line(Point(x: x1, y: y1), Point(x: x2, y: y2))), c, p.x, p.y, s, a)
 
 proc text*(self: var PicoGraphics; t: string; p: Point; wrap: int32; s: float32 = 2.0; a: float32 = 0.0; letterSpacing: uint8 = 1) =
-  if self.bitmapFont:
-    self.bitmapFont.text((proc (x: int32; y: int32; w: int32; h: int32) =
-      self.rectangle(Rect(x: x, y: y, w: w, h: h))), t, p.x, p.y, wrap, max(1.0f, s), letterSpacing)
-  elif self.hersheyFont:
-    self.hersheyFont.text((proc (x1: int32; y1: int32; x2: int32; y2: int32) =
-      self.line(Point(x: x1, y: y1), Point(x: x2, y: y2))), t, p.x, p.y, s, a)
+  let graphics = self.addr
+  # if self.bitmapFont != nil:
+  #   self.bitmapFont.text((proc (x: int32; y: int32; w: int32; h: int32) =
+  #     self.rectangle(Rect(x: x, y: y, w: w, h: h))), t, p.x, p.y, wrap, max(1.0f, s), letterSpacing)
+  if self.hersheyFont != nil:
+    self.hersheyFont[].text((proc (x1: int32; y1: int32; x2: int32; y2: int32) {.closure.} =
+      if graphics[].thickness == 1:
+        graphics[].line(Point(x: x1, y: y1), Point(x: x2, y: y2))
+      else:
+        graphics[].thickLine(Point(x: x1, y: y1), Point(x: x2, y: y2), graphics[].thickness)), t, p.x.int32, p.y.int32, s, a)
 
 proc measureText*(self: var PicoGraphics; t: string; s: float32 = 2.0; letterSpacing: uint8 = 1): int32 =
-  if self.bitmapFont:
+  if self.bitmapFont != nil:
     return self.bitmapFont.measureText(t, max(1.0, s), letterSpacing)
-  elif self.hersheyFont:
-    return self.hersheyFont.measureText(t, s)
+  elif self.hersheyFont != nil:
+    return self.hersheyFont[].measureText(t, s)
   return 0
 
 proc polygon*(self: var PicoGraphics; points: openArray[Point]) =
