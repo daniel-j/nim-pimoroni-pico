@@ -12,7 +12,7 @@ proc drawHslChart(kind: InkyFrameKind; drawMode: DrawMode; matrix: ErrorDiffusio
 
   var errDiff: ErrorDiffusion[inky]
   if drawMode == DrawMode.ErrorDiffusion:
-    errDiff.autobackend(inky)
+    errDiff = ErrorDiffusion[inky](backend: autobackend(inky))
     errDiff.init(inky, 0, 0, inky.width, inky.height, matrix, alternateRow = true)
     errDiff.orientation = 0
     if errDiff.backend == ErrorDiffusionBackend.BackendPsram:
@@ -81,10 +81,12 @@ proc drawFile(filename: string; kind: InkyFrameKind; drawMode: DrawMode; matrix:
 
   echo "Decoding jpeg file ", filename, "..."
 
+  jpegDecoder.init(inky)
+
   jpegDecoder.errDiff.matrix = matrix
   jpegDecoder.errDiff.alternateRow = true
 
-  if jpegDecoder.drawJpeg(inky, filename, x, y, w, h, gravity=(0.5f, 0.5f), drawMode) == 1:
+  if jpegDecoder.drawJpeg(filename, x, y, w, h, gravity=(0.5f, 0.5f), drawMode) == 1:
     echo "Converting image..."
     inky.update()
     if matrix.s > 0:

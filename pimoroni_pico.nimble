@@ -21,9 +21,9 @@ before install:
 
 task test, "Runs the test suite":
 
-  # exec "piconim setup --project tests --source tests --board pico"
+  # exec "piconim configure --project tests --source tests --board pico"
 
-  # exec "piconim setup --project tests --source tests --board pico_w"
+  # exec "piconim configure --project tests --source tests --board pico_w"
 
   # build and run mock tests
   exec "nim c -r --skipParentCfg:on --hints:off tests/mock/tinky_frame resources/sample.jpg"
@@ -39,10 +39,10 @@ task examples, "Build the examples":
     "inky_frame/slideshow",
   ]
 
-  # exec "piconim setup --project examples --source examples --board pico"
+  # exec "piconim configure --project examples --source examples --board pico"
   # exec "cmake --build build/examples -- -j4"
 
-  exec "piconim setup --project examples --source examples --board pico_w"
+  exec "piconim configure --project examples --source examples --board pico_w"
 
   for ex in examples:
     let splitpath = ex.split("/")

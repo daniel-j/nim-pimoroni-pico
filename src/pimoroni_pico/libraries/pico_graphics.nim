@@ -61,7 +61,7 @@ proc init*(self: var PicoGraphicsBase; width: uint16; height: uint16; backend: P
     self.frameBuffer = frameBuffer
   # self.setFont(font6)
 
-# func constructPicoGraphics*(width: uint16; height: uint16; backend: PicoGraphicsBackend = BackendMemory; frameBuffer: seq[uint8] = @[]): PicoGraphics {.constructor.} =
+# func constructPicoGraphics*(width: uint16; height: uint16; backend: PicoGraphicsBackend = BackendMemory; frameBuffer: seq[uint8] = @[]): PicoGraphics =
 #   result.init(width, height, frameBuffer)
 
 func setThickness*(self: var PicoGraphicsBase; thickness: Positive) = self.thickness = thickness
@@ -242,7 +242,7 @@ proc init*(self: var PicoGraphicsPen3Bit; width: uint16; height: uint16; backend
   of BackendPsram:
     self.fbPsram.init(width, height)
 
-# proc constructPicoGraphicsPen3Bit*(width: uint16; height: uint16; backend: PicoGraphicsBackend = BackendMemory; frameBuffer: seq[uint8] = @[]): PicoGraphicsPen3Bit {.constructor.} =
+# proc constructPicoGraphicsPen3Bit*(width: uint16; height: uint16; backend: PicoGraphicsBackend = BackendMemory; frameBuffer: seq[uint8] = @[]): PicoGraphicsPen3Bit =
 #   result.init(width, height, frameBuffer)
 
 func getRawPalette*(self: PicoGraphicsPen3Bit): auto {.inline.} = self.palette

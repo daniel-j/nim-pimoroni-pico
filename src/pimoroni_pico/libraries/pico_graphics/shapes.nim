@@ -8,7 +8,7 @@ type
     x*: int
     y*: int
 
-func constructPoint*(x, y: int32): Point {.constructor.} =
+func constructPoint*(x, y: int32): Point =
   result.x = x
   result.y = y
 
@@ -44,13 +44,13 @@ type
     w*: int
     h*: int
 
-func constructRect*(x, y, w, h: int): Rect {.constructor.} =
+func constructRect*(x, y, w, h: int): Rect =
   result.x = x
   result.y = y
   result.w = w
   result.h = h
 
-func constructRect*(tl: Point; br: Point): Rect {.constructor.} =
+func constructRect*(tl: Point; br: Point): Rect =
   result.x = tl.x
   result.y = tl.y
   result.w = br.x - tl.x

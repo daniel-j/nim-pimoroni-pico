@@ -36,42 +36,42 @@ func clamp*(self: var Rgb) =
   self.g = self.g.clamp(0, 255)
   self.b = self.b.clamp(0, 255)
 
-func constructRgb*(): Rgb {.constructor.} =
+func constructRgb*(): Rgb =
   result.r = 0
   result.g = 0
   result.b = 0
 
-func constructRgb*(c: Rgb332): Rgb {.constructor.} =
+func constructRgb*(c: Rgb332): Rgb =
   result.r = ((c.uint8 and 0b11100000) shr 0).int16
   result.g = ((c.uint8 and 0b00011100) shl 3).int16
   result.b = ((c.uint8 and 0b00000011) shl 6).int16
 
-func constructRgb*(c: Rgb565): Rgb {.constructor.} =
+func constructRgb*(c: Rgb565): Rgb =
   result.r = ((c.uint16 and 0b1111100000000000) shr 8).int16
   result.g = ((c.uint16 and 0b0000011111100000) shr 3).int16
   result.b = ((c.uint16 and 0b0000000000011111) shl 3).int16
 
-func constructRgb*(c: Rgb888): Rgb {.constructor.} =
+func constructRgb*(c: Rgb888): Rgb =
   result.r = int16 (c.uint shr 16) and 0xff
   result.g = int16 (c.uint shr 8) and 0xff
   result.b = int16 c.uint and 0xff
 
-func constructRgbBe*(c: Rgb565): Rgb {.constructor.} =
+func constructRgbBe*(c: Rgb565): Rgb =
   result.r = ((builtinBswap16(c.uint16) and 0b1111100000000000) shr 8).int16
   result.g = ((builtinBswap16(c.uint16) and 0b0000011111100000) shr 3).int16
   result.b = ((builtinBswap16(c.uint16) and 0b0000000000011111) shl 3).int16
 
-func constructRgb*(r, g, b: int16): Rgb {.constructor.} =
+func constructRgb*(r, g, b: int16): Rgb =
   result.r = r
   result.g = g
   result.b = b
 
-func constructRgb*(r, g, b: float32): Rgb {.constructor.} =
+func constructRgb*(r, g, b: float32): Rgb =
   result.r = int16 round(r * 255.0f)
   result.g = int16 round(g * 255.0f)
   result.b = int16 round(b * 255.0f)
 
-func constructRgb*(l: int16): Rgb {.constructor.} =
+func constructRgb*(l: int16): Rgb =
   result.r = l
   result.g = l
   result.b = l

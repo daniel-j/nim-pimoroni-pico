@@ -132,7 +132,14 @@ proc getJpegdecDrawCallback(jpegDecoder: var JpegDecoder): auto =
 
     return 1
 
-proc drawJpeg*(self: var JpegDecoder; graphics: var PicoGraphics; filename: string; x, y: int = 0; w, h: int; gravity: tuple[x, y: float32] = (0.0f, 0.0f); drawMode: DrawMode = Default): int =
+proc init*(self: var JpegDecoder; graphics: var PicoGraphics) =
+  self.graphics = graphics.addr
+  self.errDiff = typeof(self.errDiff)(backend: autobackend(graphics))
+
+proc drawJpeg*(self: var JpegDecoder; filename: string; x, y: int = 0; w, h: int; gravity: tuple[x, y: float32] = (0.0f, 0.0f); drawMode: DrawMode = Default): int =
+  if self.graphics.isNil:
+    return 0
+
   self.x = x
   self.y = y
   self.w = w
@@ -140,7 +147,6 @@ proc drawJpeg*(self: var JpegDecoder; graphics: var PicoGraphics; filename: stri
   self.progress = 0
   self.lastY = 0
   self.drawMode = drawMode
-  self.graphics = graphics.addr
 
   echo "- opening jpeg file ", filename
 
@@ -206,11 +212,10 @@ proc drawJpeg*(self: var JpegDecoder; graphics: var PicoGraphics; filename: stri
     jpeg.setPixelType(RGB565_LITTLE_ENDIAN)
 
     if self.drawMode == ErrorDiffusion:
-      self.errDiff.autobackend(graphics)
-      self.errDiff.init(graphics, self.x, self.y, self.w, self.h, self.errDiff.matrix, self.errDiff.alternateRow)
+      self.errDiff.init(self.graphics[], self.x, self.y, self.w, self.h, self.errDiff.matrix, self.errDiff.alternateRow)
       self.errDiff.orientation = jpeg.getOrientation()
       if self.errDiff.backend == ErrorDiffusionBackend.BackendPsram:
-        self.errDiff.psramAddress = PsramAddress graphics.bounds.w * graphics.bounds.h
+        self.errDiff.psramAddress = PsramAddress self.graphics.bounds.w * self.graphics.bounds.h
 
     echo "- starting jpeg decode.."
     try:
