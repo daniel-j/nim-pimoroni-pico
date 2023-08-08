@@ -15,6 +15,8 @@ inky.boot()
 var fs: FATFS
 var jpegDecoder: JpegDecoder[PicoGraphicsPen3Bit]
 
+discard stdioInitAll()
+
 let m = detectInkyFrameModel()
 if m.isSome:
   echo "Detected Inky Frame model: ", m.get()
@@ -27,8 +29,6 @@ const inkyKind {.strdefine.} = "Unknown inkyKind"
 let inkyKindEnum = parseEnum[InkyFrameKind](inkyKind, m.get())
 
 inky.kind = inkyKindEnum
-
-discard stdioInitAll()
 
 # blockUntilUsbConnected()
 sleepMs(2000)
