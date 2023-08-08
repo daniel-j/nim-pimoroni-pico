@@ -16,8 +16,11 @@ requires "pixie >= 5.0.4"
 
 include picostdlib/build_utils/tasks
 
+task futharkgen, "Generate futhark cache":
+  exec "nimble c -c src/pimoroni_pico/futharkgen"
+
 before install:
-  exec "nimble c -c -d:useFuthark -d:futharkRebuild -d:opirRebuild src/pimoroni_pico/futhark_gen"
+  futharkgenTask()
 
 task test, "Runs the test suite":
 
