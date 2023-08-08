@@ -41,8 +41,8 @@ echo "Wake Up Events: ", inky.getWakeUpEvents()
 
 jpegDecoder.init(inky)
 
-jpegDecoder.errDiff.matrix = SierraLite
-jpegDecoder.errDiff.alternateRow = true
+jpegDecoder.errDiff.matrix = FloydSteinberg
+jpegDecoder.errDiff.alternateRow = false
 
 
 proc drawFile(filename: string) =
