@@ -1,6 +1,7 @@
-#ifndef _LWIPOPTS_EXAMPLE_COMMONH_H
-#define _LWIPOPTS_EXAMPLE_COMMONH_H
+#ifndef _LWIPOPTS_H
+#define _LWIPOPTS_H
 
+#include <stdint.h>
 
 // Common settings used in most of the pico_w examples
 // (see https://www.nongnu.org/lwip/2_1_x/group__lwip__opts.html for details)
@@ -28,7 +29,7 @@
 #define LWIP_ETHERNET               1
 #define LWIP_ICMP                   1
 #define LWIP_RAW                    1
-#define TCP_WND                     (8 * TCP_MSS)
+#define TCP_WND                     (16 * TCP_MSS)
 #define TCP_MSS                     1460
 #define TCP_SND_BUF                 (8 * TCP_MSS)
 #define TCP_SND_QUEUELEN            ((4 * (TCP_SND_BUF) + (TCP_MSS - 1)) / (TCP_MSS))
@@ -87,4 +88,39 @@
 #define SLIP_DEBUG                  LWIP_DBG_OFF
 #define DHCP_DEBUG                  LWIP_DBG_OFF
 
-#endif /* __LWIPOPTS_H__ */
+
+#if !NO_SYS
+#define TCPIP_THREAD_STACKSIZE 1024
+#define DEFAULT_THREAD_STACKSIZE 1024
+#define DEFAULT_RAW_RECVMBOX_SIZE 8
+#define TCPIP_MBOX_SIZE 8
+
+// not necessary, can be done either way
+#define LWIP_TCPIP_CORE_LOCKING_INPUT 1
+#endif
+
+#define LWIP_TIMEVAL_PRIVATE 0
+//#define LWIP_IPV6 1
+
+#define LWIP_ALTCP 1
+#define LWIP_ALTCP_TLS 1
+#define LWIP_ALTCP_TLS_MBEDTLS 1
+
+// #define LWIP_DEBUG                  1
+// #define LWIP_STATS                  1
+// #define LWIP_STATS_DISPLAY          1
+// #define HTTPC_DEBUG 1
+
+
+// #define LWIP_DEBUG 1
+// #define ALTCP_MBEDTLS_DEBUG  LWIP_DBG_ON
+
+// SNTP
+#define SNTP_DEBUG LWIP_DBG_OFF
+#define SNTP_SERVER_DNS 1
+extern void __sntp_set_system_time(uint32_t sec);
+#define SNTP_SET_SYSTEM_TIME(sec) __sntp_set_system_time(sec)
+// once an hour
+#define SNTP_UPDATE_DELAY 60*1000*1000
+
+#endif // _LWIPOPTS_H
