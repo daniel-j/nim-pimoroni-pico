@@ -80,28 +80,28 @@ type
     wakeUpEvents: set[WakeUpEvent]
 
 proc gpioConfigure*(gpio: Gpio; dir: Direction; value: Value = Low) =
-  gpioSetFunction(gpio, Sio)
-  gpioSetDir(gpio, dir)
-  gpioPut(gpio, value)
+  gpio.setFunction(Sio)
+  gpio.setDir(dir)
+  gpio.put(value)
 
 proc gpioConfigurePwm*(gpio: Gpio) =
   pwmSetWrap(pwmGpioToSliceNum(gpio), 65535)
   var cfg = pwmGetDefaultConfig()
   pwmInit(pwmGpioToSliceNum(gpio), cfg.addr, true)
-  gpioSetFunction(gpio, Pwm)
+  gpio.setFunction(Pwm)
 
 proc detectInkyFrameModel*(): Option[InkyFrameKind] =
   ## Experimental function to detect the model
   ## Call before InkyFrame.init, since it changes the gpio states
   const mask = {PinSrLatch, PinI2cInt}
-  gpioInitMask(mask)
-  gpioSetDirInMasked(mask)
-  gpioPullDown(PinSrLatch)
-  gpioPullDown(PinI2cInt)
-  let switchLatch = gpioGet(PinSrLatch)
-  let i2cInt = gpioGet(PinI2cInt)
-  gpioDeinit(PinSrLatch)
-  gpioDeinit(PinI2cInt)
+  mask.initMask()
+  mask.setDirInMasked()
+  PinSrLatch.pullDown()
+  PinI2cInt.pullDown()
+  let switchLatch = PinSrLatch.get()
+  let i2cInt = PinI2cInt.get()
+  PinSrLatch.deinit()
+  PinI2cInt.deinit()
 
   if switchLatch == High and i2cInt == High: return some(InkyFrame4_0)
   elif switchLatch == Low and i2cInt == High: return some(InkyFrame5_7)
@@ -212,7 +212,7 @@ proc sleep*(self: var InkyFrame; wakeInMinutes: int = -1) =
       self.rtc.enableAlarmInterrupt(true)
 
   # release the vsys hold pin so that inky can go to sleep
-  gpioPut(PinHoldSysEn, Low)
+  PinHoldSysEn.put(Low)
 
   # emulate sleep on usb power
   if minutes > 0:
@@ -232,7 +232,7 @@ proc sleepUntil*(self: var InkyFrame; second, minute, hour, day: int = -1) =
     self.rtc.enableAlarmInterrupt(true)
 
   # release the vsys hold pin so that inky can go to sleep
-  gpioPut(PinHoldSysEn, Low)
+  PinHoldSysEn.put(Low)
 
   # TODO: Implement emulation of sleep using rtc
   echo "Sleeping forever."

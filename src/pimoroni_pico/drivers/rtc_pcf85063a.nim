@@ -83,9 +83,9 @@ proc init*(self: var RtcPcf85063a; i2c: I2c; interrupt: GpioOptional = GpioUnuse
   self.i2c = i2c
   self.interrupt = interrupt
   if self.interrupt != GpioUnused:
-    gpioSetFunction(self.interrupt.Gpio, GpioFunction.Sio)
-    gpioSetDir(self.interrupt.Gpio, In)
-    gpioSetPulls(self.interrupt.Gpio, up=false, down=true)
+    Gpio(self.interrupt).setFunction(GpioFunction.Sio)
+    Gpio(self.interrupt).setDir(In)
+    Gpio(self.interrupt).setPulls(up=false, down=true)
 
 proc reset*(self: var RtcPcf85063a) =
   ##  magic soft reset command
@@ -111,7 +111,7 @@ proc getScl*(self: var RtcPcf85063a): Gpio {.noSideEffect.} =
   return self.i2c.getScl()
 
 proc getInt*(self: var RtcPcf85063a): Gpio {.noSideEffect.} =
-  return self.interrupt.Gpio
+  return Gpio(self.interrupt)
 
 proc getDatetime*(self: var RtcPcf85063a): Datetime =
   var resultArray: array[7, uint8]

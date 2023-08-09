@@ -121,7 +121,7 @@ proc partialTeardown(self: var GalacticUnicorn) =
 
   # Make sure the display is off and switch it to an invisible row, to be safe
   const pinsToSet = 1 shl ColumnBlankPin.int or 0b1111 shl RowBit0Pin.int
-  pioSmSetPinsWithMask(bitstreamPio, bitstreamSm, pinsToSet, pinsToSet)
+  bitstreamPio.smSetPinsWithMask(bitstreamSm, pinsToSet, pinsToSet)
 
   dmaHw.ch[dmaCtrlChannel].al1_ctrl = uint32 (dmaHw.ch[dmaCtrlChannel].al1_ctrl and not DMA_CH0_CTRL_TRIG_CHAIN_TO_BITS) or (dmaCtrlChannel shl DMA_CH0_CTRL_TRIG_CHAIN_TO_LSB)
   dmaHw.ch[dmaChannel].al1_ctrl = uint32 (dmaHw.ch[dmaChannel].al1_ctrl and not DMA_CH0_CTRL_TRIG_CHAIN_TO_BITS) or (dmaChannel shl DMA_CH0_CTRL_TRIG_CHAIN_TO_LSB)
@@ -185,18 +185,18 @@ proc init*(self: var GalacticUnicorn) =
   adcGpioInit(LightSensorPin)
   
   const columnPinMask = {ColumnClockPin, ColumnDataPin, ColumnLatchPin, ColumnBlankPin}
-  gpioInitMask(columnPinMask)
-  gpioSetDirOutMasked(columnPinMask)
-  gpioPut(ColumnClockPin, Low)
-  gpioPut(ColumnDataPin, Low)
-  gpioPut(ColumnLatchPin, Low)
-  gpioPut(ColumnBlankPin, High)
+  columnPinMask.initMask()
+  columnPinMask.setDirOutMasked()
+  ColumnClockPin.put(Low)
+  ColumnDataPin.put(Low)
+  ColumnLatchPin.put(Low)
+  ColumnBlankPin.put(High)
 
   # initialise the row select, and set them to a non-visible row to avoid flashes during setup
   const rowBitPinMask = {RowBit0Pin, RowBit1Pin, RowBit2Pin, RowBit3Pin}
-  gpioInitMask(rowBitPinMask)
-  gpioSetDirOutMasked(rowBitPinMask)
-  gpioPutMasked(rowBitPinMask, uint32.high)
+  rowBitPinMask.initMask()
+  rowBitPinMask.setDirOutMasked()
+  rowBitPinMask.putMasked(uint32.high)
 
   sleepMs(100)
 
@@ -207,48 +207,48 @@ proc init*(self: var GalacticUnicorn) =
   # clock the register value to the first 9 driver chips
   for j in 0..<9:
     for i in 0..<16:
-      gpioPut(ColumnDataPin, reg1.testBit(15 - i).Value)
+      ColumnDataPin.put(reg1.testBit(15 - i).Value)
 
       sleepUs(10)
-      gpioPut(ColumnClockPin, High)
+      ColumnClockPin.put(High)
       sleepUs(10)
-      gpioPut(ColumnClockPin, Low)
+      ColumnClockPin.put(Low)
 
   # clock the last chip and latch the value
   for i in 0..<16:
-    gpioPut(ColumnDataPin, reg1.testBit(15 - i).Value)
+    ColumnDataPin.put(reg1.testBit(15 - i).Value)
 
     sleepUs(10)
-    gpioPut(ColumnClockPin, High)
+    ColumnClockPin.put(High)
     sleepUs(10)
-    gpioPut(ColumnClockPin, Low)
+    ColumnClockPin.put(Low)
 
     if i == 4:
-      gpioPut(ColumnLatchPin, High)
+      ColumnLatchPin.put(High)
   
-  gpioPut(ColumnLatchPin, Low)
+  ColumnLatchPin.put(Low)
 
   # reapply the blank as the above seems to cause a slight glow.
   # Note, this will produce a brief flash if a visible row is selected (which it shouldn't be)
-  gpioPut(ColumnBlankPin, Low)
+  ColumnBlankPin.put(Low)
   sleepUs(10)
-  gpioPut(ColumnBlankPin, High)
+  ColumnBlankPin.put(High)
 
-  gpioInit(MutePin)
-  gpioSetDir(MutePin, Out)
-  gpioPut(MutePin, High)
+  MutePin.init()
+  MutePin.setDir(Out)
+  MutePin.put(High)
 
   # setup switch inputs
   const switchPinMask = {SwitchAPin, SwitchBPin, SwitchCPin, SwitchDPin, SwitchSleepPin, SwitchBrightnessUpPin, SwitchBrightnessDownPin, SwitchVolumeUpPin, SwitchVolumeDownPin}
-  gpioInitMask(switchPinMask)
+  switchPinMask.initMask()
   for pin in switchPinMask:
-    gpioPullUp(pin)
+    pin.pullUp()
 
   bitstreamPio = pio0
 
   if unicorn.isNil:
     bitstreamSm = bitstreamPio.claimUnusedSm()
-    bitstreamSmOffset = bitstreamPio.addProgram(galacticUnicornProgram)
+    bitstreamSmOffset = bitstreamPio.addProgram(galacticUnicornProgram.unsafeAddr)
 
   for pin in columnPinMask + rowBitPinMask:
     bitstreamPio.gpioInit(pin)
@@ -279,10 +279,10 @@ proc init*(self: var GalacticUnicorn) =
   dmaCtrlChannel = dmaClaimUnusedChannel(true).uint32
 
   var ctrlConfig = dmaChannelGetDefaultConfig(dmaCtrlChannel)
-  ctrlConfig.setTransferDataSize(DmaSize32)
-  ctrlConfig.setReadIncrement(false)
-  ctrlConfig.setWriteIncrement(false)
-  ctrlConfig.setChainTo(dmaChannel)
+  ctrlConfig.addr.setTransferDataSize(DmaSize32)
+  ctrlConfig.addr.setReadIncrement(false)
+  ctrlConfig.addr.setWriteIncrement(false)
+  ctrlConfig.addr.setChainTo(dmaChannel)
 
   dmaChannelConfigure(
     dmaCtrlChannel,
@@ -294,10 +294,10 @@ proc init*(self: var GalacticUnicorn) =
   )
 
   var config = dmaChannelGetDefaultConfig(dmaChannel)
-  config.setTransferDataSize(DmaSize32)
-  config.setBswap(false) # byte swap to reverse little endian
-  config.setDreq(bitstreamPio.getDreq(bitstreamSm, true))
-  config.setChainTo(dmaCtrlChannel)
+  config.addr.setTransferDataSize(DmaSize32)
+  config.addr.setBswap(false) # byte swap to reverse little endian
+  config.addr.setDreq(bitstreamPio.getDreq(bitstreamSm, true))
+  config.addr.setChainTo(dmaCtrlChannel)
 
   dmaChannelConfigure(
     dmaChannel,
@@ -342,8 +342,8 @@ proc init*(self: var GalacticUnicorn) =
   # dma_channel_set_irq0_enabled(audio_dma_channel, true);
 
   if unicorn == nil:
-    irqAddSharedHandler(DmaIrq0, dmaComplete, PICO_SHARED_IRQ_HANDLER_DEFAULT_ORDER_PRIORITY)
-    irqSetEnabled(DmaIrq0, true)
+    DmaIrq0.addSharedHandler(dmaComplete, PICO_SHARED_IRQ_HANDLER_DEFAULT_ORDER_PRIORITY)
+    DmaIrq0.setEnabled(true)
 
   unicorn = self.addr
 
@@ -416,7 +416,7 @@ proc adjustBrightness*(self: var GalacticUnicorn; delta: float32) =
   self.setBrightness(self.getBrightness() + delta)
 
 proc isPressed*(self: var GalacticUnicorn; switch: Switch): bool =
-  gpioGet(Gpio(switch)) == Low
+  Gpio(switch).get() == Low
 
 proc update*(self: var GalacticUnicorn; graphics: var PicoGraphics) =
   if self.addr != unicorn: return

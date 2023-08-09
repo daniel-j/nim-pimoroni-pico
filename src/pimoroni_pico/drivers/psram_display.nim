@@ -24,19 +24,19 @@ type
     ReadId = 0x9F
 
 proc init(self: var PsramDisplay) =
-  let baud = spiInit(self.spi, 31_250_000)
+  let baud = self.spi.init(31_250_000)
   echo "PSRAM connected at ", baud
-  gpioSetFunction(self.pinCs, Sio)
-  gpioSetDir(self.pinCs, Out)
-  gpioPut(self.pinCs, High)
+  self.pinCs.setFunction(Sio)
+  self.pinCs.setDir(Out)
+  self.pinCs.put(High)
 
-  gpioSetFunction(self.pinSck, Spi)
-  gpioSetFunction(self.pinMosi, Spi)
-  gpioSetFunction(self.pinMiso, Spi)
+  self.pinSck.setFunction(Spi)
+  self.pinMosi.setFunction(Spi)
+  self.pinMiso.setFunction(Spi)
 
-  gpioPut(self.pinCs, Low)
-  discard spiWriteBlocking(self.spi, ResetEnable.uint8, Reset.uint8)
-  gpioPut(self.pinCs, High)
+  self.pinCs.put(Low)
+  discard self.spi.writeBlocking(ResetEnable.uint8, Reset.uint8)
+  self.pinCs.put(High)
 
 proc init*(self: var PsramDisplay; width, height: uint16; pins: SpiPins = SpiPins(spi: PimoroniSpiDefaultInstance, cs: 3.Gpio, sck: SpiDefaultSck, mosi: SpiDefaultMosi, miso: SpiDefaultMiso)) =
   self.spi = pins.spi
@@ -53,39 +53,39 @@ proc spiSetBlocking*(self: var PsramDisplay; uSrc: uint16; uLen: csize_t): int {
   # Deliberately overflow FIFO, then clean up afterward, to minimise amount
   # of APB polling required per halfword
   for i in 0..<uLen:
-    while (not spiIsWritable(self.spi)):
+    while not self.spi.isWritable():
       tightLoopContents()
-    spiGetHw(self.spi).dr = uSrc
+    self.spi.getHw().dr = uSrc
 
-  while spiIsReadable(self.spi):
-    discard spiGetHw(self.spi).dr
-  while (spiGetHw(self.spi).sr and SPI_SSPSR_BSY_BITS).bool:
+  while self.spi.isReadable():
+    discard self.spi.getHw().dr
+  while (self.spi.getHw().sr and SPI_SSPSR_BSY_BITS).bool:
     tightLoopContents()
-  while spiIsReadable(self.spi):
-    discard spiGetHw(self.spi).dr
+  while self.spi.isReadable():
+    discard self.spi.getHw().dr
 
   # Don't leave overrun flag set
-  spiGetHw(self.spi).icr = SPI_SSPICR_RORIC_BITS
+  self.spi.getHw().icr = SPI_SSPICR_RORIC_BITS
 
   return uLen.int
 
 proc write*(self: var PsramDisplay; address: PsramAddress; len: uint; data: ptr uint8) =
-  gpioPut(self.pinCs, Low)
-  discard spiWriteBlocking(self.spi, Write.uint8, uint8 address shr 16, uint8 address shr 8, uint8 address)
-  discard spiWriteBlocking(self.spi, data, len)
-  gpioPut(self.pinCs, High)
+  self.pinCs.put(Low)
+  discard self.spi.writeBlocking(Write.uint8, uint8 address shr 16, uint8 address shr 8, uint8 address)
+  discard self.spi.writeBlocking(data, len)
+  self.pinCs.put(High)
 
 proc write*(self: var PsramDisplay; address: PsramAddress; len: uint; data: uint8) =
-  gpioPut(self.pinCs, Low)
-  discard spiWriteBlocking(self.spi, Write.uint8, uint8 address shr 16, uint8 address shr 8, uint8 address)
+  self.pinCs.put(Low)
+  discard self.spi.writeBlocking(Write.uint8, uint8 address shr 16, uint8 address shr 8, uint8 address)
   discard self.spiSetBlocking(data.uint16, len.csize_t)
-  gpioPut(self.pinCs, High)
+  self.pinCs.put(High)
 
 proc read*(self: PsramDisplay; address: PsramAddress; len: uint; data: ptr uint8) =
-  gpioPut(self.pinCs, Low)
-  discard spiWriteBlocking(self.spi, Read.uint8, uint8 (address shr 16) and 0xFF, uint8 (address shr 8) and 0xFF, uint8 address and 0xFF)
-  discard spiReadBlocking(self.spi, 0, data, len.csize_t)
-  gpioPut(self.pinCs, High)
+  self.pinCs.put(Low)
+  discard self.spi.writeBlocking(Read.uint8, uint8 (address shr 16) and 0xFF, uint8 (address shr 8) and 0xFF, uint8 address and 0xFF)
+  discard self.spi.readBlocking(0, data, len.csize_t)
+  self.pinCs.put(High)
 
 proc test*(self: var PsramDisplay) =
   var writeBuffer = newStringOfCap(1024)

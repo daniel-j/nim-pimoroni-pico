@@ -63,20 +63,20 @@ proc busyWait*(self: var EinkDriver, minimumWaitMs: uint32 = 0) =
   # echo absoluteTimeDiffUs(startTime, endTime)
 
 proc command*(self: var EinkDriver; reg: uint8; data: varargs[uint8]) =
-  gpioPut(self.csPin, Low)
+  self.csPin.put(Low)
   ##  command mode
-  gpioPut(self.dcPin, Low)
-  discard spiWriteBlocking(self.spi, reg)
+  self.dcPin.put(Low)
+  discard self.spi.writeBlocking(reg)
   if data.len > 0:
     ##  data mode
-    gpioPut(self.dcPin, High)
-    discard spiWriteBlocking(self.spi, data)
-  gpioPut(self.csPin, High)
+    self.dcPin.put(High)
+    discard self.spi.writeBlocking(data)
+  self.csPin.put(High)
 
 proc data*(self: var EinkDriver, len: uint; data: varargs[uint8]) =
-  gpioPut(self.csPin, Low)
+  self.csPin.put(Low)
   ##  data mode
-  gpioPut(self.dcPin, High)
+  self.dcPin.put(High)
 
-  discard spiWriteBlocking(self.spi, data)
-  gpioPut(self.csPin, High)
+  discard self.spi.writeBlocking(data)
+  self.csPin.put(High)

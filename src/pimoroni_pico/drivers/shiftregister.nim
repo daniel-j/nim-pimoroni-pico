@@ -5,9 +5,9 @@ type
   ShiftRegister* = tuple[pinLatch, pinClock, pinOut: Gpio; bits: int]
 
 proc gpioConfigure(gpio: Gpio; dir: Direction; value: Value = Low) =
-  gpioSetFunction(gpio, Sio)
-  gpioSetDir(gpio, dir)
-  gpioPut(gpio, value)
+  gpio.setFunction(Sio)
+  gpio.setDir(dir)
+  gpio.put(value)
 
 proc init*(self: ShiftRegister) =
   gpioConfigure(self.pinClock, Out, High)
@@ -15,16 +15,16 @@ proc init*(self: ShiftRegister) =
   gpioConfigure(self.pinOut, In)
 
 proc read*(self: ShiftRegister): uint =
-  gpioPut(self.pinLatch, Low)
+  self.pinLatch.put(Low)
   asm "NOP;"
-  gpioPut(self.pinLatch, High)
+  self.pinLatch.put(High)
   asm "NOP;"
   for i in countdown(self.bits - 1, 0):
-    if gpioGet(self.pinOut) == High:
+    if self.pinOut.get() == High:
       result.setBit(i)
-    gpioPut(self.pinClock, Low)
+    self.pinClock.put(Low)
     asm "NOP;"
-    gpioPut(self.pinClock, High)
+    self.pinClock.put(High)
     asm "NOP;"
 
 proc readBit*(self: ShiftRegister; index: uint): bool =

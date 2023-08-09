@@ -51,26 +51,26 @@ proc initAc073tc1a*(self: var EinkDriver; width: uint16; height: uint16; pins: S
   self.blocking = blocking
 
   ##  configure spi interface and pins
-  echo "Eink Ac073tc1a SPI init: ", spiInit(self.spi, 20_000_000)
+  echo "Eink Ac073tc1a SPI init: ", self.spi.init(20_000_000)
 
-  gpioSetFunction(self.dcPin, Sio)
-  gpioSetDir(self.dcPin, Out)
+  self.dcPin.setFunction(Sio)
+  self.dcPin.setDir(Out)
 
-  gpioSetFunction(self.csPin, Sio)
-  gpioSetDir(self.csPin, Out)
-  gpioPut(self.csPin, High)
+  self.csPin.setFunction(Sio)
+  self.csPin.setDir(Out)
+  self.csPin.put(High)
 
-  gpioSetFunction(self.resetPin, Sio)
-  gpioSetDir(self.resetPin, Out)
-  gpioPut(self.resetPin, High)
+  self.resetPin.setFunction(Sio)
+  self.resetPin.setDir(Out)
+  self.resetPin.put(High)
 
-  gpioSetFunction(self.sckPin, Spi)
-  gpioSetFunction(self.mosiPin, Spi)
+  self.sckPin.setFunction(Spi)
+  self.mosiPin.setFunction(Spi)
 
 proc reset(self: var EinkDriver) =
-  gpioPut(self.resetPin, Low)
+  self.resetPin.put(Low)
   sleepMs(10)
-  gpioPut(self.resetPin, High)
+  self.resetPin.put(High)
   sleepMs(10)
   self.busyWait()
 
@@ -121,26 +121,26 @@ proc updateAc073tc1a*(self: var EinkDriver; graphics: var PicoGraphics) =
 
   self.setup()
 
-  gpioPut(self.csPin, Low)
+  self.csPin.put(Low)
 
-  gpioPut(self.dcPin, Low) ##  command mode
-  discard spiWriteBlocking(self.spi, Dtm1.uint8)
+  self.dcPin.put(Low) ##  command mode
+  discard self.spi.writeBlocking(Dtm1.uint8)
 
-  gpioPut(self.dcPin, High) ##  data mode
+  self.dcPin.put(High) ##  data mode
 
   let spiPtr = self.spi
   let csPin = self.csPin
-  gpioPut(csPin, High)
+  csPin.put(High)
   graphics.frameConvert(PicoGraphicsPenP4, (proc (buf: pointer; length: uint) =
     if length > 0:
-      gpioPut(csPin, Low)
-      discard spiWriteBlocking(spiPtr, cast[ptr uint8](buf), length.csize_t)
-      gpioPut(csPin, High)
+      csPin.put(Low)
+      discard spiPtr.writeBlocking(cast[ptr uint8](buf), length.csize_t)
+      csPin.put(High)
   ))
 
-  gpioPut(self.dcPin, Low) ##  data mode
+  self.dcPin.put(Low) ##  data mode
 
-  gpioPut(self.csPin, High)
+  self.csPin.put(High)
 
   self.busyWait()
 
