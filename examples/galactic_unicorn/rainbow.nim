@@ -105,11 +105,11 @@ while true:
 
   # unicorn.update(graphics)
 
-  # while absoluteTimeDiffUs(lastTime, getAbsoluteTime()) < 1000_000 div 30:
+  # while diffUs(lastTime, getAbsoluteTime()) < 1000_000 div 30:
   #   tightLoopContents()
 
   let now = getAbsoluteTime()
-  let diff = absoluteTimeDiffUs(lastTime, now).int
+  let diff = diffUs(lastTime, now).int
   deltaTime = diff / 1000_000
   echo "fps: ", (1000_000 / diff)
   lastTime = now

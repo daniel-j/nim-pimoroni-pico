@@ -185,8 +185,8 @@ proc init*(self: var GalacticUnicorn) =
   adcGpioInit(LightSensorPin)
   
   const columnPinMask = {ColumnClockPin, ColumnDataPin, ColumnLatchPin, ColumnBlankPin}
-  columnPinMask.initMask()
-  columnPinMask.setDirOutMasked()
+  columnPinMask.init()
+  columnPinMask.setDirOut()
   ColumnClockPin.put(Low)
   ColumnDataPin.put(Low)
   ColumnLatchPin.put(Low)
@@ -194,8 +194,8 @@ proc init*(self: var GalacticUnicorn) =
 
   # initialise the row select, and set them to a non-visible row to avoid flashes during setup
   const rowBitPinMask = {RowBit0Pin, RowBit1Pin, RowBit2Pin, RowBit3Pin}
-  rowBitPinMask.initMask()
-  rowBitPinMask.setDirOutMasked()
+  rowBitPinMask.init()
+  rowBitPinMask.setDirOut()
   rowBitPinMask.putMasked(uint32.high)
 
   sleepMs(100)
@@ -240,7 +240,7 @@ proc init*(self: var GalacticUnicorn) =
 
   # setup switch inputs
   const switchPinMask = {SwitchAPin, SwitchBPin, SwitchCPin, SwitchDPin, SwitchSleepPin, SwitchBrightnessUpPin, SwitchBrightnessDownPin, SwitchVolumeUpPin, SwitchVolumeDownPin}
-  switchPinMask.initMask()
+  switchPinMask.init()
   for pin in switchPinMask:
     pin.pullUp()
 

@@ -94,8 +94,8 @@ proc detectInkyFrameModel*(): Option[InkyFrameKind] =
   ## Experimental function to detect the model
   ## Call before InkyFrame.init, since it changes the gpio states
   const mask = {PinSrLatch, PinI2cInt}
-  mask.initMask()
-  mask.setDirInMasked()
+  mask.init()
+  mask.setDirIn()
   PinSrLatch.pullDown()
   PinI2cInt.pullDown()
   let switchLatch = PinSrLatch.get()

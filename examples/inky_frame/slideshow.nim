@@ -59,7 +59,7 @@ proc drawFile(filename: string) =
 
   if jpegDecoder.drawJpeg(filename, x, y, w, h, gravity=(0.5f, 0.5f), DrawMode.ErrorDiffusion) == 1:
     let endTime = getAbsoluteTime()
-    echo "Time: ", absoluteTimeDiffUs(startTime, endTime) div 1000, "ms"
+    echo "Time: ", diffUs(startTime, endTime) div 1000, "ms"
     inky.led(LedActivity, 100)
     echo "Updating... (" & filename & ")"
     inky.update()
@@ -129,7 +129,7 @@ proc inkyProc() =
     errDiff.deinit()
 
     let endTime = getAbsoluteTime()
-    echo "Time: ", absoluteTimeDiffUs(startTime, endTime) div 1000, "ms"
+    echo "Time: ", diffUs(startTime, endTime) div 1000, "ms"
     echo "Updating..."
     inky.led(LedA, 100)
     inky.update()
@@ -159,7 +159,7 @@ proc inkyProc() =
       inky.circle(p, size - 2)
 
     let endTime = getAbsoluteTime()
-    echo "Time: ", absoluteTimeDiffUs(startTime, endTime) div 1000, "ms"
+    echo "Time: ", diffUs(startTime, endTime) div 1000, "ms"
     echo "Updating..."
     inky.led(LedB, 100)
     inky.update()
@@ -187,7 +187,7 @@ proc inkyProc() =
     inky.setPen(Clean)
     inky.rectangle(constructRect((inky.width div 8) * 7, 0, inky.width div 8, inky.height))
     let endTime = getAbsoluteTime()
-    echo "Time: ", absoluteTimeDiffUs(startTime, endTime) div 1000, "ms"
+    echo "Time: ", diffUs(startTime, endTime) div 1000, "ms"
     echo "Updating..."
     inky.led(LedC, 100)
     inky.update()
@@ -229,7 +229,7 @@ proc inkyProc() =
       inky.thickLine(p1, p2, thickness)
 
     let endTime = getAbsoluteTime()
-    echo "Time: ", absoluteTimeDiffUs(startTime, endTime) div 1000, "ms"
+    echo "Time: ", diffUs(startTime, endTime) div 1000, "ms"
     echo "Updating..."
     inky.led(LedD, 100)
     inky.update()
@@ -243,7 +243,7 @@ proc inkyProc() =
     let startTime = getAbsoluteTime()
     inky.clear()
     let endTime = getAbsoluteTime()
-    echo "Time to clear: ", absoluteTimeDiffUs(startTime, endTime) div 1000, "ms"
+    echo "Time to clear: ", diffUs(startTime, endTime) div 1000, "ms"
     echo "First update..."
     inky.led(LedE, 100)
     inky.update()

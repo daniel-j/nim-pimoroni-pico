@@ -48,7 +48,7 @@ proc setBorder*(self: var EinkDriver; colour: Colour) = self.borderColour = colo
 proc isBusy*(self: EinkDriver): bool =
   ## Wait for the timeout to complete, then check the busy callback.
   ## This is to avoid polling the callback constantly
-  if absoluteTimeDiffUs(getAbsoluteTime(), self.timeout) > 0:
+  if diffUs(getAbsoluteTime(), self.timeout) > 0:
     return true
   if not self.isBusyProc.isNil:
     return self.isBusyProc()
@@ -60,7 +60,7 @@ proc busyWait*(self: var EinkDriver, minimumWaitMs: uint32 = 0) =
   while self.isBusy():
     tightLoopContents()
   # let endTime = getAbsoluteTime()
-  # echo absoluteTimeDiffUs(startTime, endTime)
+  # echo diffUs(startTime, endTime)
 
 proc command*(self: var EinkDriver; reg: uint8; data: varargs[uint8]) =
   self.csPin.put(Low)

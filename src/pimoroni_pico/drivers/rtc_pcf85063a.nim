@@ -210,7 +210,7 @@ proc getByte*(self: var RtcPcf85063a): uint8 =
 
 
 proc syncFromPicoRtc*(self: var RtcPcf85063a): bool =
-  var dt: Datetime
+  var dt = createDatetime()
   if not rtcGetDatetime(dt.addr):
     return false
   self.setDatetime(dt.addr)
