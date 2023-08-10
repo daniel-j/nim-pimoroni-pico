@@ -84,10 +84,10 @@ proc gpioConfigure*(gpio: Gpio; dir: Direction; value: Value = Low) =
   gpio.setDir(dir)
   gpio.put(value)
 
-proc gpioConfigurePwm*(gpio: Gpio) =
-  pwmSetWrap(pwmGpioToSliceNum(gpio), 65535)
+proc gpioConfigurePwm*(gpio: static[Gpio]) =
+  pwmSetWrap(gpio.toPwmSliceNum(), 65535)
   var cfg = pwmGetDefaultConfig()
-  pwmInit(pwmGpioToSliceNum(gpio), cfg.addr, true)
+  pwmInit(gpio.toPwmSliceNum(), cfg.addr, true)
   gpio.setFunction(Pwm)
 
 proc detectInkyFrameModel*(): Option[InkyFrameKind] =
@@ -186,7 +186,7 @@ proc pressed*(button: Button): bool =
 proc led*(self: InkyFrame; led: Led; brightness: range[0.uint8..100.uint8]) =
   ## Set the LED brightness by generating a gamma corrected target value for
   ## the 16-bit pwm channel. Brightness values are from 0 to 100.
-  pwmSetGpioLevel(led.Gpio, (pow(brightness.float / 100, 2.8) * 65535.0f + 0.5f).uint16)
+  Gpio(led).pwmSetLevel((pow(brightness.float / 100, 2.8) * 65535.0f + 0.5f).uint16)
 
 proc sleep*(self: var InkyFrame; wakeInMinutes: int = -1) =
   # Set an alarm to wake inky up in wake_in_minutes

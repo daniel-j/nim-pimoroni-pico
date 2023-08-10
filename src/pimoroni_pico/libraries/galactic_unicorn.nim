@@ -182,7 +182,7 @@ proc init*(self: var GalacticUnicorn) =
   if (adcHw.cs and ADC_CS_EN_BITS) == 0:
     adcInit()
   
-  adcGpioInit(LightSensorPin)
+  LightSensorPin.initAdc()
   
   const columnPinMask = {ColumnClockPin, ColumnDataPin, ColumnLatchPin, ColumnBlankPin}
   columnPinMask.init()
@@ -196,7 +196,7 @@ proc init*(self: var GalacticUnicorn) =
   const rowBitPinMask = {RowBit0Pin, RowBit1Pin, RowBit2Pin, RowBit3Pin}
   rowBitPinMask.init()
   rowBitPinMask.setDirOut()
-  rowBitPinMask.putMasked(uint32.high)
+  rowBitPinMask.putMasked(Gpio.fullSet())
 
   sleepMs(100)
 
@@ -403,7 +403,7 @@ proc clear*(self: var GalacticUnicorn) =
 #   discard
 
 proc light*(self: var GalacticUnicorn): uint16 =
-  adcSelectInput(Adc28)
+  Adc28.selectInput()
   return adcRead()
 
 proc setBrightness*(self: var GalacticUnicorn; value: float32) =
