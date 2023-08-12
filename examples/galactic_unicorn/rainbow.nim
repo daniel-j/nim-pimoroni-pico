@@ -111,5 +111,6 @@ while true:
   let now = getAbsoluteTime()
   let diff = diffUs(lastTime, now).int
   deltaTime = diff / 1000_000
-  echo "fps: ", (1000_000 / diff)
+  when not defined(release):
+    echo "fps: ", (1000_000 / diff)
   lastTime = now
