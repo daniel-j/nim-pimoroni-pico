@@ -1,7 +1,8 @@
 import std/math, std/bitops, std/options, std/times
 
 import picostdlib
-import picostdlib/[hardware/i2c, hardware/pwm]
+import picostdlib/[hardware/i2c, hardware/pwm, hardware/adc]
+import picostdlib/power
 
 import ../drivers/[eink_driver_wrapper, rtc_pcf85063a, shiftregister, fatfs, sdcard, psram_display]
 import ./pico_graphics
@@ -171,6 +172,9 @@ proc init*(self: var InkyFrame) =
   gpioConfigurePwm(PinLedActivity)
   gpioConfigurePwm(PinLedConnection)
 
+  # init adc for vsys reading
+  adcInit()
+
 proc update*(self: var InkyFrame) =
   if not self.einkDriver.getBlocking():
     while isBusy():
@@ -194,7 +198,6 @@ proc sleep*(self: var InkyFrame; wakeInMinutes: int = -1) =
   # Negative values means sleep without a wakeup timer (default)
 
   self.rtc.clearAlarmFlag()
-
 
   # Can't sleep beyond a month, so clamp the sleep to a 28 day maximum
   let minutes = min(40320, wakeInMinutes)
@@ -248,6 +251,10 @@ proc setBorder*(self: var InkyFrame; colour: Colour) =
 proc syncRtcFromPicoRtc*(self: var InkyFrame): bool = self.rtc.syncFromPicoRtc()
 
 proc syncRtcToPicoRtc*(self: var InkyFrame): bool = self.rtc.syncToPicoRtc()
+
+proc isBatteryPowered*(self: InkyFrame): bool = powerSourceBattery()
+
+proc getBatteryVoltage*(self: InkyFrame): float32 = powerSourceVoltage()
 
 proc image*(self: var InkyFrame; data: openArray[uint8]; stride: int; sx: int; sy: int; dw: int; dh: int; dx: int; dy: int) =
   var y = 0
