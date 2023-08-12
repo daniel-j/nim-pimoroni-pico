@@ -89,30 +89,30 @@ type
 var
   unicorn: ptr GalacticUnicorn = nil
 
-  dmaChannel: uint32
-  dmaCtrlChannel: uint32
-  audioDmaChannel: uint32
+  dmaChannel: DmaChannel
+  dmaCtrlChannel: DmaChannel
+  audioDmaChannel: DmaChannel
 
   bitstreamPio = pio0
   bitstreamSm = 0.PioStateMachine
   bitstreamSmOffset = 0'u
 
-proc dmaSafeAbort(self: var GalacticUnicorn; channel: uint) =
+proc dmaSafeAbort(self: var GalacticUnicorn; channel: DmaChannel) =
   # Tear down the DMA channel.
   # This is copied from: https://github.com/raspberrypi/pico-sdk/pull/744/commits/5e0e8004dd790f0155426e6689a66e08a83cd9fc
 
-  let irq0Save = dmaHw.inte0 and (1'u32 shl channel)
+  let irq0Save = dmaHw.inte0 and (1'u32 shl channel.uint)
   hwClearBits(cast[IoRw32](dmaHw.inte0.addr), irq0Save)
 
-  dmaHw.abort = 1'u32 shl channel
+  dmaHw.abort = 1'u32 shl channel.uint
 
   # To fence off on in-flight transfers, the BUSY bit should be polled
   # rather than the ABORT bit, because the ABORT bit can clear prematurely.
-  while (dmaHw.ch[channel].ctrlTrig and DMA_CH0_CTRL_TRIG_BUSY_BITS) != 0:
+  while (channel.chHw().ctrlTrig and DMA_CH0_CTRL_TRIG_BUSY_BITS) != 0:
     tightLoopContents()
 
   # Clear the interrupt (if any) and restore the interrupt masks.
-  dmaHw.ints0 = 1'u32 shl channel
+  dmaHw.ints0 = 1'u32 shl channel.uint
   hwSetBits(cast[IoRw32](dmaHw.inte0.addr), irq0Save)
 
 proc partialTeardown(self: var GalacticUnicorn) =
@@ -123,8 +123,8 @@ proc partialTeardown(self: var GalacticUnicorn) =
   const pinsToSet = 1 shl ColumnBlankPin.int or 0b1111 shl RowBit0Pin.int
   bitstreamPio.smSetPinsWithMask(bitstreamSm, pinsToSet, pinsToSet)
 
-  dmaHw.ch[dmaCtrlChannel].al1_ctrl = uint32 (dmaHw.ch[dmaCtrlChannel].al1_ctrl and not DMA_CH0_CTRL_TRIG_CHAIN_TO_BITS) or (dmaCtrlChannel shl DMA_CH0_CTRL_TRIG_CHAIN_TO_LSB)
-  dmaHw.ch[dmaChannel].al1_ctrl = uint32 (dmaHw.ch[dmaChannel].al1_ctrl and not DMA_CH0_CTRL_TRIG_CHAIN_TO_BITS) or (dmaChannel shl DMA_CH0_CTRL_TRIG_CHAIN_TO_LSB)
+  dmaCtrlChannel.chHw().al1_ctrl = uint32 (dmaCtrlChannel.chHw().al1_ctrl and not DMA_CH0_CTRL_TRIG_CHAIN_TO_BITS) or (dmaCtrlChannel.uint shl DMA_CH0_CTRL_TRIG_CHAIN_TO_LSB)
+  dmaChannel.chHw().al1_ctrl = uint32 (dmaChannel.chHw().al1_ctrl and not DMA_CH0_CTRL_TRIG_CHAIN_TO_BITS) or (dmaChannel.uint shl DMA_CH0_CTRL_TRIG_CHAIN_TO_LSB)
 
   # Abort any in-progress DMA transfer
   self.dmaSafeAbort(dmaCtrlChannel)
@@ -144,7 +144,7 @@ proc nextAudioSequence(self: var GalacticUnicorn) =
   discard
 
 proc dmaComplete() {.cdecl.} =
-  if unicorn != nil and dmaChannelGetIrq0Status(audioDmaChannel):
+  if unicorn != nil and audioDmaChannel.getIrq0Status():
     unicorn[].nextAudioSequence()
 
 proc init*(self: var GalacticUnicorn) =
@@ -275,32 +275,30 @@ proc init*(self: var GalacticUnicorn) =
   c.setFifoJoin(JoinTx)
 
   # setup dma transfer for pixel data to the pio
-  dmaChannel = dmaClaimUnusedChannel(true).uint32
-  dmaCtrlChannel = dmaClaimUnusedChannel(true).uint32
+  dmaChannel = dmaClaimUnusedChannel(true).DmaChannel
+  dmaCtrlChannel = dmaClaimUnusedChannel(true).DmaChannel
 
-  var ctrlConfig = dmaChannelGetDefaultConfig(dmaCtrlChannel)
-  ctrlConfig.addr.setTransferDataSize(DmaSize32)
-  ctrlConfig.addr.setReadIncrement(false)
-  ctrlConfig.addr.setWriteIncrement(false)
-  ctrlConfig.addr.setChainTo(dmaChannel)
+  var ctrlConfig = getDefaultConfig(dmaCtrlChannel)
+  addr(ctrlConfig).setTransferDataSize(DmaSize32)
+  addr(ctrlConfig).setReadIncrement(false)
+  addr(ctrlConfig).setWriteIncrement(false)
+  addr(ctrlConfig).setChainTo(dmaChannel)
 
-  dmaChannelConfigure(
-    dmaCtrlChannel,
+  dmaCtrlChannel.configure(
     ctrlConfig.addr,
-    dmaHw.ch[dmaChannel].readAddr.addr,
+    dmaChannel.chHw().read_addr.addr,
     self.bitstreamAddr.addr,
     1,
     false
   )
 
-  var config = dmaChannelGetDefaultConfig(dmaChannel)
-  config.addr.setTransferDataSize(DmaSize32)
-  config.addr.setBswap(false) # byte swap to reverse little endian
-  config.addr.setDreq(bitstreamPio.getDreq(bitstreamSm, true))
-  config.addr.setChainTo(dmaCtrlChannel)
+  var config = getDefaultConfig(dmaChannel)
+  addr(config).setTransferDataSize(DmaSize32)
+  addr(config).setBswap(false) # byte swap to reverse little endian
+  addr(config).setDreq(bitstreamPio.getDreq(bitstreamSm, true))
+  addr(config).setChainTo(dmaCtrlChannel)
 
-  dmaChannelConfigure(
-    dmaChannel,
+  dmaChannel.configure(
     config.addr,
     bitstreamPio.txf[bitstreamSm].addr,
     nil,
@@ -308,13 +306,12 @@ proc init*(self: var GalacticUnicorn) =
     false
   )
 
-
   bitstreamPio.init(bitstreamSm, bitstreamSmOffset, c)
 
   bitstreamPio.enable(bitstreamSm)
 
   # start the control channel
-  dmaStartChannelMask(1'u32 shl dmaCtrlChannel)
+  dmaCtrlChannel.start()
 
   # // setup audio pio program
   # audio_pio = pio0;
