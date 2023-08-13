@@ -199,9 +199,9 @@ proc begin*(self: var Bme68x; i2c: var I2c; address: I2cAddress = Bme68xI2cAddrH
   var res: int8 = 0
 
   if self.interrupt != GpioUnused:
-    gpioSetFunction(self.interrupt.Gpio, Sio)
-    gpioSetDir(self.interrupt.Gpio, In)
-    gpioPullUp(self.interrupt.Gpio)
+    self.interrupt.Gpio.setFunction(Sio)
+    self.interrupt.Gpio.setDir(In)
+    self.interrupt.Gpio.pullUp()
 
   self.i2cInterface.i2c = self.i2c
   self.i2cInterface.address = self.address
