@@ -29,7 +29,7 @@ task test, "Runs the test suite":
   # exec "piconim configure --project tests --source tests --board pico_w"
 
   # build and run mock tests
-  exec "nim c -r --skipParentCfg:on --hints:off tests/mock/tinky_frame resources/sample.jpg"
+  exec "nim c -r -d:release --opt:speed --skipParentCfg:on --hints:off tests/mock/tinky_frame resources/sample.jpg"
 
 task examples, "Build the examples":
   const examples = [
