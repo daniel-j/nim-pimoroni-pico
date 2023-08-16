@@ -3,7 +3,6 @@ import pimoroni_pico/libraries/inky_frame_mock
 import pimoroni_pico/libraries/pico_graphics/drawjpeg
 import pimoroni_pico/libraries/pico_graphics/error_diffusion
 
-
 proc drawHslChart(kind: InkyFrameKind; drawMode: DrawMode; matrix: ErrorDiffusionMatrix = ErrorDiffusionMatrix()) =
   echo "Drawing HSL chart..."
 
@@ -88,7 +87,7 @@ proc drawFile(filename: string; kind: InkyFrameKind; drawMode: DrawMode; matrix:
   jpegDecoder.colorModifier = proc (color: var Rgb) =
     color = color.saturate(1.3).contrast(1.1)
 
-  if jpegDecoder.drawJpeg(filename, x, y, w, h, gravity=(0.5f, 0.5f), drawMode) == 1:
+  if jpegDecoder.drawJpeg(filename, x, y, w, h, gravity=(0.5f, 0.5f), contains = false, drawMode) == 1:
     echo "Converting image..."
     inky.update()
     if matrix.s > 0:

@@ -142,7 +142,7 @@ proc init*(self: var JpegDecoder; graphics: var PicoGraphics) =
   self.graphics = graphics.addr
   self.errDiff = typeof(self.errDiff)(backend: autobackend(graphics))
 
-proc drawJpeg*(self: var JpegDecoder; filename: string; x, y: int = 0; w, h: int; gravity: tuple[x, y: float32] = (0.0f, 0.0f); drawMode: DrawMode = Default): int =
+proc drawJpeg*(self: var JpegDecoder; filename: string; x, y, w, h: int; gravity: tuple[x, y: float32] = (0.0f, 0.0f); contains: bool = true; drawMode: DrawMode = Default): int =
   if self.graphics.isNil:
     return 0
 
@@ -180,7 +180,6 @@ proc drawJpeg*(self: var JpegDecoder; filename: string; x, y: int = 0; w, h: int
       else: discard # horizontal
 
     # https://stackoverflow.com/questions/21961839/simulation-background-size-cover-in-canvas/45894506#45894506
-    let contains = true
     let boxRatio = self.w / self.h
     let imgRatio = self.jpegW / self.jpegH
     if (if contains: imgRatio > boxRatio else: imgRatio <= boxRatio):
