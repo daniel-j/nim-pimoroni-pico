@@ -357,6 +357,19 @@ func level*(self: Rgb; black: float32 = 0; white: float32 = 1; gamma: float32 = 
   result.g = (g * 255.0f).int16
   result.b = (b * 255.0f).int16
 
+func contrast*(self: Rgb; value: float32): Rgb =
+  var r = self.r.float32 / 255.0f
+  var g = self.g.float32 / 255.0f
+  var b = self.b.float32 / 255.0f
+
+  r = clamp((r - 0.5f) * value + 0.5f, 0, 1)
+  g = clamp((g - 0.5f) * value + 0.5f, 0, 1)
+  b = clamp((b - 0.5f) * value + 0.5f, 0, 1)
+
+  result.r = (r * 255.0f).int16
+  result.g = (g * 255.0f).int16
+  result.b = (b * 255.0f).int16
+
 func saturate*(self: Rgb; factor: float32): Rgb =
   var hsl = self.toHsl()
   hsl.s = clamp(hsl.s * factor, 0, 1)

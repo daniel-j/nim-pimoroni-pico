@@ -44,6 +44,8 @@ jpegDecoder.init(inky)
 jpegDecoder.errDiff.matrix = FloydSteinberg
 jpegDecoder.errDiff.alternateRow = false
 
+jpegDecoder.colorModifier = proc (color: var Rgb) =
+  color = color.saturate(1.3).contrast(1.1)
 
 proc drawFile(filename: string) =
   inky.led(LedActivity, 50)
@@ -99,7 +101,7 @@ proc inkyProc() =
     let startTime = getAbsoluteTime()
 
     var errDiff = ErrorDiffusion[inky](backend: autobackend(inky))
-    errDiff.init(inky, 0, 0, inky.width, inky.height, FloydSteinberg, alternateRow = true)
+    errDiff.init(inky, 0, 0, inky.width, inky.height, FloydSteinberg, alternateRow = false)
     errDiff.orientation = 0
     if errDiff.backend == ErrorDiffusionBackend.BackendPsram:
       errDiff.psramAddress = PsramAddress inky.width * inky.height

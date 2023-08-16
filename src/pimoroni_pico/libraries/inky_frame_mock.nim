@@ -29,11 +29,11 @@ const palette7_3 = [
 const palette5_7 = [
   Hsv(h: 180/360, s: 1.00, v: 0.20).toRgb().toLinear(paletteGamma), ##  black
   palette7_3[1], ##  white
-  Hsv(h: 90/360, s: 1.00, v: 0.65).toRgb().toLinear(paletteGamma), ##  green
+  Hsv(h: 90/360, s: 1.00, v: 0.60).toRgb().toLinear(paletteGamma), ##  green
   Hsv(h: 215/360, s: 0.70, v: 0.60).toRgb().toLinear(paletteGamma), ##  blue
-  Hsv(h:  20/360, s: 0.75, v: 0.80).toRgb().toLinear(paletteGamma), ##  red
-  palette7_3[5], ##  yellow
-  Hsv(h:  32/360, s: 0.65, v: 0.90).toRgb().toLinear(paletteGamma), ##  orange
+  Hsl(h:  20/360, s: 0.70, l: 0.50).toRgb().toLinear(paletteGamma), ##  red
+  Hsv(h:  47/360, s: 0.75, v: 0.90).toRgb().toLinear(paletteGamma), ##  yellow
+  Hsl(h:  32/360, s: 0.96, l: 0.60).toRgb().toLinear(paletteGamma), ##  orange
   Rgb(r: 245, g: 215, b: 191).toLinear(paletteGamma), ##  clean
 ]
 

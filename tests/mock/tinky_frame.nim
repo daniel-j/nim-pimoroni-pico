@@ -84,7 +84,9 @@ proc drawFile(filename: string; kind: InkyFrameKind; drawMode: DrawMode; matrix:
   jpegDecoder.init(inky)
 
   jpegDecoder.errDiff.matrix = matrix
-  jpegDecoder.errDiff.alternateRow = true
+  jpegDecoder.errDiff.alternateRow = false
+  jpegDecoder.colorModifier = proc (color: var Rgb) =
+    color = color.saturate(1.3).contrast(1.1)
 
   if jpegDecoder.drawJpeg(filename, x, y, w, h, gravity=(0.5f, 0.5f), drawMode) == 1:
     echo "Converting image..."

@@ -11,6 +11,8 @@ type
   DrawMode* = enum
     Default, OrderedDither, ErrorDiffusion
 
+  JpegColorModifier* = proc (color: var Rgb)
+
   JpegDecoder*[PGT: PicoGraphics] = object
     x, y, w, h: int
     jpegW, jpegH: int
@@ -21,6 +23,7 @@ type
     drawMode: DrawMode
     errDiff*: ErrorDiffusion[PGT]
     errDiffRow: seq[RgbLinear]
+    colorModifier*: JpegColorModifier
 
 proc jpegdecOpenCallback(filename: cstring, size: ptr int32): pointer {.cdecl.} =
   when not defined(mock):
@@ -108,6 +111,9 @@ proc getJpegdecDrawCallback(jpegDecoder: var JpegDecoder): auto =
         of 8: pos.y = self.y + imgW - 1 - (dx + x)
         else: pos.x = self.x + dx + x
 
+        if not self.colorModifier.isNil:
+          self.colorModifier(color)
+
         case self.drawMode:
         of Default:
           let pen = self.graphics[].createPenNearest(color.toLinear())
@@ -118,7 +124,7 @@ proc getJpegdecDrawCallback(jpegDecoder: var JpegDecoder): auto =
           self.graphics[].setPixelDither(pos, color.toLinear())
         of ErrorDiffusion:
           # color = color.level(gamma=1.1f)
-          self.errDiffRow[x] = color.toLinear()
+          self.errDiffRow[x] = color.toLinear(1.9)
 
         self.progress.inc()
 
