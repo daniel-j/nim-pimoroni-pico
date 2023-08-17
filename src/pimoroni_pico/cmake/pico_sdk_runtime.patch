@@ -14,17 +14,17 @@
  
 +// Pins to toggle on wakeup
 +#ifndef PICO_WAKEUP_PIN_MASK
-+#define PICO_WAKEUP_PIN_MASK ((0b1 << 2) | (0b1 << 6))
++#define PICO_WAKEUP_PIN_MASK 0 //((0b1 << 2) | (0b1 << 6))
 +#endif
 +
 +// Direction
 +#ifndef PICO_WAKEUP_PIN_DIR
-+#define PICO_WAKEUP_PIN_DIR ((0b1 << 2) | (0b1 << 6))
++#define PICO_WAKEUP_PIN_DIR 0 //((0b1 << 2) | (0b1 << 6))
 +#endif
 +
 +// Value
 +#ifndef PICO_WAKEUP_PIN_VALUE
-+#define PICO_WAKEUP_PIN_VALUE ((0b1 << 2) | (0b1 << 6))
++#define PICO_WAKEUP_PIN_VALUE 0 //((0b1 << 2) | (0b1 << 6))
 +#endif
 +
  extern char __StackLimit; /* Set by linker.  */

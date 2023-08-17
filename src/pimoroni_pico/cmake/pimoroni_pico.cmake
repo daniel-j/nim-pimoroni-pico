@@ -12,7 +12,7 @@ function(pico_sdk_patch_source filename patch_file target)
     -Dwork_dir:FILEPATH=${PICO_SDK_PATH}
     -P ${PIMORONI_PICO_DIR}/PatchFile.cmake
     OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/pico-sdk/${filename}
-    DEPENDS ${PICO_SDK_PATH}/${filename}
+    DEPENDS ${PIMORONI_PICO_DIR}/PatchFile.cmake ${PICO_SDK_PATH}/${filename} ${patch_file}
   )
 
   # Add patched source
@@ -24,4 +24,13 @@ function(pico_sdk_patch_source filename patch_file target)
   set_source_files_properties(${PICO_SDK_PATH}/${filename}
     PROPERTIES HEADER_FILE_ONLY ON)
 
+endfunction()
+
+
+function(pico_startup_pinmask target mask)
+  target_compile_definitions(${target} PRIVATE
+    PICO_WAKEUP_PIN_MASK=${mask}
+    PICO_WAKEUP_PIN_DIR=${mask}
+    PICO_WAKEUP_PIN_VALUE=${mask}
+  )
 endfunction()

@@ -4,6 +4,7 @@ import std/typetraits
 
 import picostdlib
 import picostdlib/pico/rand
+import picostdlib/pico/cyw43_arch
 
 import pimoroni_pico/libraries/pico_graphics/drawjpeg
 import pimoroni_pico/libraries/inky_frame
@@ -38,6 +39,16 @@ inky.init()
 inky.led(Led.LedActivity, 100)
 
 echo "Wake Up Events: ", inky.getWakeUpEvents()
+
+if cyw43ArchInit() == PicoOk:
+  echo "Initialized Cyw43"
+  if inky.isBatteryPowered():
+    echo "Running on battery!"
+    echo "VSYS voltage: ", inky.getBatteryVoltage(), " V"
+  else:
+    echo "Powered by VBUS. Voltage: ", inky.getBatteryVoltage(), " V"
+else:
+  echo "Could not initialize Cyw43"
 
 jpegDecoder.init(inky)
 
