@@ -44,8 +44,8 @@ jpegDecoder.init(inky)
 jpegDecoder.errDiff.matrix = FloydSteinberg
 jpegDecoder.errDiff.alternateRow = false
 
-jpegDecoder.colorModifier = proc (color: var Rgb) =
-  color = color.saturate(1.3).contrast(1.1)
+# jpegDecoder.colorModifier = proc (color: var Rgb) =
+#   color = color.contrast(1.1)
 
 proc drawFile(filename: string) =
   inky.led(LedActivity, 50)
@@ -97,7 +97,7 @@ proc inkyProc() =
 
   if EvtBtnA in inky.getWakeUpEvents():
     inky.led(LedA, 50)
-    echo "Drawing HSL chart..."
+    echo "Drawing LCh chart..."
     let startTime = getAbsoluteTime()
 
     var errDiff = ErrorDiffusion[inky](backend: autobackend(inky))
@@ -120,11 +120,11 @@ proc inkyProc() =
         p.x = x
         let xd = x.float32 / inky.width.float32
         let hue = xd
-        let color = inky.createPenHsl(hue, 1.0f, 1.02f - l * 1.04f)
-        #let color = LChToLab(1 - l, 0.15, hue).fromLab()
+        # let color = inky.createPenHsl(hue, 1.0f, 1.02f - l * 1.04f)
+        let color = LChToLab(1 - l, 0.5, hue * 360).fromLab()
         # inky.setPen(color)
         # inky.setPixel(p)
-        row[x] = color.level(black=0.05f, white=0.96f, gamma=1.4f).toLinear()
+        row[x] = color
       errDiff.write(0, y, row)
 
     errDiff.process()

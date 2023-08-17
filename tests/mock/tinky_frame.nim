@@ -4,7 +4,7 @@ import pimoroni_pico/libraries/pico_graphics/drawjpeg
 import pimoroni_pico/libraries/pico_graphics/error_diffusion
 
 proc drawHslChart(kind: InkyFrameKind; drawMode: DrawMode; matrix: ErrorDiffusionMatrix = ErrorDiffusionMatrix()) =
-  echo "Drawing HSL chart..."
+  echo "Drawing LCh chart..."
 
   var inky = InkyFrame(kind: kind)
   inky.init()
@@ -34,18 +34,17 @@ proc drawHslChart(kind: InkyFrameKind; drawMode: DrawMode; matrix: ErrorDiffusio
       p.x = x
       let xd = x / inky.width
       let hue = xd
-      var color = inky.createPenHsl(hue, 1.0, 1.02 - l * 1.04)
-      #let color = LChToLab(1 - l, 0.15, hue).fromLab()
+      # var color = inky.createPenHsl(hue, 1.0, 1.02 - l * 1.04)
+      var color = LChToLab(1 - l, 0.5, hue * 360).fromLab()
       case drawMode:
       of Default:
-        let pen = inky.createPenNearest(color.toLinear())
+        let pen = inky.createPenNearest(color)
         inky.setPen(pen)
         inky.setPixel(p)
       of OrderedDither:
-        color = color.level(black=0.05f, white=0.96f, gamma=1.4f) #.saturate(0.75f).level(black=0.03f, white=1.5f, gamma=defaultGamma)
-        inky.setPixelDither(p, color.toLinear())
+        inky.setPixelDither(p, color)
       of DrawMode.ErrorDiffusion:
-        row[x] = color.toLinear()
+        row[x] = color
     if drawMode == DrawMode.ErrorDiffusion:
       errDiff.write(0, y, row)
 
@@ -84,8 +83,8 @@ proc drawFile(filename: string; kind: InkyFrameKind; drawMode: DrawMode; matrix:
 
   jpegDecoder.errDiff.matrix = matrix
   jpegDecoder.errDiff.alternateRow = false
-  jpegDecoder.colorModifier = proc (color: var Rgb) =
-    color = color.saturate(1.3).contrast(1.1)
+  # jpegDecoder.colorModifier = proc (color: var Rgb) =
+  #   color = color.contrast(1.2)
 
   if jpegDecoder.drawJpeg(filename, x, y, w, h, gravity=(0.5f, 0.5f), contains = false, drawMode) == 1:
     echo "Converting image..."

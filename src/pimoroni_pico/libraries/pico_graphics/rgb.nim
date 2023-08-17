@@ -194,49 +194,49 @@ func clamp*(self: RgbLinear): RgbLinear =
   result.b = self.b.clamp(0, rgbMultiplier)
 
 # From https://github.com/makew0rld/dither/blob/master/color_spaces.go
-func linearize1*(v: float32; gamma: float32 = defaultGamma): float32 =
+func linearize1*(v: float; gamma: float = defaultGamma): float =
   assert v >= 0
-  if v <= 0.04045f:
-    return v / 12.92f
-  return ((v + 0.055f) / 1.055f).pow(gamma)
+  if v <= 0.04045:
+    return v / 12.92
+  return ((v + 0.055) / 1.055).pow(gamma)
 
-func delinearize1*(v: float32; gamma: float32 = defaultGamma): float32 =
+func delinearize1*(v: float; gamma: float = defaultGamma): float =
   assert v >= 0
-  if v <= 0.0031308f:
-    return v * 12.92f
-  return (v * 1.055f).pow(1.0f / gamma) - 0.055f
+  if v <= 0.0031308:
+    return v * 12.92
+  return (v * 1.055).pow(1.0 / gamma) - 0.055
 
-func generateRgbLinearCache(gamma: float32 = defaultGamma): array[256, RgbLinearComponent] {.compileTime.} =
+func generateRgbLinearCache(gamma: float = defaultGamma): array[256, RgbLinearComponent] {.compileTime.} =
   for i, _ in result:
     result[i] = RgbLinearComponent round((i / 255).linearize1(gamma) * rgbMultiplier)
 
 const rgbLinearCache = generateRgbLinearCache(defaultGamma)
 
 # From https://github.com/makew0rld/dither/blob/master/color_spaces.go
-func toLinear*(c: Rgb; gamma: float32 = defaultGamma; cheat = false): RgbLinear =
+func toLinear*(c: Rgb; gamma: float = defaultGamma; cheat = false): RgbLinear =
   if cheat:
-    result.r = RgbLinearComponent round((c.r.float32 / 255.0f).clamp(0, 1).pow(gamma) * rgbMultiplier)
-    result.g = RgbLinearComponent round((c.g.float32 / 255.0f).clamp(0, 1).pow(gamma) * rgbMultiplier)
-    result.b = RgbLinearComponent round((c.b.float32 / 255.0f).clamp(0, 1).pow(gamma) * rgbMultiplier)
+    result.r = RgbLinearComponent round((c.r.float / 255).clamp(0, 1).pow(gamma) * rgbMultiplier)
+    result.g = RgbLinearComponent round((c.g.float / 255).clamp(0, 1).pow(gamma) * rgbMultiplier)
+    result.b = RgbLinearComponent round((c.b.float / 255).clamp(0, 1).pow(gamma) * rgbMultiplier)
   else:
     if gamma != defaultGamma:
-      result.r = RgbLinearComponent round((c.r.float32 / 255.0f).clamp(0, 1).linearize1(gamma).clamp(0, 1) * rgbMultiplier)
-      result.g = RgbLinearComponent round((c.g.float32 / 255.0f).clamp(0, 1).linearize1(gamma).clamp(0, 1) * rgbMultiplier)
-      result.b = RgbLinearComponent round((c.b.float32 / 255.0f).clamp(0, 1).linearize1(gamma).clamp(0, 1) * rgbMultiplier)
+      result.r = RgbLinearComponent round((c.r.float / 255).clamp(0, 1).linearize1(gamma).clamp(0, 1) * rgbMultiplier)
+      result.g = RgbLinearComponent round((c.g.float / 255).clamp(0, 1).linearize1(gamma).clamp(0, 1) * rgbMultiplier)
+      result.b = RgbLinearComponent round((c.b.float / 255).clamp(0, 1).linearize1(gamma).clamp(0, 1) * rgbMultiplier)
     else:
       result.r = rgbLinearCache[c.r.clamp(0, 255)]
       result.g = rgbLinearCache[c.g.clamp(0, 255)]
       result.b = rgbLinearCache[c.b.clamp(0, 255)]
 
-func fromLinear*(c: RgbLinear; gamma: float32 = defaultGamma; cheat = false): Rgb =
+func fromLinear*(c: RgbLinear; gamma: float = defaultGamma; cheat = false): Rgb =
   if cheat:
-    result.r = int16 round(c.r.float32 / (rgbMultiplier.float32 / 255)).clamp(0, 255)
-    result.g = int16 round(c.g.float32 / (rgbMultiplier.float32 / 255)).clamp(0, 255)
-    result.b = int16 round(c.b.float32 / (rgbMultiplier.float32 / 255)).clamp(0, 255)
+    result.r = int16 round(c.r.float / (rgbMultiplier.float / 255)).clamp(0, 255)
+    result.g = int16 round(c.g.float / (rgbMultiplier.float / 255)).clamp(0, 255)
+    result.b = int16 round(c.b.float / (rgbMultiplier.float / 255)).clamp(0, 255)
   else:
-    result.r = int16 round((c.r.float32 / rgbMultiplier).clamp(0, 1).delinearize1(gamma).clamp(0, 1) * 255.0f)
-    result.g = int16 round((c.g.float32 / rgbMultiplier).clamp(0, 1).delinearize1(gamma).clamp(0, 1) * 255.0f)
-    result.b = int16 round((c.b.float32 / rgbMultiplier).clamp(0, 1).delinearize1(gamma).clamp(0, 1) * 255.0f)
+    result.r = int16 round((c.r.float / rgbMultiplier).clamp(0, 1).delinearize1(gamma).clamp(0, 1) * 255)
+    result.g = int16 round((c.g.float / rgbMultiplier).clamp(0, 1).delinearize1(gamma).clamp(0, 1) * 255)
+    result.b = int16 round((c.b.float / rgbMultiplier).clamp(0, 1).delinearize1(gamma).clamp(0, 1) * 255)
 
 # https://bottosson.github.io/posts/oklab/
 # See linear_srgb_to_oklab() and oklab_to_linear_srgb()
@@ -297,7 +297,7 @@ func deltaEOK*(col1, col2: Lab): float =
 
 # From https://github.com/makew0rld/dither/blob/master/dither.go
 # See sqDiff()
-func sqDiff(v1, v2: int32): uint64 =
+func sqDiff(v1, v2: int): uint64 =
   let d = (v1) - (v2)
   return uint64 (d * d) shr 2
 
@@ -375,9 +375,10 @@ func saturate*(self: Rgb; factor: float32): Rgb =
   hsl.s = clamp(hsl.s * factor, 0, 1)
   return hsl.toRgb()
 
-  # var lch = self.toLinear().toLab().toLch()
-  # lch.C *= factor
-  # return LChToLab(lch.L, lch.C, lch.h).fromLab().fromLinear()
+func saturate*(self: Lab; factor: float32): Lab =
+  var lch = self.toLch()
+  lch.C *= factor
+  return LChToLab(lch.L, lch.C, lch.h)
 
 
 func toRgb565*(self: Rgb): Rgb565 =

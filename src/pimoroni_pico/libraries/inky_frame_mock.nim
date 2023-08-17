@@ -16,25 +16,25 @@ const paletteGamma = 1.8
 # ]
 
 const palette7_3 = [
-  Hsv(h: 200/360, s: 0.80, v: 0.10).toRgb().toLinear(paletteGamma), ##  black
-  Hsv(h:  30/360, s: 0.10, v: 0.88).toRgb().toLinear(paletteGamma), ##  white
-  Hsv(h:  90/360, s: 1.00, v: 0.62).toRgb().toLinear(paletteGamma), ##  green
-  Hsv(h: 215/360, s: 0.60, v: 0.60).toRgb().toLinear(paletteGamma), ##  blue
-  Hsv(h:  20/360, s: 0.75, v: 0.80).toRgb().toLinear(paletteGamma), ##  red
-  Hsv(h:  53/360, s: 0.75, v: 0.90).toRgb().toLinear(paletteGamma), ##  yellow
-  Hsv(h:  24/360, s: 0.62, v: 0.87).toRgb().toLinear(paletteGamma), ##  orange
+  Hsl(h: 200/360, s: 0.67, l: 0.06).toRgb().toLinear(paletteGamma), ##  black
+  Hsl(h:  45/360, s: 0.20, l: 0.82).toRgb().toLinear(paletteGamma), ##  white
+  Hsl(h:  90/360, s: 1.00, l: 0.31).toRgb().toLinear(paletteGamma), ##  green
+  Hsl(h: 230/360, s: 0.15, l: 0.55).toRgb().toLinear(paletteGamma), ##  blue
+  Hsl(h:  20/360, s: 0.48, l: 0.55).toRgb().toLinear(paletteGamma), ##  red
+  Hsl(h:  47/360, s: 0.77, l: 0.60).toRgb().toLinear(paletteGamma), ##  yellow
+  Hsl(h:  30/360, s: 0.62, l: 0.65).toRgb().toLinear(paletteGamma), ##  orange
   constructRgb(255, 0, 255).toLinear(paletteGamma), ##  clean - do not use on inky7 as colour
 ]
 
 const palette5_7 = [
-  Hsv(h: 180/360, s: 1.00, v: 0.20).toRgb().toLinear(paletteGamma), ##  black
-  palette7_3[1], ##  white
-  Hsv(h: 90/360, s: 1.00, v: 0.55).toRgb().toLinear(paletteGamma), ##  green
-  Hsv(h: 215/360, s: 0.70, v: 0.60).toRgb().toLinear(paletteGamma), ##  blue
-  Hsl(h:  20/360, s: 0.70, l: 0.42).toRgb().toLinear(paletteGamma), ##  red
-  Hsv(h:  47/360, s: 0.75, v: 0.85).toRgb().toLinear(paletteGamma), ##  yellow
-  Hsl(h:  32/360, s: 0.96, l: 0.40).toRgb().toLinear(paletteGamma), ##  orange
-  Rgb(r: 245, g: 215, b: 191).toLinear(paletteGamma), ##  clean
+  Hsl(h: 180/360, s: 1.00, l: 0.15).toRgb().toLinear(paletteGamma), ##  black
+  Hsl(h:  45/360, s: 0.20, l: 0.82).toRgb().toLinear(paletteGamma), ##  white
+  Hsl(h: 140/360, s: 1.25, l: 0.28).toRgb().toLinear(paletteGamma), ##  green
+  Hsl(h: 230/360, s: 0.10, l: 0.48).toRgb().toLinear(paletteGamma), ##  blue
+  Hsl(h:  20/360, s: 0.45, l: 0.55).toRgb().toLinear(paletteGamma), ##  red
+  Hsl(h:  47/360, s: 0.65, l: 0.62).toRgb().toLinear(paletteGamma), ##  yellow
+  Hsl(h:  35/360, s: 0.85, l: 0.46).toRgb().toLinear(paletteGamma), ##  orange
+  constructRgb(245, 215, 191).toLinear(paletteGamma), ##  clean
 ]
 
 
