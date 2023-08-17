@@ -18,8 +18,8 @@ const paletteGamma = 1.8
 const palette7_3 = [
   Hsl(h: 200/360, s: 0.67, l: 0.06).toRgb().toLinear(paletteGamma), ##  black
   Hsl(h:  45/360, s: 0.20, l: 0.82).toRgb().toLinear(paletteGamma), ##  white
-  Hsl(h:  90/360, s: 1.00, l: 0.31).toRgb().toLinear(paletteGamma), ##  green
-  Hsl(h: 230/360, s: 0.15, l: 0.55).toRgb().toLinear(paletteGamma), ##  blue
+  Hsl(h: 120/360, s: 0.65, l: 0.35).toRgb().toLinear(paletteGamma), ##  green
+  Hsl(h: 230/360, s: 0.10, l: 0.55).toRgb().toLinear(paletteGamma), ##  blue
   Hsl(h:  20/360, s: 0.48, l: 0.55).toRgb().toLinear(paletteGamma), ##  red
   Hsl(h:  47/360, s: 0.77, l: 0.60).toRgb().toLinear(paletteGamma), ##  yellow
   Hsl(h:  30/360, s: 0.62, l: 0.65).toRgb().toLinear(paletteGamma), ##  orange

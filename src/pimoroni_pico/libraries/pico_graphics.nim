@@ -196,7 +196,7 @@ const PicoGraphicsPen3BitPalette7_3* = [
   LChToLab(0.50, 0.54,  35).saturate(saturation7_3).fromLab(), ##  red
   LChToLab(0.88, 0.55, 100).saturate(saturation7_3).fromLab(), ##  yellow
   LChToLab(0.61, 0.44,  62).saturate(saturation7_3).fromLab(), ##  orange
-  LChToLab(0.96, 0.00,  89).saturate(saturation7_3).fromLab(), ##  clean - do not use on inky7 as colour
+  LChToLab(0.98, 0.00,  90).saturate(saturation7_3).fromLab(), ##  clean - do not use on inky7 as colour
 ]
 
 const PicoGraphicsPen3BitPaletteLut7_3* = generateNearestCache(PicoGraphicsPen3BitPalette7_3[0..<7])
