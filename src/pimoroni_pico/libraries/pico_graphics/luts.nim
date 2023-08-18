@@ -18,7 +18,7 @@ const multiplier = rgbMultiplier * 1.0
 const
   cacheRedBits = 3
   cacheGreenBits = 3
-  cacheBlueBits = 2
+  cacheBlueBits = 3
 
 func genereateGammaLut*[T](bitdepth: static[uint]; size: static[uint]; gamma = defaultGamma): array[size, T] {.compileTime.} =
   let mult = float32 (1 shl bitdepth) - 1

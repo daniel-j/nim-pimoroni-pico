@@ -72,10 +72,12 @@ proc drawFile(filename: string; kind: InkyFrameKind; drawMode: DrawMode; matrix:
   inky.setPen(White)
   inky.clear()
 
-  let (x, y, w, h) = case inky.kind:
-    of InkyFrame4_0: (0, 0, inky.width, inky.height)
-    of InkyFrame5_7: (0, -1, 600, 450)
-    of InkyFrame7_3: (-27, 0, 854, 480)
+  # let (x, y, w, h) = case inky.kind:
+  #   of InkyFrame4_0: (0, 0, inky.width, inky.height)
+  #   of InkyFrame5_7: (0, -1, 600, 450)
+  #   of InkyFrame7_3: (-27, 0, 854, 480)
+
+  let (x, y, w, h) = (0, 0, inky.width, inky.height)
 
   echo "Decoding jpeg file ", filename, "..."
 
@@ -102,7 +104,7 @@ proc drawFile(filename: string; kind: InkyFrameKind; drawMode: DrawMode; matrix:
     echo "JPEGDEC error"
     return false
 
-const matrices = [FloydSteinberg, SierraLite]
+const matrices = [FloydSteinberg]
 const drawModes = [OrderedDither, ErrorDiffusion]
 
 for kind in InkyFrameKind:

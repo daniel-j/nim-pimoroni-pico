@@ -4,27 +4,27 @@ export pixie, pico_graphics
 
 const paletteGamma = 1.8
 
-# const palette = [
-#   hslToRgb(      0, 1.00, 0.00).toLinear(paletteGamma), ##  black
-#   hslToRgb(      0, 1.00, 1.00).toLinear(paletteGamma), ##  white
-#   hslToRgb(120/360, 0.90, 0.37).toLinear(paletteGamma), ##  green
-#   hslToRgb(260/360, 0.98, 0.43).toLinear(paletteGamma), ##  blue
-#   hslToRgb( 10/360, 0.98, 0.45).toLinear(paletteGamma), ##  red
-#   hslToRgb( 60/360, 1.00, 0.60).toLinear(paletteGamma), ##  yellow
-#   hslToRgb( 29/360, 0.95, 0.45).toLinear(paletteGamma), ##  orange
-#   hslToRgb(      0, 1.00, 1.00).toLinear(paletteGamma), ##  clean - do not use on inky7 as colour
-# ]
-
 const palette7_3 = [
-  Hsl(h: 200/360, s: 0.67, l: 0.06).toRgb().toLinear(paletteGamma), ##  black
+  Hsl(h: 200/360, s: 0.67, l: 0.15).toRgb().toLinear(paletteGamma), ##  black
   Hsl(h:  45/360, s: 0.20, l: 0.82).toRgb().toLinear(paletteGamma), ##  white
-  Hsl(h: 120/360, s: 0.65, l: 0.35).toRgb().toLinear(paletteGamma), ##  green
-  Hsl(h: 230/360, s: 0.10, l: 0.55).toRgb().toLinear(paletteGamma), ##  blue
-  Hsl(h:  20/360, s: 0.48, l: 0.55).toRgb().toLinear(paletteGamma), ##  red
-  Hsl(h:  47/360, s: 0.77, l: 0.60).toRgb().toLinear(paletteGamma), ##  yellow
-  Hsl(h:  30/360, s: 0.62, l: 0.65).toRgb().toLinear(paletteGamma), ##  orange
+  Hsl(h: 125/360, s: 0.65, l: 0.35).toRgb().toLinear(paletteGamma), ##  green
+  Hsl(h: 220/360, s: 0.15, l: 0.52).toRgb().toLinear(paletteGamma), ##  blue
+  Hsl(h:   7/360, s: 0.48, l: 0.60).toRgb().toLinear(paletteGamma), ##  red
+  Hsl(h:  50/360, s: 0.80, l: 0.60).toRgb().toLinear(paletteGamma), ##  yellow
+  Hsl(h:  28/360, s: 0.60, l: 0.57).toRgb().toLinear(paletteGamma), ##  orange
   constructRgb(255, 0, 255).toLinear(paletteGamma), ##  clean - do not use on inky7 as colour
 ]
+
+# const palette7_3 = [
+#   Hsv(h: 0, s: 0, v: 0).toRgb().toLinear(1.0), ##  black
+#   Hsv(h: 0, s: 0, v: 1).toRgb().toLinear(1.0), ##  white
+#   Hsv(h: 121/360, s: 0.90, v: 0.53).toRgb().toLinear(1.0), ##  green
+#   Hsv(h: 230/360, s: 0.34, v: 0.63).toRgb().toLinear(1.0), ##  blue
+#   Hsv(h:   7/360, s: 0.61, v: 0.88).toRgb().toLinear(1.0), ##  red
+#   Hsv(h:  51/360, s: 0.80, v: 1.00).toRgb().toLinear(1.0), ##  yellow
+#   Hsv(h:  28/360, s: 0.76, v: 0.95).toRgb().toLinear(1.0), ##  orange
+#   constructRgb(255, 0, 255).toLinear(paletteGamma), ##  clean - do not use on inky7 as colour
+# ]
 
 const palette5_7 = [
   Hsl(h: 180/360, s: 1.00, l: 0.15).toRgb().toLinear(paletteGamma), ##  black

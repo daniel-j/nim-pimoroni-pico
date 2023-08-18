@@ -6,8 +6,8 @@ proc builtinBswap16(a: uint16): uint16 {.importc: "__builtin_bswap16", nodecl, n
 ## RGB
 ##
 
-const defaultGamma*: float32 = 2.2
-const rgbBits* = 10
+const defaultGamma*: float32 = 2.4
+const rgbBits* = 12
 const rgbMultiplier* = (1 shl rgbBits) - 1
 
 type
@@ -20,7 +20,7 @@ type
   RgbLinear* {.packed.} = object
     r*, g*, b*: RgbLinearComponent
   Lab* {.packed.} = object
-    L*, a*, b*: float32
+    L*, a*, b*: float64
   Hsv* {.packed.} = object
     h*, s*, v*: float32
   Hsl* {.packed.} = object
@@ -266,13 +266,13 @@ func fromLab*(c: Lab): RgbLinear =
   result.g = RgbLinearComponent round((-1.2684380046 * l3 + 2.6097574011 * m3 - 0.3413193965 * s3) * rgbMultiplier)
   result.b = RgbLinearComponent round((-0.0041960863 * l3 - 0.7034186147 * m3 + 1.7076147010 * s3) * rgbMultiplier)
 
-func LChToLab*(L, C, h: float32): Lab =
+func LChToLab*(L, C, h: float): Lab =
   result.L = L
   let rad = degToRad(h)
   result.a = 0.4 * C * cos(rad)
   result.b = 0.4 * C * sin(rad)
 
-func toLCh*(lab: Lab): tuple[L, C, h: float32] =
+func toLCh*(lab: Lab): tuple[L, C, h: float] =
   result.L = lab.L
   result.C = sqrt(lab.a * lab.a + lab.b * lab.b) / 0.4
   result.h = (arctan2(lab.b, lab.a).radToDeg() + 360) mod 360
@@ -375,7 +375,7 @@ func saturate*(self: Rgb; factor: float32): Rgb =
   hsl.s = clamp(hsl.s * factor, 0, 1)
   return hsl.toRgb()
 
-func saturate*(self: Lab; factor: float32): Lab =
+func saturate*(self: Lab; factor: float): Lab =
   var lch = self.toLch()
   lch.C *= factor
   return LChToLab(lch.L, lch.C, lch.h)

@@ -89,3 +89,5 @@ proc deflate*(self: var Rect; v: int32) =
   inc(self.y, v)
   dec(self.w, v * 2)
   dec(self.h, v * 2)
+
+func area*(self: Rect): int {.inline.} = self.w * self.h

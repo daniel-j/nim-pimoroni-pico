@@ -14,7 +14,10 @@ type
   JpegColorModifier* = proc (color: var Rgb)
 
   JpegDecoder*[PGT: PicoGraphics] = object
-    x, y, w, h: int
+    coords: Point
+    w, h: int
+    drawArea: Rect
+    cropArea: Rect
     jpegW, jpegH: int
     progress: int
     lastY: int
@@ -71,45 +74,52 @@ proc getJpegdecDrawCallback(jpegDecoder: var JpegDecoder): auto =
     let self = cast[ptr typeof(jpegDecoder)](draw.pUser)
     let p = cast[ptr UncheckedArray[uint16]](draw.pPixels)
 
-    let imgW = self.w
-    let imgH = self.h
+    let dx = (draw.x * self.w div self.jpegW)
+    let dy = (draw.y * self.h div self.jpegH)
+    let dw = ((draw.x + draw.iWidth) * self.w div self.jpegW) - dx
+    let dh = ((draw.y + draw.iHeight) * self.h div self.jpegH) - dy
+    let startx = max(self.cropArea.x - dx, 0)
+    let starty = max(self.cropArea.y - dy, 0)
+    let realdw = min(dx + dw, self.cropArea.w + self.cropArea.x) - dx
+    let realdh = min(dy + dh, self.cropArea.h + self.cropArea.y) - dy
 
-    let dx = (draw.x * imgW div self.jpegW)
-    let dy = (draw.y * imgH div self.jpegH)
-    let dw = ((draw.x + draw.iWidth) * imgW div self.jpegW) - dx
-    let dh = ((draw.y + draw.iHeight) * imgH div self.jpegH) - dy
-    let realdw = min(dx + dw, imgW) - dx
+    # echo (dw, realdw), (dh, realdh)
 
-    let lastProgress = (self.progress * 100) div (imgW * imgH)
+    let lastProgress = (self.progress * 100) div (self.drawArea.area())
 
     if self.drawMode == ErrorDiffusion and dw > self.errDiffRow.len:
       self.errDiffRow.setLen(dw + 1)
 
     var pos = Point()
 
-    for y in 0 ..< dh:
-      let symin = y * self.jpegH div imgH
-      if symin >= draw.iHeight: continue
+    for y in starty ..< realdh:
+      let symin = y * self.jpegH div self.h
+      # if symin >= draw.iHeight: continue
 
       case jpeg.getOrientation():
-      of 3: pos.y = self.y + imgH - 1 - (dy + y)
-      of 6: pos.x = self.x + imgH - 1 - (dy + y)
-      of 8: pos.x = self.x + (dy + y)
-      else: pos.y = self.y + dy + y
+      of 3: pos.y = self.coords.y + self.h - 1 - (dy + y)
+      of 6: pos.x = self.coords.x + self.h - 1 - (dy + y)
+      of 8: pos.x = self.coords.x + (dy + y)
+      else: pos.y = self.coords.y + dy + y
 
       let poffset = symin * draw.iWidth
 
-      for x in 0 ..< realdw:
-        let sxmin = x * self.jpegW div imgW
-        if sxmin >= draw.iWidth: continue
+      for x in startx ..< realdw:
+        let sxmin = x * self.jpegW div self.w
+        # if sxmin >= draw.iWidth: continue
 
         var color = constructRgb(Rgb565(p[poffset + sxmin]))
 
         case jpeg.getOrientation():
-        of 3: pos.x = self.x + imgW - 1 - (dx + x)
-        of 6: pos.y = self.y + (dx + x)
-        of 8: pos.y = self.y + imgW - 1 - (dx + x)
-        else: pos.x = self.x + dx + x
+        of 3: pos.x = self.coords.x + self.w - 1 - (dx + x)
+        of 6: pos.y = self.coords.y + (dx + x)
+        of 8: pos.y = self.coords.y + self.w - 1 - (dx + x)
+        else: pos.x = self.coords.x + dx + x
+
+        # if not self.drawArea.contains(pos):
+        #   self.graphics[].setPen(7)
+        #   self.graphics[].setPixel(pos)
+        #   continue
 
         if not self.colorModifier.isNil:
           self.colorModifier(color)
@@ -126,10 +136,11 @@ proc getJpegdecDrawCallback(jpegDecoder: var JpegDecoder): auto =
 
         self.progress.inc()
 
-      if self.drawMode == ErrorDiffusion:
-        self.errDiff.write(dx, dy + y, self.errDiffRow, realdw)
+      if self.drawMode == ErrorDiffusion and realdw > 0 and startx < realdw:
+        # echo (dx + startx - self.cropArea.x, dy + y - self.cropArea.y, startx, self.errDiffRow.len, realdw, dw)
+        self.errDiff.write(dx + startx - self.cropArea.x, dy + y - self.cropArea.y, self.errDiffRow[startx .. ^1], realdw)
 
-    let currentProgress = (self.progress * 100) div (imgW * imgH)
+    let currentProgress = (self.progress * 100) div (self.drawArea.area())
     if lastProgress != currentProgress:
       stdout.write($currentProgress & "%\r")
       stdout.flushFile()
@@ -144,8 +155,8 @@ proc drawJpeg*(self: var JpegDecoder; filename: string; x, y, w, h: int; gravity
   if self.graphics.isNil:
     return 0
 
-  self.x = x
-  self.y = y
+  self.coords.x = x
+  self.coords.y = y
   self.w = w
   self.h = h
   self.progress = 0
@@ -187,11 +198,18 @@ proc drawJpeg*(self: var JpegDecoder; filename: string; x, y, w, h: int; gravity
 
     case jpeg.getOrientation():
       of 6, 8: # vertical
-        self.x = ((w - self.h).float32 * gravity.x).int + x
-        self.y = ((h - self.w).float32 * gravity.y).int + y
+        self.coords.x = ((w - self.h).float32 * gravity.x).int + x
+        self.coords.y = ((h - self.w).float32 * gravity.y).int + y
+        self.drawArea.w = self.h
+        self.drawArea.h = self.w
       else: # horizontal
-        self.x = ((w - self.w).float32 * gravity.x).int + x
-        self.y = ((h - self.h).float32 * gravity.y).int + y
+        self.coords.x = ((w - self.w).float32 * gravity.x).int + x
+        self.coords.y = ((h - self.h).float32 * gravity.y).int + y
+        self.drawArea.w = self.w
+        self.drawArea.h = self.h
+
+    self.drawArea.x = self.coords.x
+    self.drawArea.y = self.coords.y
 
     var jpegScaleFactor = 0
     if self.jpegW > self.w * 8 and self.jpegH > self.h * 8:
@@ -209,13 +227,23 @@ proc drawJpeg*(self: var JpegDecoder; filename: string; x, y, w, h: int; gravity
 
     echo "- jpeg scale factor: ", jpegScaleFactor
     echo "- jpeg scaled dimensions: ", self.jpegW, "x", self.jpegH
-    echo "- drawing jpeg at ", (self.x, self.y)
+    echo "- drawing jpeg at ", (self.coords.x, self.coords.y)
     echo "- drawing size ", (self.w, self.h)
+
+    self.drawArea = self.graphics[].bounds.intersection(self.graphics[].clip.intersection(self.drawArea))
+
+    self.cropArea = case jpeg.getOrientation():
+      of 3: constructRect(self.w - self.drawArea.w - self.drawArea.x + self.coords.x, self.h - self.drawArea.h - self.drawArea.y + self.coords.y, self.drawArea.w, self.drawArea.h)
+      of 6: constructRect(self.drawArea.y - self.coords.y, self.drawArea.x - self.coords.x, self.drawArea.h, self.drawArea.w)
+      of 8: constructRect(self.w - self.drawArea.h - self.drawArea.y + self.coords.y, self.drawArea.x - self.coords.x, self.drawArea.h, self.drawArea.w)
+      else: constructRect(self.drawArea.x - self.coords.x, self.drawArea.y - self.coords.y, self.drawArea.w, self.drawArea.h)
+
+    echo (self.drawArea, self.cropArea)
 
     jpeg.setPixelType(RGB565_LITTLE_ENDIAN)
 
     if self.drawMode == ErrorDiffusion:
-      self.errDiff.init(self.graphics[], self.x, self.y, self.w, self.h, self.errDiff.matrix, self.errDiff.alternateRow)
+      self.errDiff.init(self.graphics[], self.drawArea.x, self.drawArea.y, self.cropArea.w, self.cropArea.h, self.errDiff.matrix, self.errDiff.alternateRow)
       self.errDiff.orientation = jpeg.getOrientation()
       if self.errDiff.backend == ErrorDiffusionBackend.BackendPsram:
         self.errDiff.psramAddress = PsramAddress self.graphics.bounds.w * self.graphics.bounds.h
