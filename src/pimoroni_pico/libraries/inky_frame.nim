@@ -6,8 +6,9 @@ import picostdlib/power
 
 import ../drivers/[eink_driver_wrapper, rtc_pcf85063a, shiftregister, fatfs, sdcard, psram_display]
 import ./pico_graphics
+import ../drivers/wakeup
 
-export options, pico_graphics, fatfs, sdcard, psram_display, Colour
+export options, pico_graphics, fatfs, sdcard, psram_display, Colour, rtc_pcf85063a, wakeup
 
 const
   PinHoldSysEn = 2.Gpio
@@ -39,7 +40,7 @@ const
 
   FlagEinkBusy = 0x07
 
-const sr = ShiftRegister (PinSrLatch, PinSrClock, PinSrOut, 8)
+const sr = ShiftRegister(pinClock: PinSrClock, pinLatch: PinSrLatch, pinOut: PinSrOut, bits: 8)
 
 type
   Led* = enum
@@ -76,7 +77,7 @@ type
   InkyFrame* = object of PicoGraphicsPen3Bit
     kind*: InkyFrameKind
     einkDriver: EinkDriver
-    rtc: RtcPcf85063a
+    rtc*: RtcPcf85063a
     width*, height*: int
     wakeUpEvents: set[WakeUpEvent]
 
@@ -109,23 +110,49 @@ proc detectInkyFrameModel*(): Option[InkyFrameKind] =
   elif switchLatch == Low and i2cInt == High: return some(InkyFrame5_7)
   elif switchLatch == Low and i2cInt == Low: return some(InkyFrame7_3)
 
+  sr.init()
+
 proc isBusy*(): bool =
   ## Check busy flag on shift register
   not sr.readBit(FlagEinkBusy)
 
 proc boot*(self: var InkyFrame) =
   # keep the pico awake by holding vsys_en high
-  gpioConfigure(PinHoldSysEn, Out, High)
+  if PinHoldSysEn notin wakeup.getGpioState():
+    gpioConfigure(PinHoldSysEn, Out, High)
 
   # setup the shift register
   sr.init()
 
+  var i2c: I2c
+  i2c.init(PinI2cSda, PinI2cScl)
+
+  # initialise the rtc
+  self.rtc.init(move i2c)
+  self.rtc.setClockOutput(coOff) # Turn off CLOCK_OUT
+  var rambyte = self.rtc.getRamByte()
+  if rambyte == 0:
+    self.rtc.reset()
+    rambyte.setBit(0)
+    self.rtc.setRamByte(rambyte)
+
+  # let bits = sr.read()
   # determine wake up event
-  let bits = sr.read()
-  self.wakeUpEvents = cast[set[WakeUpEvent]](bits.bitsliced(static WakeUpEvent.low.ord..WakeUpEvent.high.ord))
+  # self.wakeUpEvents = cast[set[WakeUpEvent]](bits.bitsliced(static WakeUpEvent.low.ord..WakeUpEvent.high.ord))
+  self.wakeUpEvents = cast[set[WakeUpEvent]](wakeup.getShiftState().bitsliced(static WakeUpEvent.low.ord..WakeUpEvent.high.ord))
+
   # there are other reasons a wake event can occur: connect power via usb,
   # connect a battery, or press the reset button. these cannot be
   # disambiguated so we don't attempt to report them
+
+  # setup led pwm
+  gpioConfigurePwm(PinLedA)
+  gpioConfigurePwm(PinLedB)
+  gpioConfigurePwm(PinLedC)
+  gpioConfigurePwm(PinLedD)
+  gpioConfigurePwm(PinLedE)
+  gpioConfigurePwm(PinLedActivity)
+  gpioConfigurePwm(PinLedConnection)
 
 proc init*(self: var InkyFrame) =
   (self.width, self.height) =
@@ -141,8 +168,8 @@ proc init*(self: var InkyFrame) =
     palette = if self.kind == InkyFrame7_3: PicoGraphicsPen3BitPalette7_3 else: PicoGraphicsPen3BitPalette5_7,
     # paletteSize = if self.kind == InkyFrame5_7: 8 else: 7 # clean colour is a greenish gradient on inky7, so avoid it
   )
-  self.cacheNearest = if self.kind == InkyFrame7_3: PicoGraphicsPen3BitPaletteLut7_3 else: PicoGraphicsPen3BitPaletteLut5_7
-  self.cacheNearestBuilt = true
+  # self.cacheNearest = if self.kind == InkyFrame7_3: PicoGraphicsPen3BitPaletteLut7_3 else: PicoGraphicsPen3BitPaletteLut5_7
+  # self.cacheNearestBuilt = true
 
   let pins = SpiPins(spi: PimoroniSpiDefaultInstance, cs: PinEinkCs, sck: PinClk, mosi: PinMosi, dc: PinEinkDc)
 
@@ -155,22 +182,6 @@ proc init*(self: var InkyFrame) =
     resetPin = PinEinkReset,
     isBusy,
     blocking = true)
-
-  var i2c: I2c
-  i2c.init(PinI2cSda, PinI2cScl)
-
-  # initialise the rtc
-  self.rtc.init(move i2c)
-  self.rtc.enableTimerInterrupt(false)
-
-  # setup led pwm
-  gpioConfigurePwm(PinLedA)
-  gpioConfigurePwm(PinLedB)
-  gpioConfigurePwm(PinLedC)
-  gpioConfigurePwm(PinLedD)
-  gpioConfigurePwm(PinLedE)
-  gpioConfigurePwm(PinLedActivity)
-  gpioConfigurePwm(PinLedConnection)
 
   # init adc for vsys reading
   adcInit()
@@ -193,11 +204,23 @@ proc led*(self: InkyFrame; led: Led; brightness: range[0.uint8..100.uint8]) =
   ## the 16-bit pwm channel. Brightness values are from 0 to 100.
   Gpio(led).setPwmLevel((pow(brightness.float / 100, 2.8) * 65535.0f + 0.5f).uint16)
 
+proc turnOff*(self: InkyFrame) =
+  sleepMs(100)
+  # release the vsys hold pin so that inky can go to sleep
+  PinHoldSysEn.init()
+  sleepMs(100)
+
+
 proc sleep*(self: var InkyFrame; wakeInMinutes: int = -1) =
   # Set an alarm to wake inky up in wake_in_minutes
   # Negative values means sleep without a wakeup timer (default)
 
-  self.rtc.clearAlarmFlag()
+  # self.rtc.clearAlarmFlag()
+  # self.rtc.clearTimerFlag()
+  # self.rtc.enableTimerInterrupt(false)
+  # self.rtc.enableAlarmInterrupt(false)
+  # self.rtc.unsetAlarm()
+  # self.rtc.unsetTimer()
 
   # Can't sleep beyond a month, so clamp the sleep to a 28 day maximum
   let minutes = min(40320, wakeInMinutes)
@@ -215,13 +238,15 @@ proc sleep*(self: var InkyFrame; wakeInMinutes: int = -1) =
       self.rtc.setAlarm(dt.second, dt.minute, dt.hour, dt.monthday)
       self.rtc.enableAlarmInterrupt(true)
 
-  # release the vsys hold pin so that inky can go to sleep
-  PinHoldSysEn.put(Low)
+  self.turnOff()
 
   # emulate sleep on usb power
   if minutes > 0:
-    echo "Sleeping for ", minutes, " minutes"
-    sleepMs(minutes.uint32 * 60 * 1000)
+    var minutesLeft = minutes
+    while minutesLeft > 0:
+      echo "Sleeping for ", minutesLeft, " minutes"
+      sleepMs(60 * 1000)
+      dec(minutesLeft)
   else:
     echo "Sleeping forever."
     while true:
@@ -235,8 +260,7 @@ proc sleepUntil*(self: var InkyFrame; second, minute, hour, day: int = -1) =
     self.rtc.setAlarm(second, minute, hour, day)
     self.rtc.enableAlarmInterrupt(true)
 
-  # release the vsys hold pin so that inky can go to sleep
-  PinHoldSysEn.put(Low)
+  self.turnOff()
 
   # TODO: Implement emulation of sleep using rtc
   echo "Sleeping forever."

@@ -40,6 +40,7 @@ task examples, "Build the examples":
 
     # Inky Frame
     "inky_frame/slideshow",
+    "inky_frame/sleepy_head"
   ]
 
   # exec "piconim configure --project examples --source examples --board pico"

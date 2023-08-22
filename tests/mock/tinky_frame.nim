@@ -4,7 +4,7 @@ import pimoroni_pico/libraries/pico_graphics/drawjpeg
 import pimoroni_pico/libraries/pico_graphics/error_diffusion
 
 proc drawHslChart(kind: InkyFrameKind; drawMode: DrawMode; matrix: ErrorDiffusionMatrix = ErrorDiffusionMatrix()) =
-  echo "Drawing LCh chart..."
+  echo "Drawing HSL/LCh chart..."
 
   var inky = InkyFrame(kind: kind)
   inky.init()
@@ -12,7 +12,9 @@ proc drawHslChart(kind: InkyFrameKind; drawMode: DrawMode; matrix: ErrorDiffusio
   var errDiff: ErrorDiffusion[inky]
   if drawMode == DrawMode.ErrorDiffusion:
     errDiff = ErrorDiffusion[inky](backend: autobackend(inky))
-    errDiff.init(inky, 0, 0, inky.width, inky.height, matrix, alternateRow = true)
+    errDiff.init(inky, 0, 0, inky.width, inky.height, matrix)
+    errDiff.alternateRow = false
+    errDiff.hybridDither = false
     errDiff.orientation = 0
     if errDiff.backend == ErrorDiffusionBackend.BackendPsram:
       errDiff.psramAddress = PsramAddress inky.width * inky.height
@@ -33,9 +35,11 @@ proc drawHslChart(kind: InkyFrameKind; drawMode: DrawMode; matrix: ErrorDiffusio
     for x in 0..<inky.width:
       p.x = x
       let xd = x / inky.width
-      let hue = xd
-      # var color = inky.createPenHsl(hue, 1.0, 1.02 - l * 1.04)
-      var color = LChToLab(1 - l, 0.5, hue * 360).fromLab()
+      let hue = xd * 2
+      var color = if xd < 0.5:
+        inky.createPenHsl(hue, 1.0, 1.02 - l * 1.04)
+      else:
+        LChToLab(1 - l, 0.5, hue * 360).fromLab()
       case drawMode:
       of Default:
         let pen = inky.createPenNearest(color)
@@ -85,6 +89,7 @@ proc drawFile(filename: string; kind: InkyFrameKind; drawMode: DrawMode; matrix:
 
   jpegDecoder.errDiff.matrix = matrix
   jpegDecoder.errDiff.alternateRow = false
+  jpegDecoder.errDiff.hybridDither = false
   # jpegDecoder.colorModifier = proc (color: var Rgb) =
   #   color = color.contrast(1.2)
 

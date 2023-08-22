@@ -10,13 +10,14 @@ import pimoroni_pico/libraries/pico_graphics/drawjpeg
 import pimoroni_pico/libraries/inky_frame
 import pimoroni_pico/libraries/pico_graphics/error_diffusion
 
+
 var inky: InkyFrame
 inky.boot()
 
+discard stdioInitAll()
+
 var fs: FATFS
 var jpegDecoder: JpegDecoder[PicoGraphicsPen3Bit]
-
-discard stdioInitAll()
 
 let m = detectInkyFrameModel()
 if m.isSome:
@@ -30,9 +31,6 @@ const inkyKind {.strdefine.} = "Unknown inkyKind"
 let inkyKindEnum = parseEnum[InkyFrameKind](inkyKind, m.get())
 
 inky.kind = inkyKindEnum
-
-# blockUntilUsbConnected()
-sleepMs(2000)
 
 inky.init()
 
@@ -54,6 +52,7 @@ jpegDecoder.init(inky)
 
 jpegDecoder.errDiff.matrix = FloydSteinberg
 jpegDecoder.errDiff.alternateRow = false
+jpegDecoder.errDiff.hybridDither = false
 
 # jpegDecoder.colorModifier = proc (color: var Rgb) =
 #   color = color.contrast(1.1)
@@ -108,11 +107,13 @@ proc inkyProc() =
 
   if EvtBtnA in inky.getWakeUpEvents():
     inky.led(LedA, 50)
-    echo "Drawing LCh chart..."
+    echo "Drawing HSL/LCh chart..."
     let startTime = getAbsoluteTime()
 
     var errDiff = ErrorDiffusion[inky](backend: autobackend(inky))
-    errDiff.init(inky, 0, 0, inky.width, inky.height, FloydSteinberg, alternateRow = false)
+    errDiff.init(inky, 0, 0, inky.width, inky.height, FloydSteinberg)
+    errDiff.alternateRow = false
+    errDiff.hybridDither = false
     errDiff.orientation = 0
     if errDiff.backend == ErrorDiffusionBackend.BackendPsram:
       errDiff.psramAddress = PsramAddress inky.width * inky.height
@@ -129,10 +130,12 @@ proc inkyProc() =
       let l = yd
       for x in 0..<inky.width:
         p.x = x
-        let xd = x.float32 / inky.width.float32
-        let hue = xd
-        # let color = inky.createPenHsl(hue, 1.0f, 1.02f - l * 1.04f)
-        let color = LChToLab(1 - l, 0.5, hue * 360).fromLab()
+        let xd = x / inky.width
+        let hue = xd * 2
+        var color = if xd < 0.5:
+          inky.createPenHsl(hue, 1.0, 1.02 - l * 1.04)
+        else:
+          LChToLab(1 - l, 0.5, hue * 360).fromLab()
         # inky.setPen(color)
         # inky.setPixel(p)
         row[x] = color
@@ -165,7 +168,7 @@ proc inkyProc() =
 
       inky.setPen(Black)
       inky.circle(p, size)
-      var color = inky.createPenHsl(rand(1.0f).float32, 0.5f + rand(0.5f).float32, 0.25f + rand(0.5f).float32)
+      var color = inky.createPenHsl(rand(1.0f).float32, 0.5f + rand(0.5f).float32, 0.25f + rand(0.5f).float32).fromLinear()
       color = color.saturate(1.50f).level(black=0.05f, white=0.97f, gamma=1.8f)
       inky.setPen(color)
       # inky.setPen(uint 2 + rand(4))
@@ -223,7 +226,7 @@ proc inkyProc() =
       var p2 = p1 + Point(x: size, y: size)
       var p3 = p1 + Point(x: -size, y: size)
 
-      inky.setPen(inky.createPenHsl(rand(1.0f).float32, 0.5f + rand(0.5f).float32, 0.25f + rand(0.5f).float32))
+      inky.setPen(inky.createPenHsl(rand(1.0f).float32, 0.5f + rand(0.5f).float32, 0.25f + rand(0.5f).float32).fromLinear())
       # inky.setPen(uint 2 + rand(4))
       inky.triangle(p1, p2, p3)
 
@@ -237,7 +240,7 @@ proc inkyProc() =
       var p1 = Point(x: x - rand(size), y: y - rand(size))
       var p2 = Point(x: x + rand(size), y: y + rand(size))
 
-      inky.setPen(inky.createPenHsl(rand(1.0f).float32, 0.5f + rand(0.5f).float32, 0.25f + rand(0.5).float32))
+      inky.setPen(inky.createPenHsl(rand(1.0f).float32, 0.5f + rand(0.5f).float32, 0.25f + rand(0.5).float32).fromLinear())
       # inky.setPen(uint 2 + rand(4))
       inky.thickLine(p1, p2, thickness)
 

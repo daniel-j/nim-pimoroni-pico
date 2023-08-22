@@ -1,8 +1,11 @@
 import std/bitops
+import picostdlib/pico/time
 import picostdlib/hardware/gpio
 
 type
-  ShiftRegister* = tuple[pinLatch, pinClock, pinOut: Gpio; bits: int]
+  ShiftRegister* = object
+    pinClock*, pinLatch*, pinOut*: Gpio
+    bits*: int
 
 proc gpioConfigure(gpio: Gpio; dir: Direction; value: Value = Low) =
   gpio.setFunction(Sio)
@@ -14,18 +17,25 @@ proc init*(self: ShiftRegister) =
   gpioConfigure(self.pinLatch, Out, High)
   gpioConfigure(self.pinOut, In)
 
+proc deinit*(self: ShiftRegister) =
+  self.pinClock.init()
+  self.pinLatch.init()
+  self.pinOut.init()
+
 proc read*(self: ShiftRegister): uint =
+  # self.init()
   self.pinLatch.put(Low)
-  asm "NOP;"
+  sleepUs(1)
   self.pinLatch.put(High)
-  asm "NOP;"
+  sleepUs(1)
+  result = 0
   for i in countdown(self.bits - 1, 0):
+    self.pinClock.put(Low)
+    sleepUs(1)
     if self.pinOut.get() == High:
       result.setBit(i)
-    self.pinClock.put(Low)
-    asm "NOP;"
     self.pinClock.put(High)
-    asm "NOP;"
+    sleepUs(1)
 
 proc readBit*(self: ShiftRegister; index: uint): bool =
   self.read().int.testBit(index)

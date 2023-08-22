@@ -69,61 +69,94 @@ proc jpegdecSeekCallback(jpeg: ptr JPEGFILE, p: int32): int32 {.cdecl.} =
     file[].setFilePos(p)
     return 1
 
-proc getJpegdecDrawCallback(jpegDecoder: var JpegDecoder): auto =
-  return proc (draw: ptr JPEGDRAW): cint {.cdecl.} =
-    let self = cast[ptr typeof(jpegDecoder)](draw.pUser)
-    let p = cast[ptr UncheckedArray[uint16]](draw.pPixels)
+proc drawScaled(self: var JpegDecoder; draw: ptr JPEGDRAW): int =
+  let p = cast[ptr UncheckedArray[uint16]](draw.pPixels)
 
-    let dx = (draw.x * self.w div self.jpegW)
-    let dy = (draw.y * self.h div self.jpegH)
-    let dw = ((draw.x + draw.iWidth) * self.w div self.jpegW) - dx
-    let dh = ((draw.y + draw.iHeight) * self.h div self.jpegH) - dy
-    let startx = max(self.cropArea.x - dx, 0)
-    let starty = max(self.cropArea.y - dy, 0)
-    let realdw = min(dx + dw, self.cropArea.w + self.cropArea.x) - dx
-    let realdh = min(dy + dh, self.cropArea.h + self.cropArea.y) - dy
+  let dx = (draw.x * self.w div self.jpegW)
+  let dy = (draw.y * self.h div self.jpegH)
+  let dw = ((draw.x + draw.iWidth) * self.w div self.jpegW) - dx
+  let dh = ((draw.y + draw.iHeight) * self.h div self.jpegH) - dy
+  let startx = max(self.cropArea.x - dx, 0)
+  let starty = max(self.cropArea.y - dy, 0)
+  let realdw = min(dx + dw, self.cropArea.w + self.cropArea.x) - dx
+  let realdh = min(dy + dh, self.cropArea.h + self.cropArea.y) - dy
 
-    # echo (dw, realdw), (dh, realdh)
+  # echo (dw, realdw), (dh, realdh)
 
-    let lastProgress = (self.progress * 100) div (self.drawArea.area())
+  let lastProgress = (self.progress * 100) div (self.drawArea.area())
 
-    if self.drawMode == ErrorDiffusion and dw > self.errDiffRow.len:
-      self.errDiffRow.setLen(dw + 1)
+  if self.drawMode == ErrorDiffusion and dw > self.errDiffRow.len:
+    self.errDiffRow.setLen(dw + 1)
 
-    var pos = Point()
+  var pos = Point()
 
-    for y in starty ..< realdh:
-      let symin = y * self.jpegH div self.h
-      # if symin >= draw.iHeight: continue
+  for y in starty ..< realdh:
+    let symin = y * self.jpegH div self.h
+    # if symin >= draw.iHeight: continue
+
+    case jpeg.getOrientation():
+    of 3: pos.y = self.coords.y + self.h - 1 - (dy + y)
+    of 6: pos.x = self.coords.x + self.h - 1 - (dy + y)
+    of 8: pos.x = self.coords.x + (dy + y)
+    else: pos.y = self.coords.y + dy + y
+
+    let poffset = symin * draw.iWidth
+
+    for x in startx ..< realdw:
+      let sxmin = x * self.jpegW div self.w
+      # if sxmin >= draw.iWidth: continue
+
+      var color = constructRgb(Rgb565(p[poffset + sxmin]))
+      # color = color.getCacheKey().getCacheColor()
 
       case jpeg.getOrientation():
-      of 3: pos.y = self.coords.y + self.h - 1 - (dy + y)
-      of 6: pos.x = self.coords.x + self.h - 1 - (dy + y)
-      of 8: pos.x = self.coords.x + (dy + y)
-      else: pos.y = self.coords.y + dy + y
+      of 3: pos.x = self.coords.x + self.w - 1 - (dx + x)
+      of 6: pos.y = self.coords.y + (dx + x)
+      of 8: pos.y = self.coords.y + self.w - 1 - (dx + x)
+      else: pos.x = self.coords.x + dx + x
 
-      let poffset = symin * draw.iWidth
+      # if not self.drawArea.contains(pos):
+      #   self.graphics[].setPen(7)
+      #   self.graphics[].setPixel(pos)
+      #   continue
 
-      for x in startx ..< realdw:
-        let sxmin = x * self.jpegW div self.w
-        # if sxmin >= draw.iWidth: continue
+      if not self.colorModifier.isNil:
+        self.colorModifier(color)
 
-        var color = constructRgb(Rgb565(p[poffset + sxmin]))
+      case self.drawMode:
+      of Default:
+        let pen = self.graphics[].createPenNearest(color.toLinear())
+        self.graphics[].setPen(pen)
+        self.graphics[].setPixel(pos)
+      of OrderedDither:
+        self.graphics[].setPixelDither(pos, color.toLinear())
+      of ErrorDiffusion:
+        self.errDiffRow[x] = color.toLinear()
 
-        case jpeg.getOrientation():
-        of 3: pos.x = self.coords.x + self.w - 1 - (dx + x)
-        of 6: pos.y = self.coords.y + (dx + x)
-        of 8: pos.y = self.coords.y + self.w - 1 - (dx + x)
-        else: pos.x = self.coords.x + dx + x
+      self.progress.inc()
 
-        # if not self.drawArea.contains(pos):
-        #   self.graphics[].setPen(7)
-        #   self.graphics[].setPixel(pos)
-        #   continue
+    if self.drawMode == ErrorDiffusion and realdw > 0 and startx < realdw:
+      # echo (dx + startx - self.cropArea.x, dy + y - self.cropArea.y, startx, self.errDiffRow.len, realdw, dw)
+      self.errDiff.write(dx + startx - self.cropArea.x, dy + y - self.cropArea.y, self.errDiffRow[startx ..< realdw])
 
-        if not self.colorModifier.isNil:
-          self.colorModifier(color)
+  let currentProgress = (self.progress * 100) div (self.drawArea.area())
+  if lastProgress != currentProgress:
+    stdout.write($currentProgress & "%\r")
+    stdout.flushFile()
 
+  return 1
+
+proc drawFast(self: var JpegDecoder; draw: ptr JPEGDRAW): int =
+  let p = cast[ptr UncheckedArray[uint16]](draw.pPixels)
+  let lastProgress = (self.progress * 100) div (self.jpegW * self.jpegH)
+
+  for y in 0 ..< draw.iHeight:
+    for x in 0 ..< draw.iWidth:
+      if x >= draw.iWidthUsed: break  # Clip to the used width
+      let i = y * draw.iWidth + x
+      if draw.iBpp == 16:
+        var color = constructRgb(Rgb565(p[i]))
+        let pos = Point(x: draw.x + x, y: draw.y + y)
         case self.drawMode:
         of Default:
           let pen = self.graphics[].createPenNearest(color.toLinear())
@@ -132,20 +165,19 @@ proc getJpegdecDrawCallback(jpegDecoder: var JpegDecoder): auto =
         of OrderedDither:
           self.graphics[].setPixelDither(pos, color.toLinear())
         of ErrorDiffusion:
-          self.errDiffRow[x] = color.toLinear()
+          discard
+      self.progress.inc()
 
-        self.progress.inc()
+  let currentProgress = (self.progress * 100) div (self.jpegW * self.jpegH)
+  if lastProgress != currentProgress:
+    stdout.write($currentProgress & "%\r")
+    stdout.flushFile()
 
-      if self.drawMode == ErrorDiffusion and realdw > 0 and startx < realdw:
-        # echo (dx + startx - self.cropArea.x, dy + y - self.cropArea.y, startx, self.errDiffRow.len, realdw, dw)
-        self.errDiff.write(dx + startx - self.cropArea.x, dy + y - self.cropArea.y, self.errDiffRow[startx .. ^1], realdw)
+  return 1
 
-    let currentProgress = (self.progress * 100) div (self.drawArea.area())
-    if lastProgress != currentProgress:
-      stdout.write($currentProgress & "%\r")
-      stdout.flushFile()
+proc jpegdecDrawCallback[T](draw: ptr JPEGDRAW): cint {.cdecl.} =
+  return cast[var T](draw.pUser).drawScaled(draw).cint
 
-    return 1
 
 proc init*(self: var JpegDecoder; graphics: var PicoGraphics) =
   self.graphics = graphics.addr
@@ -171,7 +203,7 @@ proc drawJpeg*(self: var JpegDecoder; filename: string; x, y, w, h: int; gravity
     jpegdecCloseCallback,
     jpegdecReadCallback,
     jpegdecSeekCallback,
-    self.getJpegdecDrawCallback()
+    jpegdecDrawCallback[typeof(self)]
   )
   jpeg.setUserPointer(self.addr)
 
@@ -243,7 +275,7 @@ proc drawJpeg*(self: var JpegDecoder; filename: string; x, y, w, h: int; gravity
     jpeg.setPixelType(RGB565_LITTLE_ENDIAN)
 
     if self.drawMode == ErrorDiffusion:
-      self.errDiff.init(self.graphics[], self.drawArea.x, self.drawArea.y, self.cropArea.w, self.cropArea.h, self.errDiff.matrix, self.errDiff.alternateRow)
+      self.errDiff.init(self.graphics[], self.drawArea.x, self.drawArea.y, self.cropArea.w, self.cropArea.h, self.errDiff.matrix)
       self.errDiff.orientation = jpeg.getOrientation()
       if self.errDiff.backend == ErrorDiffusionBackend.BackendPsram:
         self.errDiff.psramAddress = PsramAddress self.graphics.bounds.w * self.graphics.bounds.h

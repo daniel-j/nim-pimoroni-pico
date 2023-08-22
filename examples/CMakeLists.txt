@@ -51,8 +51,8 @@ include(${PICOSTDLIB_DIR}/picostdlib/cmake/picostdlib.cmake)
 include(${CMAKE_CURRENT_LIST_DIR}/../src/pimoroni_pico/cmake/pimoroni_pico.cmake)
 
 # Pico SDK patches needed
-pico_sdk_patch_source("src/rp2_common/pico_standard_link/crt0.S" "${PIMORONI_PICO_DIR}/pico_sdk_crt0.patch" pico_standard_link)
-pico_sdk_patch_source("src/rp2_common/pico_runtime/runtime.c" "${PIMORONI_PICO_DIR}/pico_sdk_runtime.patch" pico_runtime)
+# pico_sdk_patch_source("src/rp2_common/pico_standard_link/crt0.S" "${PIMORONI_PICO_DIR}/pico_sdk_crt0.patch" pico_standard_link)
+# pico_sdk_patch_source("src/rp2_common/pico_runtime/runtime.c" "${PIMORONI_PICO_DIR}/pico_sdk_runtime.patch" pico_runtime)
 
 
 function(add_example target name)
@@ -103,5 +103,7 @@ else()
 
   # Inky Frame
   add_example(inky_frame_slideshow slideshow)
-  pico_startup_pinmask(inky_frame_slideshow "((0b1 << 2) | (0b1 << 6))")
+  # pico_startup_pinmask(inky_frame_slideshow "((0b1 << 2) | (0b1 << 6))")
+  add_example(inky_frame_sleepy_head sleepy_head)
+  # pico_startup_pinmask(inky_frame_sleepy_head "((0b1 << 2) | (0b1 << 6))")
 endif()

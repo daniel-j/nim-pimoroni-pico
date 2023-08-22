@@ -182,18 +182,22 @@ type
   PicoGraphicsPen3Bit* = object of PicoGraphicsBase
     color*: uint
     palette: array[8, RgbLinear]
+    paletteLuminance: array[8, int8]
     paletteSize: uint8
-    cacheNearest*: array[colorCacheSize, uint8]
+    cacheNearest*: NearestColorCache
     cacheNearestBuilt*: bool
+    when not ditherGenerateCache:
+      ditherCandidateCache*: array[ditherPatternLength, uint8]
+      ditherCandidateColor*: RgbLinear
 
 const luma7_3 = 1/1.05
 const sat7_3 = 1/1.5
 
 const PicoGraphicsPen3BitPalette7_3* = [
-  LChToLab(luma7_3 * 0.03, sat7_3 * 0.20,  90).fromLab(), ##  black
-  LChToLab(luma7_3 * 0.99, sat7_3 * 0.10,  40).fromLab(), ##  white
+  LChToLab(0.03, sat7_3 * 0.00,  90).fromLab(), ##  black
+  LChToLab(0.99, sat7_3 * 0.00,  40).fromLab(), ##  white
   LChToLab(luma7_3 * 0.53, sat7_3 * 0.65, 150).fromLab(), ##  green
-  LChToLab(luma7_3 * 0.52, sat7_3 * 0.44, 260).fromLab(), ##  blue
+  LChToLab(luma7_3 * 0.52, sat7_3 * 0.52, 265).fromLab(), ##  blue
   LChToLab(luma7_3 * 0.55, sat7_3 * 0.65,  30).fromLab(), ##  red
   LChToLab(luma7_3 * 0.90, sat7_3 * 0.70, 110).fromLab(), ##  yellow
   LChToLab(luma7_3 * 0.65, sat7_3 * 0.68,  60).fromLab(), ##  orange
@@ -211,30 +215,31 @@ const PicoGraphicsPen3BitPalette7_3* = [
 #   LChToLab(1.00, 0.00, 139).saturate(saturation7_3).fromLab(), ##  clean - do not use on inky7 as colour
 # ]
 
-const PicoGraphicsPen3BitPaletteLut7_3* = generateNearestCache(PicoGraphicsPen3BitPalette7_3[0..<7])
+# const PicoGraphicsPen3BitPaletteLut7_3* = generateNearestCache(PicoGraphicsPen3BitPalette7_3[0..<7])
 
-const saturation5_7 = 1/1.20
+const luma5_7 = 1/1.15
+const sat5_7 = 1/1.5
 
 const PicoGraphicsPen3BitPalette5_7* = [
-  LChToLab(0.05, 0.00,  90).saturate(saturation5_7).fromLab(), ##  black
-  LChToLab(0.98, 0.00,  90).saturate(saturation5_7).fromLab(), ##  white
-  LChToLab(0.60, 0.90, 130).saturate(saturation5_7).fromLab(), ##  green
-  LChToLab(0.52, 0.35, 265).saturate(saturation5_7).fromLab(), ##  blue
-  LChToLab(0.52, 0.55,  30).saturate(saturation5_7).fromLab(), ##  red
-  LChToLab(0.88, 0.52, 100).saturate(saturation5_7).fromLab(), ##  yellow
-  LChToLab(0.60, 0.55,  35).saturate(saturation5_7).fromLab(), ##  orange
-  LChToLab(0.92, 0.13,  50).saturate(saturation5_7).fromLab(), ##  clean
+  LChToLab(0.03, sat5_7 * 0.00,  90).fromLab(), ##  black
+  LChToLab(0.99, sat5_7 * 0.00,  90).fromLab(), ##  white
+  LChToLab(luma5_7 * 0.62, sat5_7 * 0.88, 135).fromLab(), ##  green
+  LChToLab(luma5_7 * 0.55, sat5_7 * 0.45, 260).fromLab(), ##  blue
+  LChToLab(luma5_7 * 0.50, sat5_7 * 0.70,  30).fromLab(), ##  red
+  LChToLab(0.88, sat5_7 * 0.52, 100).fromLab(), ##  yellow
+  LChToLab(luma5_7 * 0.65, sat5_7 * 0.65,  40).fromLab(), ##  orange
+  LChToLab(luma5_7 * 0.92, sat5_7 * 0.13,  50).fromLab(), ##  clean
 ]
 
-const PicoGraphicsPen3BitPaletteLut5_7* = generateNearestCache(PicoGraphicsPen3BitPalette5_7[0..<7])
+# const PicoGraphicsPen3BitPaletteLut5_7* = generateNearestCache(PicoGraphicsPen3BitPalette5_7[0..<7])
 
 static:
   echo "Inky Frame 7.3\" palette:"
   for c in PicoGraphicsPen3BitPalette7_3:
-    echo c
+    echo c.fromLinear()
   echo "Inky Frame 5.7\" palette:"
   for c in PicoGraphicsPen3BitPalette5_7:
-    echo c
+    echo c.fromLinear()
 
 
 const RGB_FLAG*: uint = 0x7f000000
@@ -251,6 +256,8 @@ proc init*(self: var PicoGraphicsPen3Bit; width: uint16; height: uint16; backend
   self.palette = palette
   self.setPaletteSize(paletteSize)
   self.cacheNearestBuilt = false
+  for i, c in palette:
+    self.paletteLuminance[i] = int8 c.toLab().L * 100
   case self.backend:
   of BackendMemory:
     if self.frameBuffer.len == 0:
@@ -273,26 +280,29 @@ proc setPen*(self: var PicoGraphicsPen3Bit; c: Rgb) =
 proc createPen*(self: PicoGraphicsPen3Bit; c: Rgb): uint =
   c.toRgb888().uint or RGB_FLAG
 
-proc createPenHsv*(self: PicoGraphicsBase; h, s, v: float32): Rgb =
-  Hsv(h: h, s: s, v: v).toRgb()
-proc createPenHsl*(self: PicoGraphicsBase; h, s, l: float32): Rgb =
-  Hsl(h: h, s: s, l: l).toRgb()
+proc createPenHsv*(self: PicoGraphicsBase; h, s, v: float32): RgbLinear =
+  Hsv(h: h, s: s, v: v).toRgb().toLinear()
+proc createPenHsl*(self: PicoGraphicsBase; h, s, l: float32): RgbLinear =
+  Hsl(h: h, s: s, l: l).toRgb().toLinear()
 
-proc createPenNearestLut*(self: var PicoGraphicsPen3Bit; c: RgbLinear): uint =
+proc createPenNearestLut*(self: var PicoGraphicsPen3Bit; c: RgbLinear; ditherIndex: int = ditherPatternLength): uint =
   if not self.cacheNearestBuilt:
     self.cacheNearest.generateNearestCache(self.getPalette())
     self.cacheNearestBuilt = true
-  let cacheKey = c.getCacheKey()
-  return self.cacheNearest[cacheKey]
+  let cacheKey = c.fromLinear().getCacheKey()
+  when ditherGenerateCache:
+    return self.cacheNearest[cacheKey][ditherIndex]
+  else:
+    return self.cacheNearest[cacheKey]
 
-proc createPenNearest*(self: var PicoGraphicsPen3Bit; c: RgbLinear): uint =
-  return self.createPenNearestLut(c)
+proc createPenNearest*(self: var PicoGraphicsPen3Bit; c: RgbLinear; ditherIndex: int = ditherPatternLength): uint =
+  return self.createPenNearestLut(c, ditherIndex)
 
   # # Warning: This is slooow:
   # var paletteLab = newSeq[Lab](self.paletteSize)
   # for i, col in self.getPalette():
   #   paletteLab[i] = col.toLab()
-  # return c.toLab().closest(paletteLab).uint
+  # return c.clamp().toLab().closest(paletteLab).uint
 
 proc getPenColor*(self: PicoGraphicsPen3Bit; color: uint = self.color): RgbLinear {.inline.} = self.palette[color]
 
@@ -325,32 +335,29 @@ proc setPixelImpl(self: var PicoGraphicsPen3Bit; p: Point; col: uint) =
 proc setPixelDither*(self: var PicoGraphicsPen3Bit; p: Point; c: RgbLinear) =
   ## Set pixel using an ordered dither (using lookup tables, see luts.nim)
 
-  # Pattern size:
-  # 0 = off (nearest colour)
-  # 1 = 2x2
-  # 2 = 4x4
-  # 3 = 8x8
-  # 4 = 16x16
-  # 5 = 32x32
-  # 6 = 64x64
-  const patternSize = 3
-  const kind = DitherKind.Bayer
-
-  const mask = (1 shl patternSize) - 1
+  const mask = (1 shl ditherPatternSize) - 1
   # find the pattern coordinate offset
-  let patternIndex = (p.x and mask) or ((p.y and mask) shl patternSize)
+  let patternIndex = (p.x and mask) or ((p.y and mask) shl ditherPatternSize)
 
-  let error = getDitherError(kind, patternSize, patternIndex)
+  let error = ditherMatrix[patternIndex]
 
-  # color and error are in linear rgb space
-  let col = (c + error)
+  # var clab = c.toLab()
+  # clab.L += ((error.int / ditherPatternLength) - 0.5) * 0.75
+  # let paletteCol = self.createPenNearest(clab.fromLab())
 
-  let paletteCol = self.createPenNearest(col)
+  when ditherGenerateCache:
+    let paletteCol = self.createPenNearest(c, error.int)
+  else:
+    if self.ditherCandidateColor != c:
+      var paletteLab = newSeq[Lab](self.getPaletteSize())
+      for i, col in self.getPalette():
+        paletteLab[i] = col.toLab()
+      getDitherCandidates(c.clamp(), paletteLab, self.ditherCandidateCache, self.ditherCandidateCache.len)
+      self.ditherCandidateColor = c
+    let paletteCol = self.ditherCandidateCache[error]
 
   # set the pixel
   self.setPixelImpl(p, paletteCol)
-
-  # echo (c, error, col, paletteCol)
 
 proc setPixel*(self: var PicoGraphicsPen3Bit; p: Point) =
   if (self.color and RGB_FLAG) == RGB_FLAG:
@@ -358,20 +365,20 @@ proc setPixel*(self: var PicoGraphicsPen3Bit; p: Point) =
   else:
     self.setPixelImpl(p, self.color)
 
-# proc getPixel*(self: PicoGraphicsPen3Bit; p: Point): uint8 =
-#   if not self.bounds.contains(p) or not self.clip.contains(p):
-#     return
-#
-#   let base = (p.x div 8) + (p.y * self.bounds.w div 8)
-#   let offset = (self.bounds.w * self.bounds.h) div 8
-#   let offA = base
-#   let offB = offA + offset
-#   let offC = offB + offset
-#   let bo = 7 - (uint8 p.x and 0b111)
-#   result =
-#     ((self.frameBuffer[offA] and (1'u8 shl bo)) shr bo shl 2) or
-#     ((self.frameBuffer[offB] and (1'u8 shl bo)) shr bo shl 1) or
-#     ((self.frameBuffer[offC] and (1'u8 shl bo)) shr bo)
+proc getPixel*(self: PicoGraphicsPen3Bit; p: Point): uint8 =
+  if not self.bounds.contains(p) or not self.clip.contains(p):
+    return
+
+  let base = (p.x div 8) + (p.y * self.bounds.w div 8)
+  let offset = (self.bounds.w * self.bounds.h) div 8
+  let offA = base
+  let offB = offA + offset
+  let offC = offB + offset
+  let bo = 7 - (uint8 p.x and 0b111)
+  result =
+    ((self.frameBuffer[offA] and (1'u8 shl bo)) shr bo shl 2) or
+    ((self.frameBuffer[offB] and (1'u8 shl bo)) shr bo shl 1) or
+    ((self.frameBuffer[offC] and (1'u8 shl bo)) shr bo)
 
 proc setPixelSpan*(self: var PicoGraphicsPen3Bit; p: Point; l: uint) =
   if self.backend == BackendPsram and (self.color and RGB_FLAG) != RGB_FLAG:
@@ -642,10 +649,11 @@ proc text*(self: var PicoGraphics; t: string; p: Point; wrap: int32; s: float32 
   #     self.rectangle(Rect(x: x, y: y, w: w, h: h))), t, p.x, p.y, wrap, max(1.0f, s), letterSpacing)
   if self.hersheyFont != nil:
     self.hersheyFont[].text((proc (x1: int32; y1: int32; x2: int32; y2: int32) {.closure.} =
-      if graphics[].thickness == 1:
+      if graphics[].thickness <= 1:
         graphics[].line(Point(x: x1, y: y1), Point(x: x2, y: y2))
       else:
-        graphics[].thickLine(Point(x: x1, y: y1), Point(x: x2, y: y2), graphics[].thickness)), t, p.x.int32, p.y.int32, s, a)
+        graphics[].thickLine(Point(x: x1, y: y1), Point(x: x2, y: y2), graphics[].thickness)
+    ), t, p.x.int32, p.y.int32, s, a)
 
 proc measureText*(self: var PicoGraphics; t: string; s: float32 = 2.0; letterSpacing: uint8 = 1): int32 =
   if self.bitmapFont != nil:

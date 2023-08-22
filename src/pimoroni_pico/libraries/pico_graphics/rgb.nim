@@ -6,9 +6,9 @@ proc builtinBswap16(a: uint16): uint16 {.importc: "__builtin_bswap16", nodecl, n
 ## RGB
 ##
 
-const defaultGamma*: float32 = 2.4
-const rgbBits* = 12
-const rgbMultiplier* = (1 shl rgbBits) - 1
+const defaultGamma*: float = 2.4
+const rgbBits* = 10
+const rgbMultiplier* = 1 shl rgbBits
 
 type
   Rgb332* = distinct uint8
@@ -188,10 +188,10 @@ proc `+=`*(self: var RgbLinear; c: RgbLinear) =
   self.g += c.g
   self.b += c.b
 
-func clamp*(self: RgbLinear): RgbLinear =
-  result.r = self.r.clamp(0, rgbMultiplier)
-  result.g = self.g.clamp(0, rgbMultiplier)
-  result.b = self.b.clamp(0, rgbMultiplier)
+func clamp*(self: RgbLinear; lower: RgbLinearComponent = 0; upper: RgbLinearComponent = rgbMultiplier): RgbLinear =
+  result.r = self.r.clamp(lower, upper)
+  result.g = self.g.clamp(lower, upper)
+  result.b = self.b.clamp(lower, upper)
 
 # From https://github.com/makew0rld/dither/blob/master/color_spaces.go
 func linearize1*(v: float; gamma: float = defaultGamma): float =
@@ -206,11 +206,16 @@ func delinearize1*(v: float; gamma: float = defaultGamma): float =
     return v * 12.92
   return (v * 1.055).pow(1.0 / gamma) - 0.055
 
-func generateRgbLinearCache(gamma: float = defaultGamma): array[256, RgbLinearComponent] {.compileTime.} =
+func generateRgbToLinearCache(gamma: float = defaultGamma): array[256, RgbLinearComponent] {.compileTime.} =
   for i, _ in result:
     result[i] = RgbLinearComponent round((i / 255).linearize1(gamma) * rgbMultiplier)
 
-const rgbLinearCache = generateRgbLinearCache(defaultGamma)
+func generateRgbFromLinearCache(gamma: float = defaultGamma): array[rgbMultiplier, int16] {.compileTime.} =
+  for i, _ in result:
+    result[i] = int16 round((i / rgbMultiplier).delinearize1(gamma) * 255)
+
+const rgbToLinearCache = generateRgbToLinearCache(defaultGamma)
+const rgbFromLinearCache = generateRgbFromLinearCache(defaultGamma)
 
 # From https://github.com/makew0rld/dither/blob/master/color_spaces.go
 func toLinear*(c: Rgb; gamma: float = defaultGamma; cheat = false): RgbLinear =
@@ -224,9 +229,9 @@ func toLinear*(c: Rgb; gamma: float = defaultGamma; cheat = false): RgbLinear =
       result.g = RgbLinearComponent round((c.g.float / 255).clamp(0, 1).linearize1(gamma).clamp(0, 1) * rgbMultiplier)
       result.b = RgbLinearComponent round((c.b.float / 255).clamp(0, 1).linearize1(gamma).clamp(0, 1) * rgbMultiplier)
     else:
-      result.r = rgbLinearCache[c.r.clamp(0, 255)]
-      result.g = rgbLinearCache[c.g.clamp(0, 255)]
-      result.b = rgbLinearCache[c.b.clamp(0, 255)]
+      result.r = rgbToLinearCache[c.r.clamp(0, 255)]
+      result.g = rgbToLinearCache[c.g.clamp(0, 255)]
+      result.b = rgbToLinearCache[c.b.clamp(0, 255)]
 
 func fromLinear*(c: RgbLinear; gamma: float = defaultGamma; cheat = false): Rgb =
   if cheat:
@@ -234,9 +239,14 @@ func fromLinear*(c: RgbLinear; gamma: float = defaultGamma; cheat = false): Rgb 
     result.g = int16 round(c.g.float / (rgbMultiplier.float / 255)).clamp(0, 255)
     result.b = int16 round(c.b.float / (rgbMultiplier.float / 255)).clamp(0, 255)
   else:
-    result.r = int16 round((c.r.float / rgbMultiplier).clamp(0, 1).delinearize1(gamma).clamp(0, 1) * 255)
-    result.g = int16 round((c.g.float / rgbMultiplier).clamp(0, 1).delinearize1(gamma).clamp(0, 1) * 255)
-    result.b = int16 round((c.b.float / rgbMultiplier).clamp(0, 1).delinearize1(gamma).clamp(0, 1) * 255)
+    if gamma != defaultGamma:
+      result.r = int16 round((c.r.float / rgbMultiplier).clamp(0, 1).delinearize1(gamma).clamp(0, 1) * 255)
+      result.g = int16 round((c.g.float / rgbMultiplier).clamp(0, 1).delinearize1(gamma).clamp(0, 1) * 255)
+      result.b = int16 round((c.b.float / rgbMultiplier).clamp(0, 1).delinearize1(gamma).clamp(0, 1) * 255)
+    else:
+      result.r = rgbFromLinearCache[c.r.clamp(0, rgbMultiplier - 1)]
+      result.g = rgbFromLinearCache[c.g.clamp(0, rgbMultiplier - 1)]
+      result.b = rgbFromLinearCache[c.b.clamp(0, rgbMultiplier - 1)]
 
 # https://bottosson.github.io/posts/oklab/
 # See linear_srgb_to_oklab() and oklab_to_linear_srgb()
@@ -303,15 +313,27 @@ func sqDiff(v1, v2: int): uint64 =
 
 # From https://github.com/makew0rld/dither/blob/master/dither.go
 # See closestColor()
-func distance*(c1, c2: RgbLinear): uint32 =
-  return uint32(
+func distance*(c1, c2: RgbLinear): uint =
+  return uint(
     1063 * sqDiff(c1.r, c2.r) div 5000 +
     447 * sqDiff(c1.g, c2.g) div 625 +
     361 * sqDiff(c1.b, c2.b) div 5000
   )
 
+# a relatively low cost approximation of how "different" two colours are
+# perceived which avoids expensive colour space conversions.
+# described in detail at https://www.compuphase.com/cmetric.htm
+proc distance*(self, c: Rgb): uint =
+  let rmean = (self.r.int64 + c.r) div 2
+  let rx = self.r.int64 - c.r
+  let gx = self.g.int64 - c.g
+  let bx = self.b.int64 - c.b
+  return uint abs(
+    (((512 + rmean) * rx * rx) shr 8) + 4 * gx * gx + (((767 - rmean) * bx * bx) shr 8)
+  )
+
 func closest*(self: RgbLinear; palette: openArray[RgbLinear]): int =
-  var best = uint32.high
+  var best = uint.high
   for i, c in palette:
     let dist = self.distance(c)
 
@@ -331,7 +353,6 @@ func closest*(self: Lab; palette: openArray[Lab]): int =
         return i
       result = i
       best = dist
-
 
 func level*(self: Rgb; black: float32 = 0; white: float32 = 1; gamma: float32 = 1): Rgb =
   var r = self.r.float32 / 255.0f

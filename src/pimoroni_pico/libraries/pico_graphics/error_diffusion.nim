@@ -26,6 +26,7 @@ type
     graphics*: ptr PGT
     matrix*: ErrorDiffusionMatrix
     alternateRow*: bool
+    hybridDither*: bool
     case backend*: ErrorDiffusionBackend:
     of BackendMemory: fbMemory*: seq[RgbLinear]
     of BackendPsram: psramAddress*: PsramAddress
@@ -154,7 +155,7 @@ const
     Atkinson, StevenPigeon
   ]
 
-proc init*(self: var ErrorDiffusion; graphics: var PicoGraphics; x, y, width, height: int; matrix: ErrorDiffusionMatrix = FloydSteinberg; alternateRow: bool = false) =
+proc init*(self: var ErrorDiffusion; graphics: var PicoGraphics; x, y, width, height: int; matrix: ErrorDiffusionMatrix = FloydSteinberg) =
   echo "Initializing ErrorDiffusion with backend ", self.backend
   self.graphics = graphics.addr
   self.x = x
@@ -162,7 +163,6 @@ proc init*(self: var ErrorDiffusion; graphics: var PicoGraphics; x, y, width, he
   self.width = width
   self.height = height
   self.matrix = matrix
-  self.alternateRow = alternateRow
 
   case self.backend:
   of BackendMemory: self.fbMemory = newSeq[RgbLinear](self.width * self.height)
@@ -259,6 +259,10 @@ proc process*(self: var ErrorDiffusion) =
 
   var lastProgress = -1
 
+  # var paletteLab = newSeq[Lab](self.graphics[].getPaletteSize())
+  # for i, col in self.graphics[].getPalette():
+  #   paletteLab[i] = col.toLab()
+
   for y in 0 ..< imgH:
     if y > 0:
       rows[rowPos(y - 1, matrixRows)].setLen(0)
@@ -279,10 +283,15 @@ proc process*(self: var ErrorDiffusion) =
       let oldPixel = rows[rowPos(y, matrixRows)][x].clamp()
 
       # find closest color using distance function
-      let color = self.graphics[].createPenNearest(oldPixel)
-      # self.graphics[].setPixelImpl(pos, color)
-      self.graphics[].setPen(color)
-      self.graphics[].setPixel(pos)
+      var color: uint8
+      if not self.hybridDither:
+        color = self.graphics[].createPenNearest(oldPixel).uint8
+        # color = oldPixel.toLab().closest(paletteLab).uint8
+        self.graphics[].setPen(color)
+        self.graphics[].setPixel(pos)
+      else:
+        self.graphics[].setPixelDither(pos, oldPixel)
+        color = self.graphics[].getPixel(pos)
 
       let newPixel = self.graphics[].getPenColor(color)
 
@@ -295,7 +304,9 @@ proc process*(self: var ErrorDiffusion) =
         let my = y + (i div self.matrix.s)
         if mx < 0 or mx >= imgW or my < 0 or my >= imgH:
           continue
-        rows[rowPos(my, matrixRows)][mx] += (quantError * m) div self.matrix.d
+        let deltaErr = (quantError * m) div self.matrix.d
+        let oldErr = rows[rowPos(my, matrixRows)][mx]
+        rows[rowPos(my, matrixRows)][mx] = oldErr + deltaErr
 
     let currentProgress = y * 100 div imgH
     if lastProgress != currentProgress:

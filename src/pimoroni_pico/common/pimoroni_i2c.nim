@@ -73,12 +73,12 @@ proc writeBytes*(self: var I2c|ptr I2c; address: I2cAddress; reg: uint8; buf: pt
   while x < len:
     buffer[x + 1] = cast[ptr UncheckedArray[uint8]](buf)[x]
     inc(x)
-  return self.i2c.writeBlocking(address, buffer[0].addr, (len + 1), false)
+  return self.i2c.writeBlocking(address, buffer[0].addr, buffer.len.cuint, false)
 
 
-proc regWriteUint8*(self: var I2c|ptr I2c; address: I2cAddress; reg: uint8; value: uint8) =
+proc regWriteUint8*(self: var I2c|ptr I2c; address: I2cAddress; reg: uint8; value: uint8): cint =
   var buffer: array[2, uint8] = [reg, value]
-  discard self.i2c.writeBlocking(address, buffer[0].addr, 2, false)
+  return self.i2c.writeBlocking(address, buffer[0].addr, 2, false)
 
 proc regReadUint8*(self: var I2c|ptr I2c; address: I2cAddress; reg: uint8): uint8 =
   var value: uint8
