@@ -218,16 +218,16 @@ const PicoGraphicsPen3BitPalette7_3* = [
 # const PicoGraphicsPen3BitPaletteLut7_3* = generateNearestCache(PicoGraphicsPen3BitPalette7_3[0..<7])
 
 const luma5_7 = 1/1.15
-const sat5_7 = 1/1.5
+const sat5_7 = 1/1.3
 
 const PicoGraphicsPen3BitPalette5_7* = [
   LChToLab(0.03, sat5_7 * 0.00,  90).fromLab(), ##  black
   LChToLab(0.99, sat5_7 * 0.00,  90).fromLab(), ##  white
-  LChToLab(luma5_7 * 0.62, sat5_7 * 0.88, 135).fromLab(), ##  green
+  LChToLab(luma5_7 * 0.65, sat5_7 * 0.75, 135).fromLab(), ##  green
   LChToLab(luma5_7 * 0.55, sat5_7 * 0.45, 260).fromLab(), ##  blue
-  LChToLab(luma5_7 * 0.50, sat5_7 * 0.70,  30).fromLab(), ##  red
-  LChToLab(0.88, sat5_7 * 0.52, 100).fromLab(), ##  yellow
-  LChToLab(luma5_7 * 0.65, sat5_7 * 0.65,  40).fromLab(), ##  orange
+  LChToLab(luma5_7 * 0.50, sat5_7 * 0.80,  30).fromLab(), ##  red
+  LChToLab(0.88, sat5_7 * 0.70, 100).fromLab(), ##  yellow
+  LChToLab(luma5_7 * 0.70, sat5_7 * 0.70,  40).fromLab(), ##  orange
   LChToLab(luma5_7 * 0.92, sat5_7 * 0.13,  50).fromLab(), ##  clean
 ]
 
