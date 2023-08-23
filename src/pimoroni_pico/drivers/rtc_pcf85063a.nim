@@ -10,17 +10,21 @@ export pimoroni_i2c
 type
   BcdNum = distinct range[0x00'u8 .. 0x99'u8]
 
+proc `==`*(a, b: BcdNum): bool {.borrow.}
+
 proc bcdEncode(val: range[0'u8 .. 99'u8]): BcdNum = BcdNum ((val.uint div 10) shl 4) or (val.uint mod 10)
 proc bcdDecode(val: BcdNum): uint8 = ((val.uint8 shr 4) * 10) + (val.uint8 and 0b1111)
+
+
+converter encodeBcd(value: int): BcdNum = bcdEncode(value.uint8)
+# converter decodeBcd(bcdNum: BcdNum): uint8 = bcdDecode(bcdNum)
+converter toInt(bcdNum: BcdNum): int = bcdDecode(bcdNum).int
 
 static:
   # simple test for the bcd number encode/decode
   for i in 0'u8 .. 99'u8:
     doAssert bcdDecode(bcdEncode(i)) == i, "Failed to convert " & $i & " to BcdNum and back"
-
-converter decode(bcdNum: BcdNum): byte = bcdDecode(bcdNum)
-converter toInt(bcdNum: BcdNum): int = bcdDecode(bcdNum).int
-converter encode(value: int): BcdNum = bcdEncode(value.uint8)
+    doAssert $bcdEncode(i) == $i, "Failed to convert " & $i & " to BcdNum and compare string"
 
 const
   # Constants
@@ -246,13 +250,13 @@ proc getDatetime*(self: var RtcPcf85063a): Datetime =
   var data: RegsTimestamp
   discard self.i2c.readBytes(self.address, Registers.SECONDS.uint8, cast[ptr uint8](data.addr), sizeof(data).uint)
   return Datetime(
-    year:  data.years.years.decode().int16 + 2000,
-    month: data.months.months.decode().int8,
-    day:   data.days.days.decode().int8,
+    year:  data.years.years.bcdDecode().int16 + 2000,
+    month: data.months.months.bcdDecode().int8,
+    day:   data.days.days.bcdDecode().int8,
     dotw:  data.weekdays.weekdays.ord.int8,
-    hour:  data.hours.hours.decode().int8,
-    min:   data.minutes.minutes.decode().int8,
-    sec:   data.seconds.seconds.decode().int8
+    hour:  data.hours.hours.bcdDecode().int8,
+    min:   data.minutes.minutes.bcdDecode().int8,
+    sec:   data.seconds.seconds.bcdDecode().int8
   )
 
 proc setDatetime*(self: var RtcPcf85063a; t: Datetime) =
