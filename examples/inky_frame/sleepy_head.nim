@@ -7,61 +7,86 @@ import pimoroni_pico/libraries/hershey_fonts_data
 var inky: InkyFrame
 inky.boot()
 
-# discard stdioInitAll()
+discard stdioInitAll()
 
-# let m = detectInkyFrameModel()
-# if m.isSome:
-#   echo "Detected Inky Frame model: ", m.get()
-# else:
-#   echo "Unknown Inky Frame model"
-
-# assert(m.isSome)
-
-# const inkyKind {.strdefine.} = "Unknown inkyKind"
-# let inkyKindEnum = parseEnum[InkyFrameKind](inkyKind, m.get())
-
-inky.kind = InkyFrame7_3
-
-echo("initialising inky frame.. ")
+echo "initialising inky frame.. ", inky.kind
 
 inky.init()
+
+proc drawRtcState*(state: array[18, uint8]; x, y: int) =
+  var ii = 0
+  for line in iterRtcState(state):
+    inky.text(line, Point(x: x, y: y + ii*15), 220, 0.5)
+    inc(ii)
 
 inky.led(Led.LedConnection, 100)
 
 inky.setPen(White)
 inky.clear()
-inky.setPen(Blue)
+
+inky.setPen(Black)
 
 inky.setFont(futural)
 inky.setThickness(1)
 echo "Wake Up Events: ", inky.getWakeUpEvents()
 
+var dt = inky.rtc.getDatetime().toNimDateTime()
 
-let dt = inky.rtc.getDatetime()
+inky.text("Current time: " & $dt, Point(x: 10, y: 20), 200, 0.8)
 
-inky.text($dt, Point(x: 10, y: 50), 200, 0.6)
+inky.text("Wakeup events: " & $inky.getWakeUpEvents(), Point(x: 10, y: 50), 200, 0.8)
 
-inky.text($inky.getWakeUpEvents(), Point(x: 10, y: 80), 200, 0.6)
+let now = inky.rtc.getDatetime().toNimDateTime()
+var target = now + initDuration(minutes = 1, seconds = 30)
 
-inky.text($getGpioState(), Point(x: 10, y: 100), 200, 0.6)
+inky.text("Estimated wakeup: " & $target, Point(x: 10, y: 80), 200, 0.6)
 
-inky.text($gpioGetAll(), Point(x: 10, y: 120), 200, 0.6)
+echo "Initial rtc state:"
+printRtcState(inky.rtcState)
+echo "Current rtc state:"
+printRtcState(inky.rtc.readAll())
+drawRtcState(inky.rtcState, 1, 120)
 
+if cyw43ArchInit() == PicoOk:
+  defer: cyw43ArchDeinit()
+  inky.text("Input voltage: " & $inky.getVsysVoltage().formatFloat(ffDecimal, 3) & " V", Point(x: 10, y: 405), 200, 0.8)
+
+echo "updating"
 inky.update()
+
 echo "done!"
-
-
-inky.led(Led.LedConnection, 0)
+inky.led(Led.LedConnection, 50)
 
 echo "going to sleep"
-
 inky.sleep(1)
 
-echo "sleeping!"
+while EvtRtcAlarm notin inky_frame.events():
+  inky.led(LedConnection, 100)
+  sleepMs(300)
+  inky.led(LedConnection, 0)
+  sleepMs(700)
+  echo "Sleeping rtc state:"
+  printRtcState(inky.rtc.readAll())
+
+inky.led(LedConnection, 100)
+
+inky.setPen(White)
+inky.clear()
+
+inky.setPen(Black)
+
+dt = inky.rtc.getDatetime().toNimDateTime()
+
+inky.text($dt, Point(x: 10, y: 20), 200, 0.8)
+
+echo "Current rtc state:"
+printRtcState(inky.rtc.readAll())
+
+drawRtcState(inky.rtc.readAll(), 1, 120)
+
+inky.update()
+
+inky.led(LedConnection, 0)
 
 while true:
-  inky.led(LedConnection, 0)
-  sleepMs(250)
-  inky.led(LedConnection, 100)
-  sleepMs(250)
   tightLoopContents()

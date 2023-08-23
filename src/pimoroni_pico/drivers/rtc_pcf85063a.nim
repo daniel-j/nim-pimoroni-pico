@@ -1,9 +1,38 @@
 import std/bitops
+import std/strutils
+
 import picostdlib/[
   hardware/i2c, hardware/rtc
 ]
 import ../common/[pimoroni_common, pimoroni_i2c]
 export pimoroni_i2c
+
+type
+  BcdNum = distinct uint8
+
+# binary coded decimal conversion helper functions
+# proc bcdEncode*(v: uint): uint8 =
+#   let
+#     v10: uint = v div 10
+#     v1: uint = v - (v10 * 10)
+#   return (v1 or (v10 shl 4)).uint8
+
+# proc bcdDecode*(v: uint): int8 =
+#   let
+#     v10: uint = (v shr 4) and 0x0f
+#     v1: uint = v and 0x0f
+#   return (v1 + (v10 * 10)).int8
+
+proc bcdEncode(val: uint8): BcdNum = BcdNum (val div 10 * 16) + (val mod 10)
+proc bcdDecode(val: uint8): uint8 = (val div 16 * 10) + (val mod 16)
+
+# static:
+#   for i in uint8.low .. uint8.high:
+#     doAssert bcdDecode(bcdEncode(i)) == i
+
+converter decode(bcdNum: BcdNum): byte = bcdDecode(bcdNum.byte)
+converter toInt(bcdNum: BcdNum): int = bcdDecode(bcdNum.uint8).int
+converter encode(value: int): BcdNum = bcdEncode(value.uint8)
 
 const
   # Constants
@@ -16,6 +45,10 @@ type
     address: I2cAddress
     interrupt: GpioOptional
 
+  CapSel {.pure.} = enum
+    cap7pF
+    cap12_5pF
+
   ClockOut* {.pure.} = enum
     co32768Hz = 0
     co16384Hz = 1
@@ -27,7 +60,6 @@ type
     coOff     = 7
 
   DayOfWeek* {.pure.} = enum
-    NONE      = ParamUnused
     SUNDAY    = 0
     MONDAY    = 1
     TUESDAY   = 2
@@ -36,7 +68,7 @@ type
     FRIDAY    = 5
     SATURDAY  = 6
 
-  TimerTickPeriod* {.pure.} = enum
+  TimerClockFrequency* {.pure.} = enum
     tt4096Hz       = 0b00,
     tt64Hz         = 0b01
     tt1Hz          = 0b10
@@ -50,7 +82,7 @@ type
 
     RAM_BYTE          = 0x03
 
-    SECONDS           = 0x04  # contains oscillator status flag
+    SECONDS           = 0x04  # contains oscillator stop flag
     MINUTES           = 0x05
     HOURS             = 0x06
     DAYS              = 0x07
@@ -67,19 +99,126 @@ type
     TIMER_VALUE       = 0x10
     TIMER_MODE        = 0x11
 
+  RegControl1* {.packed.} = object
+    capSel* {.bitsize: 1.}: CapSel
+    isAmPm* {.bitsize: 1.}: bool
+    cie* {.bitsize: 1.}: bool
+    un1 {.bitsize: 1.}: uint8
+    sr* {.bitsize: 1.}: bool
+    stop* {.bitsize: 1.}: bool
+    un2 {.bitsize: 1.}: uint8
+    extTest* {.bitsize: 1.}: bool
+  RegControl2* {.packed.} = object
+    cof* {.bitsize: 3.}: ClockOut
+    tf* {.bitsize: 1.}: bool
+    hmi* {.bitsize: 1.}: bool
+    mi* {.bitsize: 1.}: bool
+    af* {.bitsize: 1.}: bool
+    aie* {.bitsize: 1.}: bool
+  RegOffset* {.packed.} = object
+    offset* {.bitsize: 7.}: uint8
+    modeCoarse* {.bitsize: 1.}: bool
 
-# binary coded decimal conversion helper functions
-proc bcdEncode*(v: uint): uint8 =
-  let
-    v10: uint = v div 10
-    v1: uint = v - (v10 * 10)
-  return (v1 or (v10 shl 4)).uint8
+  RegSeconds* {.packed.} = object
+    seconds* {.bitsize: 7.}: BcdNum
+    os* {.bitsize: 1.}: bool
+  RegMinutes* {.packed.} = object
+    minutes* {.bitsize: 7.}: BcdNum
+    _ {.bitsize: 1.}: uint8
+  RegHours12* {.packed.} = object
+    hours* {.bitsize: 5.}: BcdNum
+    amPm* {.bitsize: 1.}: bool
+    _ {.bitsize: 2.}: uint8
+  RegHours24* {.packed.} = object
+    hours* {.bitsize: 6.}: BcdNum
+    _ {.bitsize: 2.}: uint8
+  RegDays* {.packed.} = object
+    days* {.bitsize: 6.}: BcdNum
+    _ {.bitsize: 2.}: uint8
+  RegWeekdays* {.packed.} = object
+    weekdays* {.bitsize: 3.}: DayOfWeek
+    _ {.bitsize: 5.}: uint8
+  RegMonths* {.packed.} = object
+    months* {.bitsize: 5.}: BcdNum
+    _ {.bitsize: 3.}: uint8
+  RegYears* {.packed.} = object
+    years: BcdNum
 
-proc bcdDecode*(v: uint): int8 =
-  let
-    v10: uint = (v shr 4) and 0x0f
-    v1: uint = v and 0x0f
-  return (v1 + (v10 * 10)).int8
+  RegSecondAlarm* {.packed.} = object
+    secondAlarm* {.bitsize: 7.}: BcdNum
+    disable* {.bitsize: 1.}: bool
+  RegMinuteAlarm* {.packed.} = object
+    minuteAlarm* {.bitsize: 7.}: BcdNum
+    disable* {.bitsize: 1.}: bool
+  RegHourAlarm12* {.packed.} = object
+    hourAlarm* {.bitsize: 5.}: BcdNum
+    amPm* {.bitsize: 1.}: bool
+    _ {.bitsize: 1.}: uint8
+    disable* {.bitsize: 1.}: bool
+  RegHourAlarm24* {.packed.} = object
+    hourAlarm* {.bitsize: 6.}: BcdNum
+    _ {.bitsize: 1.}: uint8
+    disable* {.bitsize: 1.}: bool
+  RegDayAlarm* {.packed.} = object
+    dayAlarm* {.bitsize: 6.}: BcdNum
+    _ {.bitsize: 1.}: uint8
+    disable* {.bitsize: 1.}: bool
+  RegWeekdayAlarm* {.packed.} = object
+    weekdayAlarm* {.bitsize: 3.}: DayOfWeek
+    _ {.bitsize: 4.}: uint8
+    disable* {.bitsize: 1.}: bool
+
+  RegTimerValue* {.packed.} = object
+    timerValue: uint8
+  RegTimerMode* {.packed.} = object
+    tiTp* {.bitsize: 1.}: bool
+    tie* {.bitsize: 1.}: bool
+    te* {.bitsize: 1.}: bool
+    tcf* {.bitsize: 2.}: TimerClockFrequency
+    _ {.bitsize: 3.}: uint8
+
+  RegsTimestamp* {.packed.} = object
+    seconds: RegSeconds
+    minutes: RegMinutes
+    hours: RegHours24
+    days: RegDays
+    weekdays: RegWeekdays
+    months: RegMonths
+    years: RegYears
+
+  RegsAlarms* {.packed.} = object
+    secondAlarm: RegSecondAlarm
+    minuteAlarm: RegMinuteAlarm
+    hourAlarm: RegHourAlarm24
+    dayAlarm: RegDayAlarm
+    weekdayAlarm: RegWeekdayAlarm
+
+  Regs* {.packed.} = object
+    control1: RegControl1
+    control2: RegControl2
+    offset: RegOffset
+    ramByte: byte
+
+    timestamp: RegsTimestamp
+
+    alarm: RegsAlarms
+
+    timerValue: RegTimerValue
+    timerMode: RegTimerMode
+
+proc waitForOscillator*(self: var RtcPcf85063a) =
+  # read the oscillator stop bit until it is cleared
+  var status = self.i2c.regReadUint8(self.address, SECONDS.uint8)
+  while status.testBit(7):
+    # attempt to clear oscillator stop flag, then read it back
+    # status.clearBit(7)
+    discard self.i2c.regWriteUint8(self.address, SECONDS.uint8, 0x00)
+    status = self.i2c.regReadUint8(self.address, SECONDS.uint8)
+
+proc reset*(self: var RtcPcf85063a) =
+  # magic soft reset command
+  discard self.i2c.regWriteUint8(self.address, Registers.CONTROL_1.uint8, 0x58)
+  self.waitForOscillator()
 
 proc init*(self: var RtcPcf85063a; i2c: I2c; interrupt: GpioOptional = GpioUnused) =
   self.address = DefaultI2cAddress
@@ -90,17 +229,14 @@ proc init*(self: var RtcPcf85063a; i2c: I2c; interrupt: GpioOptional = GpioUnuse
     Gpio(self.interrupt).setDir(In)
     Gpio(self.interrupt).setPulls(up=false, down=true)
 
-  discard self.i2c.regWriteUint8(self.address, Registers.CONTROL_1.uint8, 0x00) # ensure rtc is running (this should be default?)
-
-proc reset*(self: var RtcPcf85063a) =
-  # magic soft reset command
-  discard self.i2c.regWriteUint8(self.address, Registers.CONTROL_1.uint8, 0x58)
-  # read the oscillator status bit until it is cleared
+  # read the oscillator stop bit and reset if it is set
   var status = self.i2c.regReadUint8(self.address, SECONDS.uint8)
-  while status.testBit(7):
-    # attempt to clear oscillator stop flag, then read it back
-    discard self.i2c.regWriteUint8(self.address, SECONDS.uint8, 0x00)
-    status = self.i2c.regReadUint8(self.address, SECONDS.uint8)
+  if status.testBit(7):
+    self.reset()
+
+  # clear timers and alarms, disable clock_out
+  var data = [uint8 0x00, 0b111]
+  discard self.i2c.writeBytes(self.address, Registers.CONTROL_1.uint8, data[0].addr, data.len.uint)
 
 # i2c helper methods
 proc getI2c*(self: var RtcPcf85063a): ptr I2cInst {.noSideEffect.} =
@@ -119,49 +255,46 @@ proc getInt*(self: var RtcPcf85063a): Gpio {.noSideEffect.} =
   return Gpio(self.interrupt)
 
 proc getDatetime*(self: var RtcPcf85063a): Datetime =
-  var data: array[7, uint8]
-  discard self.i2c.readBytes(self.address, Registers.SECONDS.uint8, data[0].addr, data.len.cuint)
+  var data: RegsTimestamp
+  discard self.i2c.readBytes(self.address, Registers.SECONDS.uint8, cast[ptr uint8](data.addr), sizeof(data).uint)
   return Datetime(
-    year:  bcdDecode(data[6]).int16 + 2000,
-    month: bcdDecode(data[5]),
-    day:   bcdDecode(data[3]),
-    dotw:  bcdDecode(data[4]),
-    hour:  bcdDecode(data[2]),
-    min:   bcdDecode(data[1]),
-    sec:   bcdDecode(data[0] and 0x7f)  # mask out oscillator status bit
+    year:  data.years.years.decode().int16 + 2000,
+    month: data.months.months.decode().int8,
+    day:   data.days.days.decode().int8,
+    dotw:  data.weekdays.weekdays.ord.int8,
+    hour:  data.hours.hours.decode().int8,
+    min:   data.minutes.minutes.decode().int8,
+    sec:   data.seconds.seconds.decode().int8
   )
 
 proc setDatetime*(self: var RtcPcf85063a; t: Datetime) =
-  var data: array[7, uint8] = [
-    bcdEncode(t.sec.uint),
-    bcdEncode(t.min.uint),
-    bcdEncode(t.hour.uint),
-    bcdEncode(t.day.uint),
-    bcdEncode(t.dotw.uint),
-    bcdEncode(t.month.uint),
-    bcdEncode(t.year.uint - 2000)  # offset year
-  ]
-  discard self.i2c.writeBytes(self.address, Registers.SECONDS.uint8, data[0].addr, data.len.cuint)
+  var data: RegsTimestamp
+  data.seconds.seconds = t.sec.int
+  data.minutes.minutes = t.min.int
+  data.hours.hours = t.min.int
+  data.days.days = t.day.int
+  data.weekdays.weekdays = DayOfWeek(t.dotw)
+  data.months.months = t.month.int
+  data.years.years = t.year.int - 2000
+  discard self.i2c.writeBytes(self.address, Registers.SECONDS.uint8, cast[ptr uint8](data.addr), sizeof(data).uint)
 
 proc setAlarm*(self: var RtcPcf85063a; second: int; minute: int; hour: int; day: int) =
-  var alarm: array[5, uint8] = [
-    if second >= 0: bcdEncode(second.uint) else: 0x80,
-    if minute >= 0: bcdEncode(minute.uint) else: 0x80,
-    if hour >= 0: bcdEncode(hour.uint) else: 0x80,
-    if day >= 0: bcdEncode(day.uint) else: 0x80,
-    0x80
-  ]
-  discard self.i2c.writeBytes(self.address, Registers.SECOND_ALARM.uint8, alarm[0].addr, alarm.len.cuint)
+  var alarm: RegsAlarms
+  if second >= 0: alarm.secondAlarm.secondAlarm = second.int else: alarm.secondAlarm.disable = true
+  if minute >= 0: alarm.minuteAlarm.minuteAlarm = minute.int else: alarm.minuteAlarm.disable = true
+  if hour >= 0: alarm.hourAlarm.hourAlarm = hour.int else: alarm.hourAlarm.disable = true
+  if day >= 0: alarm.dayAlarm.dayAlarm = day.int else: alarm.dayAlarm.disable = true
+  alarm.weekdayAlarm.disable = true
+  discard self.i2c.writeBytes(self.address, Registers.SECOND_ALARM.uint8, cast[ptr uint8](alarm.addr), sizeof(alarm).uint)
 
 proc setWeekdayAlarm*(self: var RtcPcf85063a; second: int; minute: int; hour: int; dotw: DayOfWeek) =
-  var alarm: array[5, uint8] = [
-    if second >= 0: bcdEncode(second.uint) else: 0x80,
-    if minute >= 0: bcdEncode(minute.uint) else: 0x80,
-    if hour >= 0: bcdEncode(hour.uint) else: 0x80,
-    0x80,
-    if dotw != None: bcdEncode(dotw.uint) else: 0x80
-  ]
-  discard self.i2c.writeBytes(self.address, Registers.SECOND_ALARM.uint8, alarm[0].addr, alarm.len.cuint)
+  var alarm: RegsAlarms
+  if second >= 0: alarm.secondAlarm.secondAlarm = second.int else: alarm.secondAlarm.disable = true
+  if minute >= 0: alarm.minuteAlarm.minuteAlarm = minute.int else: alarm.minuteAlarm.disable = true
+  if hour >= 0: alarm.hourAlarm.hourAlarm = hour.int else: alarm.hourAlarm.disable = true
+  alarm.dayAlarm.disable = true
+  alarm.weekdayAlarm.weekdayAlarm = dotw
+  discard self.i2c.writeBytes(self.address, Registers.SECOND_ALARM.uint8, cast[ptr uint8](alarm.addr), sizeof(alarm).uint)
 
 proc enableAlarmInterrupt*(self: var RtcPcf85063a; enable: bool) =
   var bits = self.i2c.regReadUint8(self.address, Registers.CONTROL_2.uint8)
@@ -183,9 +316,11 @@ proc clearAlarmFlag*(self: var RtcPcf85063a) =
 
 proc unsetAlarm*(self: var RtcPcf85063a) =
   var dummy: array[5, uint8]
-  discard self.i2c.writeBytes(self.address, Registers.SECOND_ALARM.uint8, dummy[0].addr, dummy.len.cuint)
+  for i, d in dummy:
+    dummy[i] = 0b10000000
+  discard self.i2c.writeBytes(self.address, Registers.SECOND_ALARM.uint8, dummy[0].addr, dummy.len.uint)
 
-proc setTimer*(self: var RtcPcf85063a; ticks: uint8; ttp: TimerTickPeriod) =
+proc setTimer*(self: var RtcPcf85063a; ticks: uint8; ttp: TimerClockFrequency) =
   if ticks == 0: return
   var bits = self.i2c.regReadUint8(self.address, Registers.TIMER_MODE.uint8)
   # mask out current ttp and set new + enable
@@ -193,7 +328,7 @@ proc setTimer*(self: var RtcPcf85063a; ticks: uint8; ttp: TimerTickPeriod) =
   bits.setMask(ttp.uint8 shl 3)
   bits.setBit(2)
   var timer: array[2, uint8] = [ticks, bits]
-  discard self.i2c.writeBytes(self.address, Registers.TIMER_VALUE.uint8, timer[0].addr, timer.len.cuint)
+  discard self.i2c.writeBytes(self.address, Registers.TIMER_VALUE.uint8, timer[0].addr, timer.len.uint)
 
 proc enableTimerInterrupt*(self: var RtcPcf85063a; enable: bool; flagOnly: bool = false) =
   var bits = self.i2c.regReadUint8(self.address, Registers.TIMER_MODE.uint8)
@@ -242,3 +377,39 @@ proc syncFromPicoRtc*(self: var RtcPcf85063a): bool =
 proc syncToPicoRtc*(self: var RtcPcf85063a): bool =
   var dt = self.getDatetime()
   return rtcSetDatetime(dt.addr)
+
+proc readAll*(self: var RtcPcf85063a): array[18, uint8] =
+  discard self.i2c.readBytes(self.address, CONTROL_1.uint8, result[0].addr, result.len.uint)
+
+iterator iterRtcState*(state: array[18, uint8]): string =
+  for i, data in state:
+    var str = i.toHex(2) & " " & data.int.toBin(8) & " " & data.toHex(2) & " "
+    str.add(case Registers(i):
+      of CONTROL_1: $cast[RegControl1](data)
+      of CONTROL_2: $cast[RegControl2](data)
+
+      of OFFSET: $cast[RegOffset](data)
+      of RAM_BYTE: $data
+
+      of SECONDS: $cast[RegSeconds](data)
+      of MINUTES: $cast[RegMinutes](data)
+      of HOURS: $cast[RegHours24](data)
+      of DAYS: $cast[RegDays](data)
+      of WEEKDAYS: $cast[RegWeekdays](data)
+      of MONTHS: $cast[RegMonths](data)
+      of YEARS: $cast[RegYears](data)
+
+      of SECOND_ALARM: $cast[RegSecondAlarm](data)
+      of MINUTE_ALARM: $cast[RegMinuteAlarm](data)
+      of HOUR_ALARM: $cast[RegHourAlarm24](data)
+      of DAY_ALARM: $cast[RegDayAlarm](data)
+      of WEEKDAY_ALARM: $cast[RegWeekdayAlarm](data)
+
+      of TIMER_VALUE: $cast[RegTimerValue](data)
+      of TIMER_MODE: $cast[RegTimerMode](data)
+    )
+    yield str
+
+proc printRtcState*(state: array[18, uint8]) =
+  for line in iterRtcState(state):
+    echo line

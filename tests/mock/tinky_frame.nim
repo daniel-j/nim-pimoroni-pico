@@ -67,7 +67,7 @@ proc drawHslChart(kind: InkyFrameKind; drawMode: DrawMode; matrix: ErrorDiffusio
     echo "Writing image to " & filename & "..."
     inky.image.writeFile(filename)
 
-proc drawFile(filename: string; kind: InkyFrameKind; drawMode: DrawMode; matrix: ErrorDiffusionMatrix = ErrorDiffusionMatrix()): bool =
+proc drawFile(filename: string; kind: InkyFrameKind; drawMode: DrawMode; matrix: ErrorDiffusionMatrix = ErrorDiffusionMatrix(); hybridDither: bool = false): bool =
   var inky = InkyFrame(kind: kind)
   var jpegDecoder: JpegDecoder[PicoGraphicsPen3Bit]
   # jpegDecoder.setErrorDiffusionMatrix(Sierra)
@@ -89,15 +89,34 @@ proc drawFile(filename: string; kind: InkyFrameKind; drawMode: DrawMode; matrix:
 
   jpegDecoder.errDiff.matrix = matrix
   jpegDecoder.errDiff.alternateRow = false
-  jpegDecoder.errDiff.hybridDither = false
+  jpegDecoder.errDiff.hybridDither = hybridDither
   # jpegDecoder.colorModifier = proc (color: var Rgb) =
   #   color = color.contrast(1.2)
 
   if jpegDecoder.drawJpeg(filename, x, y, w, h, gravity=(0.5f, 0.5f), contains = false, drawMode) == 1:
     echo "Converting image..."
+
+    let height = 15
+    inky.setPen(Black)
+    inky.rectangle(constructRect(0, 0, inky.width div 7, height))
+    inky.setPen(White)
+    inky.rectangle(constructRect((inky.width div 7) * 1, 0, inky.width div 7, height))
+    inky.setPen(Green)
+    inky.rectangle(constructRect((inky.width div 7) * 2, 0, inky.width div 7, height))
+    inky.setPen(Blue)
+    inky.rectangle(constructRect((inky.width div 7) * 3, 0, inky.width div 7, height))
+    inky.setPen(Red)
+    inky.rectangle(constructRect((inky.width div 7) * 4, 0, inky.width div 7, height))
+    inky.setPen(Yellow)
+    inky.rectangle(constructRect((inky.width div 7) * 5, 0, inky.width div 7, height))
+    inky.setPen(Orange)
+    inky.rectangle(constructRect((inky.width div 7) * 6, 0, inky.width div 7, height))
+    # inky.setPen(Clean)
+    # inky.rectangle(constructRect((inky.width div 7) * 7, 0, inky.width div 7, height))
+
     inky.update()
     if matrix.s > 0:
-      let filename = "tinky_frame_" & $kind & "_image_" & $ErrorDiffusionMatrices.find(matrix) & ".png"
+      let filename = "tinky_frame_" & $kind & "_image_" & $ErrorDiffusionMatrices.find(matrix) & (if hybridDither: "_hybrid" else: "") & ".png"
       echo "Writing image to " & filename & "..."
       inky.image.writeFile(filename)
     else:
@@ -123,6 +142,7 @@ for kind in InkyFrameKind:
   for drawMode in drawModes:
     if drawMode == DrawMode.ErrorDiffusion:
       for matrix in matrices:
-        doAssert drawFile(paramStr(1), kind, drawMode, matrix)
+        doAssert drawFile(paramStr(1), kind, drawMode, matrix, false)
+        doAssert drawFile(paramStr(1), kind, drawMode, matrix, true)
     else:
       doAssert drawFile(paramStr(1), kind, drawMode)

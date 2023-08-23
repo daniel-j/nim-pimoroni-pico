@@ -1,14 +1,15 @@
 import std/math, std/bitops, std/options, std/times
 
 import picostdlib
-import picostdlib/[hardware/i2c, hardware/pwm, hardware/adc]
+import picostdlib/hardware/[i2c, pwm, adc, watchdog]
+import picostdlib/pico/cyw43_arch
 import picostdlib/power
 
 import ../drivers/[eink_driver_wrapper, rtc_pcf85063a, shiftregister, fatfs, sdcard, psram_display]
 import ./pico_graphics
 import ../drivers/wakeup
 
-export options, pico_graphics, fatfs, sdcard, psram_display, Colour, rtc_pcf85063a, wakeup
+export options, pico_graphics, fatfs, sdcard, psram_display, Colour, rtc_pcf85063a, wakeup, times, cyw43_arch
 
 const
   PinHoldSysEn = 2.Gpio
@@ -40,7 +41,7 @@ const
 
   FlagEinkBusy = 0x07
 
-const sr = ShiftRegister(pinClock: PinSrClock, pinLatch: PinSrLatch, pinOut: PinSrOut, bits: 8)
+const sr* = ShiftRegister(pinClock: PinSrClock, pinLatch: PinSrLatch, pinOut: PinSrOut, bits: 8)
 
 type
   Led* = enum
@@ -80,6 +81,7 @@ type
     rtc*: RtcPcf85063a
     width*, height*: int
     wakeUpEvents: set[WakeUpEvent]
+    rtcState*: array[18, uint8]
 
 proc gpioConfigure*(gpio: Gpio; dir: Direction; value: Value = Low) =
   gpio.setFunction(Sio)
@@ -103,14 +105,14 @@ proc detectInkyFrameModel*(): Option[InkyFrameKind] =
   PinI2cInt.pullDown()
   let switchLatch = PinSrLatch.get()
   let i2cInt = PinI2cInt.get()
+  PinSrLatch.disablePulls()
+  PinI2cInt.disablePulls()
   PinSrLatch.deinit()
   PinI2cInt.deinit()
 
   if switchLatch == High and i2cInt == High: return some(InkyFrame4_0)
   elif switchLatch == Low and i2cInt == High: return some(InkyFrame5_7)
   elif switchLatch == Low and i2cInt == Low: return some(InkyFrame7_3)
-
-  sr.init()
 
 proc isBusy*(): bool =
   ## Check busy flag on shift register
@@ -121,6 +123,10 @@ proc boot*(self: var InkyFrame) =
   if PinHoldSysEn notin wakeup.getGpioState():
     gpioConfigure(PinHoldSysEn, Out, High)
 
+  # detect Inky Frame model in runtime
+  # Fallback to Inky Frame 5.7" if test fails
+  self.kind = detectInkyFrameModel().get(InkyFrame5_7)
+
   # setup the shift register
   sr.init()
 
@@ -129,16 +135,14 @@ proc boot*(self: var InkyFrame) =
 
   # initialise the rtc
   self.rtc.init(move i2c)
+  self.rtcState = self.rtc.readAll()
   self.rtc.setClockOutput(coOff) # Turn off CLOCK_OUT
-  var rambyte = self.rtc.getRamByte()
-  if rambyte == 0:
-    self.rtc.reset()
-    rambyte.setBit(0)
-    self.rtc.setRamByte(rambyte)
+  self.rtc.clearTimerFlag()
+  self.rtc.clearAlarmFlag()
+  self.rtc.enableTimerInterrupt(false)
+  self.rtc.enableAlarmInterrupt(false)
 
-  # let bits = sr.read()
   # determine wake up event
-  # self.wakeUpEvents = cast[set[WakeUpEvent]](bits.bitsliced(static WakeUpEvent.low.ord..WakeUpEvent.high.ord))
   self.wakeUpEvents = cast[set[WakeUpEvent]](wakeup.getShiftState().bitsliced(static WakeUpEvent.low.ord..WakeUpEvent.high.ord))
 
   # there are other reasons a wake event can occur: connect power via usb,
@@ -153,6 +157,9 @@ proc boot*(self: var InkyFrame) =
   gpioConfigurePwm(PinLedE)
   gpioConfigurePwm(PinLedActivity)
   gpioConfigurePwm(PinLedConnection)
+
+  # init adc for vsys reading
+  adcInit()
 
 proc init*(self: var InkyFrame) =
   (self.width, self.height) =
@@ -183,9 +190,6 @@ proc init*(self: var InkyFrame) =
     isBusy,
     blocking = true)
 
-  # init adc for vsys reading
-  adcInit()
-
 proc update*(self: var InkyFrame) =
   if not self.einkDriver.getBlocking():
     while isBusy():
@@ -199,62 +203,73 @@ proc update*(self: var InkyFrame) =
 proc pressed*(button: Button): bool =
   sr.readBit(button.uint8)
 
+proc events*(): set[WakeUpEvent] =
+  cast[set[WakeUpEvent]](sr.read().bitsliced(static WakeUpEvent.low.ord..WakeUpEvent.high.ord))
+
 proc led*(self: InkyFrame; led: Led; brightness: range[0.uint8..100.uint8]) =
   ## Set the LED brightness by generating a gamma corrected target value for
   ## the 16-bit pwm channel. Brightness values are from 0 to 100.
   Gpio(led).setPwmLevel((pow(brightness.float / 100, 2.8) * 65535.0f + 0.5f).uint16)
 
-proc turnOff*(self: InkyFrame) =
-  sleepMs(100)
+proc turnOff*(self: var InkyFrame) =
+  # echo "Rtc state before turning off:"
+  # printRtcState(self.rtc.readAll())
+  stdioFlush()
   # release the vsys hold pin so that inky can go to sleep
-  PinHoldSysEn.init()
-  sleepMs(100)
+  PinHoldSysEn.put(Low)
 
+proc sleep*(self: var InkyFrame; wakeInMinutes: int = -1; emulateSleep = false) =
+  ## Set an alarm to wake inky up in wakeInMinutes
+  ## Negative or zero value means sleep without a wakeup timer (default)
 
-proc sleep*(self: var InkyFrame; wakeInMinutes: int = -1) =
-  # Set an alarm to wake inky up in wake_in_minutes
-  # Negative values means sleep without a wakeup timer (default)
+  # if wakeInMinutes > 0:
+  #   echo "Going to sleep for ", wakeInMinutes, " minute(s)"
+  # else:
+  #   echo "Going to sleep"
 
-  # self.rtc.clearAlarmFlag()
-  # self.rtc.clearTimerFlag()
-  # self.rtc.enableTimerInterrupt(false)
-  # self.rtc.enableAlarmInterrupt(false)
-  # self.rtc.unsetAlarm()
-  # self.rtc.unsetTimer()
+  self.rtc.clearTimerFlag()
+  self.rtc.clearAlarmFlag()
+  self.rtc.enableTimerInterrupt(false)
+  self.rtc.enableAlarmInterrupt(false)
+  self.rtc.unsetTimer()
+  self.rtc.unsetAlarm()
 
   # Can't sleep beyond a month, so clamp the sleep to a 28 day maximum
   let minutes = min(40320, wakeInMinutes)
 
   if wakeInMinutes > 0:
-    if minutes <= 255:
-      # the maximum sleep is 255 minutes or around 4.5 hours which is the longest timer the RTC
-      # supports, to sleep any longer we need to specify a date and time to
-      # wake up
-      self.rtc.setTimer(minutes.uint8, tt1Over60Hz)
-      self.rtc.enableTimerInterrupt(true)
-    else:
-      # more than 255 minutes, calculate wakeup time and day
-      let dt = self.rtc.getDatetime().toNimDateTime() + initDuration(minutes = minutes)
-      self.rtc.setAlarm(dt.second, dt.minute, dt.hour, dt.monthday)
-      self.rtc.enableAlarmInterrupt(true)
+    # if minutes <= 255:
+    #   # the maximum sleep is 255 minutes or around 4.5 hours which is the longest timer the RTC
+    #   # supports, to sleep any longer we need to specify a date and time to
+    #   # wake up
+    #   self.rtc.setTimer(minutes.uint8, tt1Over60Hz)
+    #   self.rtc.enableTimerInterrupt(true)
+    # else:
+    #   # more than 255 minutes, calculate wakeup time and day
+    let now = self.rtc.getDatetime().toNimDateTime()
+    var dt = now + initDuration(minutes = minutes)
+    # echo "sleeping from ", now, " until ", dt
+    # echo (dt.second, dt.minute, dt.hour, dt.monthday, dt.weekday.ord)
+    self.rtc.setAlarm(dt.second, dt.minute, dt.hour, dt.monthday)
+    self.rtc.enableAlarmInterrupt(true)
 
   self.turnOff()
 
-  # emulate sleep on usb power
-  if minutes > 0:
-    var minutesLeft = minutes
-    while minutesLeft > 0:
-      echo "Sleeping for ", minutesLeft, " minutes"
-      sleepMs(60 * 1000)
-      dec(minutesLeft)
-  else:
-    echo "Sleeping forever."
-    while true:
+  if emulateSleep:
+    # emulate sleep on usb power
+    while events() == {}:
       tightLoopContents()
-      sleepMs(1000)
+    # reboot when an event happens
+    watchdogReboot(0, 0, 0)
 
-proc sleepUntil*(self: var InkyFrame; second, minute, hour, day: int = -1) =
+proc sleepUntil*(self: var InkyFrame; second = -1; minute = -1; hour = -1; day = -1; emulateSleep = false) =
+  self.rtc.clearTimerFlag()
   self.rtc.clearAlarmFlag()
+  self.rtc.enableTimerInterrupt(false)
+  self.rtc.enableAlarmInterrupt(false)
+  self.rtc.unsetTimer()
+  self.rtc.unsetAlarm()
+
   if second != -1 or minute != -1 or hour != -1 or day != -1:
     # set an alarm to wake inky up at the specified time and day
     self.rtc.setAlarm(second, minute, hour, day)
@@ -262,23 +277,28 @@ proc sleepUntil*(self: var InkyFrame; second, minute, hour, day: int = -1) =
 
   self.turnOff()
 
-  # TODO: Implement emulation of sleep using rtc
-  echo "Sleeping forever."
-  while true:
-    tightLoopContents()
+  if emulateSleep:
+    # emulate sleep on usb power
+    while events() == {}:
+      tightLoopContents()
+    # reboot when an event happens
+    watchdogReboot(0, 0, 0)
 
-proc getWakeUpEvents*(self: InkyFrame): set[WakeUpEvent] = self.wakeUpEvents
+proc getWakeUpEvents*(self: InkyFrame): set[WakeUpEvent] =
+  return self.wakeUpEvents
 
 proc setBorder*(self: var InkyFrame; colour: Colour) =
   self.einkDriver.setBorder(colour)
 
-proc syncRtcFromPicoRtc*(self: var InkyFrame): bool = self.rtc.syncFromPicoRtc()
+proc syncRtcFromPicoRtc*(self: var InkyFrame): bool =
+  return self.rtc.syncFromPicoRtc()
 
-proc syncRtcToPicoRtc*(self: var InkyFrame): bool = self.rtc.syncToPicoRtc()
+proc syncRtcToPicoRtc*(self: var InkyFrame): bool =
+  return self.rtc.syncToPicoRtc()
 
-proc isBatteryPowered*(self: InkyFrame): bool = powerSourceBattery()
-
-proc getBatteryVoltage*(self: InkyFrame): float32 = powerSourceVoltage()
+proc getVsysVoltage*(self: InkyFrame): float32 =
+  ## Requires Cyw43 to be initialized!
+  return powerSourceVoltage()
 
 proc image*(self: var InkyFrame; data: openArray[uint8]; stride: int; sx: int; sy: int; dw: int; dh: int; dx: int; dy: int) =
   var y = 0

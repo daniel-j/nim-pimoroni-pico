@@ -77,7 +77,7 @@ function(add_example target name)
 
   target_compile_definitions(${target} PRIVATE
     # CYW43_HOST_NAME="PicoW"
-    # PICO_STDIO_USB_CONNECT_WAIT_TIMEOUT_MS=2000
+    PICO_STDIO_USB_CONNECT_WAIT_TIMEOUT_MS=0
   )
 
   # enable usb output, disable uart output
