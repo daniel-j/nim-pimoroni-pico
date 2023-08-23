@@ -227,8 +227,8 @@ proc init*(self: var RtcPcf85063a; i2c: I2c; interrupt: GpioOptional = GpioUnuse
     self.reset()
 
   # clear timers and alarms, disable clock_out
-  var data = [uint8 0x00, 0b111]
-  discard self.i2c.writeBytes(self.address, Registers.CONTROL_1.uint8, data[0].addr, data.len.uint)
+  # var data = [uint8 0x00, 0b111]
+  # discard self.i2c.writeBytes(self.address, Registers.CONTROL_1.uint8, data[0].addr, data.len.uint)
 
 # i2c helper methods
 proc getI2c*(self: var RtcPcf85063a): ptr I2cInst {.noSideEffect.} =

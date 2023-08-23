@@ -137,10 +137,10 @@ proc boot*(self: var InkyFrame) =
   self.rtc.init(move i2c)
   self.rtcState = self.rtc.readAll()
   self.rtc.setClockOutput(coOff) # Turn off CLOCK_OUT
-  self.rtc.clearTimerFlag()
-  self.rtc.clearAlarmFlag()
-  self.rtc.enableTimerInterrupt(false)
   self.rtc.enableAlarmInterrupt(false)
+  self.rtc.enableTimerInterrupt(false)
+  self.rtc.clearAlarmFlag()
+  self.rtc.clearTimerFlag()
 
   # determine wake up event
   self.wakeUpEvents = cast[set[WakeUpEvent]](wakeup.getShiftState().bitsliced(static WakeUpEvent.low.ord..WakeUpEvent.high.ord))
@@ -227,12 +227,12 @@ proc sleep*(self: var InkyFrame; wakeInMinutes: int = -1; emulateSleep = false) 
   # else:
   #   echo "Going to sleep"
 
-  self.rtc.clearTimerFlag()
-  self.rtc.clearAlarmFlag()
-  self.rtc.enableTimerInterrupt(false)
-  self.rtc.enableAlarmInterrupt(false)
-  self.rtc.unsetTimer()
-  self.rtc.unsetAlarm()
+  # self.rtc.clearTimerFlag()
+  # self.rtc.clearAlarmFlag()
+  # self.rtc.enableTimerInterrupt(false)
+  # self.rtc.enableAlarmInterrupt(false)
+  # self.rtc.unsetTimer()
+  # self.rtc.unsetAlarm()
 
   # Can't sleep beyond a month, so clamp the sleep to a 28 day maximum
   let minutes = min(40320, wakeInMinutes)
