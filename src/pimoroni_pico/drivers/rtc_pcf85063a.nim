@@ -8,30 +8,18 @@ import ../common/[pimoroni_common, pimoroni_i2c]
 export pimoroni_i2c
 
 type
-  BcdNum = distinct uint8
+  BcdNum = distinct range[0x00'u8 .. 0x99'u8]
 
-# binary coded decimal conversion helper functions
-# proc bcdEncode*(v: uint): uint8 =
-#   let
-#     v10: uint = v div 10
-#     v1: uint = v - (v10 * 10)
-#   return (v1 or (v10 shl 4)).uint8
+proc bcdEncode(val: range[0'u8 .. 99'u8]): BcdNum = BcdNum ((val.uint div 10) shl 4) or (val.uint mod 10)
+proc bcdDecode(val: BcdNum): uint8 = ((val.uint8 shr 4) * 10) + (val.uint8 and 0b1111)
 
-# proc bcdDecode*(v: uint): int8 =
-#   let
-#     v10: uint = (v shr 4) and 0x0f
-#     v1: uint = v and 0x0f
-#   return (v1 + (v10 * 10)).int8
+static:
+  # simple test for the bcd number encode/decode
+  for i in 0'u8 .. 99'u8:
+    doAssert bcdDecode(bcdEncode(i)) == i, "Failed to convert " & $i & " to BcdNum and back"
 
-proc bcdEncode(val: uint8): BcdNum = BcdNum (val div 10 * 16) + (val mod 10)
-proc bcdDecode(val: uint8): uint8 = (val div 16 * 10) + (val mod 16)
-
-# static:
-#   for i in uint8.low .. uint8.high:
-#     doAssert bcdDecode(bcdEncode(i)) == i
-
-converter decode(bcdNum: BcdNum): byte = bcdDecode(bcdNum.byte)
-converter toInt(bcdNum: BcdNum): int = bcdDecode(bcdNum.uint8).int
+converter decode(bcdNum: BcdNum): byte = bcdDecode(bcdNum)
+converter toInt(bcdNum: BcdNum): int = bcdDecode(bcdNum).int
 converter encode(value: int): BcdNum = bcdEncode(value.uint8)
 
 const
