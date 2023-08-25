@@ -69,7 +69,8 @@ proc jpegdecSeekCallback(jpeg: ptr JPEGFILE, p: int32): int32 {.cdecl.} =
     file[].setFilePos(p)
     return 1
 
-proc drawScaled(self: var JpegDecoder; draw: ptr JPEGDRAW): int =
+
+proc drawScaled(self: var JpegDecoder; draw: ptr JPEGDRAW): bool =
   let p = cast[ptr UncheckedArray[uint16]](draw.pPixels)
 
   let dx = (draw.x * self.w div self.jpegW)
@@ -144,9 +145,9 @@ proc drawScaled(self: var JpegDecoder; draw: ptr JPEGDRAW): int =
     stdout.write($currentProgress & "%\r")
     stdout.flushFile()
 
-  return 1
+  return true
 
-proc drawFast(self: var JpegDecoder; draw: ptr JPEGDRAW): int =
+proc drawFast(self: var JpegDecoder; draw: ptr JPEGDRAW): bool =
   let p = cast[ptr UncheckedArray[uint16]](draw.pPixels)
   let lastProgress = (self.progress * 100) div (self.jpegW * self.jpegH)
 
@@ -173,7 +174,7 @@ proc drawFast(self: var JpegDecoder; draw: ptr JPEGDRAW): int =
     stdout.write($currentProgress & "%\r")
     stdout.flushFile()
 
-  return 1
+  return true
 
 proc jpegdecDrawCallback[T](draw: ptr JPEGDRAW): cint {.cdecl.} =
   return cast[ptr T](draw.pUser)[].drawScaled(draw).cint

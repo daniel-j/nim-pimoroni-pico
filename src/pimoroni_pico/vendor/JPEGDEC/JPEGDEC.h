@@ -19,10 +19,10 @@
 #include <stdint.h>
 #include <stdio.h>
 #else
-#include <Arduino.h>
-#if !defined(HAL_ESP32_HAL_H_) && defined(__has_include) && __has_include(<FS.h>)
-#include <FS.h>
-#endif
+// #include <Arduino.h>
+// #if !defined(HAL_ESP32_HAL_H_) && defined(__has_include) && __has_include(<FS.h>)
+// #include <FS.h>
+// #endif
 #endif
 #ifndef PROGMEM
 #define memcpy_P memcpy
@@ -68,6 +68,7 @@
 enum {
     RGB565_LITTLE_ENDIAN = 0,
     RGB565_BIG_ENDIAN,
+    RGB888_LITTLE_ENDIAN,
     EIGHT_BIT_GRAYSCALE,
     FOUR_BIT_DITHERED,
     TWO_BIT_DITHERED,
@@ -115,11 +116,11 @@ typedef struct jpeg_draw_tag
 } JPEGDRAW;
 
 // Callback function prototypes
-typedef int32_t (JPEG_READ_CALLBACK)(JPEGFILE *pFile, uint8_t *pBuf, int32_t iLen);
-typedef int32_t (JPEG_SEEK_CALLBACK)(JPEGFILE *pFile, int32_t iPosition);
-typedef int (JPEG_DRAW_CALLBACK)(JPEGDRAW *pDraw);
-typedef void * (JPEG_OPEN_CALLBACK)(char *szFilename, int32_t *pFileSize);
-typedef void (JPEG_CLOSE_CALLBACK)(void *pHandle);
+typedef int32_t (*JPEG_READ_CALLBACK)(JPEGFILE *pFile, uint8_t *pBuf, int32_t iLen);
+typedef int32_t (*JPEG_SEEK_CALLBACK)(JPEGFILE *pFile, int32_t iPosition);
+typedef int (*JPEG_DRAW_CALLBACK)(JPEGDRAW *pDraw);
+typedef void * (*JPEG_OPEN_CALLBACK)(char *szFilename, int32_t *pFileSize);
+typedef void (*JPEG_CLOSE_CALLBACK)(void *pHandle);
 
 /* JPEG color component info */
 typedef struct _jpegcompinfo
@@ -179,11 +180,11 @@ typedef struct jpeg_image_tag
     int iVLCSize; // current quantity of data in the VLC buffer
     int iResInterval, iResCount; // restart interval
     int iMaxMCUs; // max MCUs of pixels per JPEGDraw call
-    JPEG_READ_CALLBACK *pfnRead;
-    JPEG_SEEK_CALLBACK *pfnSeek;
-    JPEG_DRAW_CALLBACK *pfnDraw;
-    JPEG_OPEN_CALLBACK *pfnOpen;
-    JPEG_CLOSE_CALLBACK *pfnClose;
+    JPEG_READ_CALLBACK pfnRead;
+    JPEG_SEEK_CALLBACK pfnSeek;
+    JPEG_DRAW_CALLBACK pfnDraw;
+    JPEG_OPEN_CALLBACK pfnOpen;
+    JPEG_CLOSE_CALLBACK pfnClose;
     JPEGCOMPINFO JPCI[MAX_COMPS_IN_SCAN]; /* Max color components */
     JPEGFILE JPEGFile;
     BUFFERED_BITS bb;
@@ -208,12 +209,12 @@ typedef struct jpeg_image_tag
 class JPEGDEC
 {
   public:
-    int openRAM(uint8_t *pData, int iDataSize, JPEG_DRAW_CALLBACK *pfnDraw);
-    int openFLASH(uint8_t *pData, int iDataSize, JPEG_DRAW_CALLBACK *pfnDraw);
-    int open(const char *szFilename, JPEG_OPEN_CALLBACK *pfnOpen, JPEG_CLOSE_CALLBACK *pfnClose, JPEG_READ_CALLBACK *pfnRead, JPEG_SEEK_CALLBACK *pfnSeek, JPEG_DRAW_CALLBACK *pfnDraw);
-    int open(void *fHandle, int iDataSize, JPEG_CLOSE_CALLBACK *pfnClose, JPEG_READ_CALLBACK *pfnRead, JPEG_SEEK_CALLBACK *pfnSeek, JPEG_DRAW_CALLBACK *pfnDraw);
+    int openRAM(uint8_t *pData, int iDataSize, JPEG_DRAW_CALLBACK pfnDraw);
+    int openFLASH(uint8_t *pData, int iDataSize, JPEG_DRAW_CALLBACK pfnDraw);
+    int open(const char *szFilename, JPEG_OPEN_CALLBACK pfnOpen, JPEG_CLOSE_CALLBACK pfnClose, JPEG_READ_CALLBACK pfnRead, JPEG_SEEK_CALLBACK pfnSeek, JPEG_DRAW_CALLBACK pfnDraw);
+    int open(void *fHandle, int iDataSize, JPEG_CLOSE_CALLBACK pfnClose, JPEG_READ_CALLBACK pfnRead, JPEG_SEEK_CALLBACK pfnSeek, JPEG_DRAW_CALLBACK pfnDraw);
 #ifdef FS_H
-    int open(File &file, JPEG_DRAW_CALLBACK *pfnDraw);
+    int open(File &file, JPEG_DRAW_CALLBACK pfnDraw);
 #endif
     void close();
     int decode(int x, int y, int iOptions);
@@ -236,8 +237,8 @@ class JPEGDEC
 };
 #else
 #define JPEG_STATIC
-int JPEG_openRAM(JPEGIMAGE *pJPEG, uint8_t *pData, int iDataSize, JPEG_DRAW_CALLBACK *pfnDraw);
-int JPEG_openFile(JPEGIMAGE *pJPEG, const char *szFilename, JPEG_DRAW_CALLBACK *pfnDraw);
+int JPEG_openRAM(JPEGIMAGE *pJPEG, uint8_t *pData, int iDataSize, JPEG_DRAW_CALLBACK pfnDraw);
+int JPEG_openFile(JPEGIMAGE *pJPEG, const char *szFilename, JPEG_DRAW_CALLBACK pfnDraw);
 int JPEG_getWidth(JPEGIMAGE *pJPEG);
 int JPEG_getHeight(JPEGIMAGE *pJPEG);
 int JPEG_decode(JPEGIMAGE *pJPEG, int x, int y, int iOptions);
