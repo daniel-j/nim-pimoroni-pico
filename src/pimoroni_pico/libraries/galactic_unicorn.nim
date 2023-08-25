@@ -102,7 +102,7 @@ proc dmaSafeAbort(self: var GalacticUnicorn; channel: DmaChannel) =
   # This is copied from: https://github.com/raspberrypi/pico-sdk/pull/744/commits/5e0e8004dd790f0155426e6689a66e08a83cd9fc
 
   let irq0Save = dmaHw.inte0 and (1'u32 shl channel.uint)
-  hwClearBits(cast[IoRw32](dmaHw.inte0.addr), irq0Save)
+  hwClearBits(dmaHw.inte0.addr, irq0Save)
 
   dmaHw.abort = 1'u32 shl channel.uint
 
@@ -113,7 +113,7 @@ proc dmaSafeAbort(self: var GalacticUnicorn; channel: DmaChannel) =
 
   # Clear the interrupt (if any) and restore the interrupt masks.
   dmaHw.ints0 = 1'u32 shl channel.uint
-  hwSetBits(cast[IoRw32](dmaHw.inte0.addr), irq0Save)
+  hwSetBits(dmaHw.inte0.addr, irq0Save)
 
 proc partialTeardown(self: var GalacticUnicorn) =
   # Stop the bitstream SM

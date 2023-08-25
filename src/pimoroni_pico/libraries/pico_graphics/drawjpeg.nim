@@ -176,7 +176,7 @@ proc drawFast(self: var JpegDecoder; draw: ptr JPEGDRAW): int =
   return 1
 
 proc jpegdecDrawCallback[T](draw: ptr JPEGDRAW): cint {.cdecl.} =
-  return cast[var T](draw.pUser).drawScaled(draw).cint
+  return cast[ptr T](draw.pUser)[].drawScaled(draw).cint
 
 
 proc init*(self: var JpegDecoder; graphics: var PicoGraphics) =

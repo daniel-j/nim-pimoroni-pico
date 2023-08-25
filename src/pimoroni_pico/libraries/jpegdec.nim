@@ -235,10 +235,10 @@ const
 {.pop.}
 
 ##  forward references
-proc JPEGInit(pJPEG: ptr JPEGIMAGE): cint {.importc: "JPEGInit".}
-proc JPEGParseInfo(pPage: ptr JPEGIMAGE; bExtractThumb: cint): cint {.importc: "JPEGParseInfo".}
-proc JPEGGetMoreData(pPage: ptr JPEGIMAGE) {.importc: "JPEGGetMoreData".}
-proc DecodeJPEG(pImage: ptr JPEGIMAGE): cint {.importc: "DecodeJPEG".}
+proc JPEGInit(pJPEG: ptr JPEGIMAGE): cint {.importc: "JPEGInit", nodecl.}
+proc JPEGParseInfo(pPage: ptr JPEGIMAGE; bExtractThumb: cint): cint {.importc: "JPEGParseInfo", nodecl.}
+proc JPEGGetMoreData(pPage: ptr JPEGIMAGE) {.importc: "JPEGGetMoreData", nodecl.}
+proc DecodeJPEG(pImage: ptr JPEGIMAGE): cint {.importc: "DecodeJPEG", nodecl.}
 
 
 ##
@@ -291,7 +291,7 @@ proc open*(self: var JPEGDEC; szFilename: string; pfnOpen: JPEG_OPEN_CALLBACK; p
   self.jpeg.pfnOpen = pfnOpen
   self.jpeg.pfnClose = pfnClose
   self.jpeg.iMaxMCUs = 1000  ##  set to an unnaturally high value to start
-  self.jpeg.JPEGFile.fHandle = pfnOpen(szFilename, addr(self.jpeg.JPEGFile.iSize))
+  self.jpeg.JPEGFile.fHandle = pfnOpen(szFilename.cstring, addr(self.jpeg.JPEGFile.iSize))
   if self.jpeg.JPEGFile.fHandle == nil:
     return 0
   return JPEGInit(self.jpeg.addr)

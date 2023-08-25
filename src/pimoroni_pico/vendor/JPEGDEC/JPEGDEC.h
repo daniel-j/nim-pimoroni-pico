@@ -118,7 +118,7 @@ typedef struct jpeg_draw_tag
 typedef int32_t (JPEG_READ_CALLBACK)(JPEGFILE *pFile, uint8_t *pBuf, int32_t iLen);
 typedef int32_t (JPEG_SEEK_CALLBACK)(JPEGFILE *pFile, int32_t iPosition);
 typedef int (JPEG_DRAW_CALLBACK)(JPEGDRAW *pDraw);
-typedef void * (JPEG_OPEN_CALLBACK)(const char *szFilename, int32_t *pFileSize);
+typedef void * (JPEG_OPEN_CALLBACK)(char *szFilename, int32_t *pFileSize);
 typedef void (JPEG_CLOSE_CALLBACK)(void *pHandle);
 
 /* JPEG color component info */
