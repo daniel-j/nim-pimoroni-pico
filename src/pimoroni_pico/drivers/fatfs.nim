@@ -36,12 +36,9 @@
 # license that not conflict with FatFs license.
 #
 
-
 import std/os
-import picostdlib/helpers
-import picostdlib/hardware/rtc
-import futhark
 
+const fatfsInclude = currentSourcePath.parentDir / ".." / "vendor" / "fatfs"
 
 #[
 {.compile: fatfsInclude / "ff.c".}
@@ -50,23 +47,28 @@ import futhark
 {.compile: fatfsInclude / "diskio.c".}
 ]#
 
-const fatfsInclude = currentSourcePath.parentDir / ".." / "vendor" / "fatfs"
+when defined(nimcheck):
+  include ../futharkgen/futhark_fatfs
+else:
+  import std/macros
+  import picostdlib/helpers
+  import futhark
 
-importc:
-  outputPath currentSourcePath.parentDir / ".." / "futharkgen" / "futhark_fatfs.nim"
+  importc:
+    outputPath currentSourcePath.parentDir / ".." / "futharkgen" / "futhark_fatfs.nim"
 
-  compilerArg "--target=arm-none-eabi"
-  compilerArg "-mthumb"
-  compilerArg "-mcpu=cortex-m0plus"
-  compilerArg "-fsigned-char"
+    compilerArg "--target=arm-none-eabi"
+    compilerArg "-mthumb"
+    compilerArg "-mcpu=cortex-m0plus"
+    compilerArg "-fsigned-char"
 
-  sysPath armSysrootInclude
-  sysPath armInstallInclude
-  path fatfsInclude
+    sysPath armSysrootInclude
+    sysPath armInstallInclude
+    path fatfsInclude
 
-  renameCallback futharkRenameCallback
+    renameCallback futharkRenameCallback
 
-  "ff.h"
+    "ff.h"
 
 
 {.emit: "// picostdlib import: fatfs".}
@@ -74,6 +76,7 @@ importc:
 # Nim helpers
 
 import std/strutils
+import picostdlib/hardware/rtc
 
 func f_eof*(fp: ptr FIL): auto {.inline.} = fp.fptr == fp.obj.objsize
 func f_error*(fp: ptr FIL): auto {.inline.} = fp.err
@@ -103,7 +106,7 @@ func `$`*(fileTime: tuple[hour: int, min: int, sec: int]): string =
   return intToStr(fileTime.hour, 2) & ":" & intToStr(fileTime.min, 2) & ":" & intToStr(fileTime.sec, 2)
 
 proc get_fattime_impl(): DWORD {.exportc: "get_fattime", cdecl.} =
-  var dt = Datetime(
+  var dt = DatetimeT(
     year: 2023,
     month: 1,
     day: 1
