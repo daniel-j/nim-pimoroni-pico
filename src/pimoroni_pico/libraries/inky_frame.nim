@@ -78,10 +78,9 @@ type
   InkyFrame* = object of PicoGraphicsPen3Bit
     kind*: InkyFrameKind
     einkDriver: EinkDriver
-    rtc*: RtcPcf85063a
+    rtc*: Pcf85063a
     width*, height*: int
     wakeUpEvents: set[WakeUpEvent]
-    rtcState*: array[18, uint8]
 
 proc gpioConfigure*(gpio: Gpio; dir: Direction; value: Value = Low) =
   gpio.setFunction(Sio)
@@ -135,12 +134,14 @@ proc boot*(self: var InkyFrame) =
 
   # initialise the rtc
   self.rtc.init(move i2c)
-  self.rtcState = self.rtc.readAll()
   self.rtc.setClockOutput(coOff) # Turn off CLOCK_OUT
+  self.rtc.unsetAlarm()
+  self.rtc.unsetTimer()
   self.rtc.enableAlarmInterrupt(false)
   self.rtc.enableTimerInterrupt(false)
   self.rtc.clearAlarmFlag()
   self.rtc.clearTimerFlag()
+  # self.rtc.reset()
 
   # determine wake up event
   self.wakeUpEvents = cast[set[WakeUpEvent]](wakeup.getShiftState().bitsliced(static WakeUpEvent.low.ord..WakeUpEvent.high.ord))
@@ -199,6 +200,8 @@ proc update*(self: var InkyFrame) =
     while isBusy():
       tightLoopContents()
     self.einkDriver.powerOff()
+    while isBusy():
+      tightLoopContents()
 
 proc pressed*(button: Button): bool =
   sr.readBit(button.uint8)
@@ -215,8 +218,13 @@ proc turnOff*(self: var InkyFrame) =
   # echo "Rtc state before turning off:"
   # printRtcState(self.rtc.readAll())
   stdioFlush()
+  self.rtc.i2c.deinit()
+  while isBusy():
+    tightLoopContents()
+  sleepMs(100)
   # release the vsys hold pin so that inky can go to sleep
-  PinHoldSysEn.put(Low)
+  PinHoldSysEn.init()
+  sleepMs(100)
 
 proc sleep*(self: var InkyFrame; wakeInMinutes: int = -1; emulateSleep = false) =
   ## Set an alarm to wake inky up in wakeInMinutes
@@ -227,12 +235,12 @@ proc sleep*(self: var InkyFrame; wakeInMinutes: int = -1; emulateSleep = false) 
   # else:
   #   echo "Going to sleep"
 
-  # self.rtc.clearTimerFlag()
-  # self.rtc.clearAlarmFlag()
   # self.rtc.enableTimerInterrupt(false)
   # self.rtc.enableAlarmInterrupt(false)
   # self.rtc.unsetTimer()
   # self.rtc.unsetAlarm()
+  # self.rtc.clearTimerFlag()
+  # self.rtc.clearAlarmFlag()
 
   # Can't sleep beyond a month, so clamp the sleep to a 28 day maximum
   let minutes = min(40320, wakeInMinutes)

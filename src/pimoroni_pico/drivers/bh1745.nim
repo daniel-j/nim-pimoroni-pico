@@ -117,7 +117,7 @@ proc init*(self: var Bh1745): bool =
   self.setMeasurementTimeMs(MeasTime_640)
   self.setAdcGain(AdcGain_1X)
   self.i2c.setBits(self.address, Bh1745RegModeControl2.uint8, 4) # Enable RGBC
-  self.i2c.regWriteUint8(self.address, Bh1745RegModeControl3.uint8, 0x02) # Turn on sensor
+  discard self.i2c.regWriteUint8(self.address, Bh1745RegModeControl3.uint8, 0x02) # Turn on sensor
   self.setThresholdHigh(0x0000) # Set threshold so int will always fire
   self.setThresholdLow(0xFFFF) # this lets us turn on the LEDs with the int pin
   self.i2c.clearBits(self.address, Bh1745RegInterrupt.uint8, 4) # Enable interrupt latch

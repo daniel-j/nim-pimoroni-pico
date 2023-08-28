@@ -50,9 +50,10 @@ pico_sdk_init()
 include(${PICOSTDLIB_DIR}/picostdlib/cmake/picostdlib.cmake)
 include(${CMAKE_CURRENT_LIST_DIR}/../src/pimoroni_pico/cmake/pimoroni_pico.cmake)
 
-# Pico SDK patches needed
+# Pico SDK patches
 # pico_sdk_patch_source("src/rp2_common/pico_standard_link/crt0.S" "${PIMORONI_PICO_DIR}/pico_sdk_crt0.patch" pico_standard_link)
 # pico_sdk_patch_source("src/rp2_common/pico_runtime/runtime.c" "${PIMORONI_PICO_DIR}/pico_sdk_runtime.patch" pico_runtime)
+# pico_sdk_patch_source("src/rp2_common/pico_standard_link/crt0.S" "${PIMORONI_PICO_DIR}/pico_sdk_crt0_startup_overclock.patch" pico_standard_link)
 
 
 function(add_example target name)
