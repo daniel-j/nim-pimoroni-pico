@@ -14,11 +14,12 @@ type
   Rgb332* = distinct uint8
   Rgb565* = distinct uint16
   Rgb888* = distinct uint32
+  RgbComponent* = uint8
   Rgb* {.packed.} = object
-    r*, g*, b*: int16
+    b*, g*, r*: RgbComponent
   RgbLinearComponent* = int16
   RgbLinear* {.packed.} = object
-    r*, g*, b*: RgbLinearComponent
+    b*, g*, r*: RgbLinearComponent
   Lab* {.packed.} = object
     L*, a*, b*: float64
   Hsv* {.packed.} = object
@@ -42,36 +43,36 @@ func constructRgb*(): Rgb =
   result.b = 0
 
 func constructRgb*(c: Rgb332): Rgb =
-  result.r = ((c.uint8 and 0b11100000) shr 0).int16
-  result.g = ((c.uint8 and 0b00011100) shl 3).int16
-  result.b = ((c.uint8 and 0b00000011) shl 6).int16
+  result.r = RgbComponent (c.uint8 and 0b11100000) shr 0
+  result.g = RgbComponent (c.uint8 and 0b00011100) shl 3
+  result.b = RgbComponent (c.uint8 and 0b00000011) shl 6
 
 func constructRgb*(c: Rgb565): Rgb =
-  result.r = ((c.uint16 and 0b1111100000000000) shr 8).int16
-  result.g = ((c.uint16 and 0b0000011111100000) shr 3).int16
-  result.b = ((c.uint16 and 0b0000000000011111) shl 3).int16
+  result.r = RgbComponent (c.uint16 and 0b1111100000000000) shr 8
+  result.g = RgbComponent (c.uint16 and 0b0000011111100000) shr 3
+  result.b = RgbComponent (c.uint16 and 0b0000000000011111) shl 3
 
 func constructRgb*(c: Rgb888): Rgb =
-  result.r = int16 (c.uint shr 16) and 0xff
-  result.g = int16 (c.uint shr 8) and 0xff
-  result.b = int16 c.uint and 0xff
+  result.r = RgbComponent (c.uint32 shr 16) and 0xff
+  result.g = RgbComponent (c.uint32 shr 8) and 0xff
+  result.b = RgbComponent c.uint32 and 0xff
 
 func constructRgbBe*(c: Rgb565): Rgb =
-  result.r = ((builtinBswap16(c.uint16) and 0b1111100000000000) shr 8).int16
-  result.g = ((builtinBswap16(c.uint16) and 0b0000011111100000) shr 3).int16
-  result.b = ((builtinBswap16(c.uint16) and 0b0000000000011111) shl 3).int16
+  result.r = RgbComponent (builtinBswap16(c.uint16) and 0b1111100000000000) shr 8
+  result.g = RgbComponent (builtinBswap16(c.uint16) and 0b0000011111100000) shr 3
+  result.b = RgbComponent (builtinBswap16(c.uint16) and 0b0000000000011111) shl 3
 
-func constructRgb*(r, g, b: int16): Rgb =
+func constructRgb*(r, g, b: RgbComponent): Rgb =
   result.r = r
   result.g = g
   result.b = b
 
 func constructRgb*(r, g, b: float32): Rgb =
-  result.r = int16 round(r * 255.0f)
-  result.g = int16 round(g * 255.0f)
-  result.b = int16 round(b * 255.0f)
+  result.r = RgbComponent round(r * 255.0f)
+  result.g = RgbComponent round(g * 255.0f)
+  result.b = RgbComponent round(b * 255.0f)
 
-func constructRgb*(l: int16): Rgb =
+func constructRgb*(l: RgbComponent): Rgb =
   result.r = l
   result.g = l
   result.b = l
@@ -124,9 +125,9 @@ func toRgb*(hsl: Hsl): Rgb =
   let q = if l < 0.5f: l * (1 + s) else: l + s - l * s
   let p = 2.0f * l - q
 
-  result.r = int16 round(hue2rgb(p, q, h + 1.0f/3.0f).clamp(0, 1) * 255.0f)
-  result.g = int16 round(hue2rgb(p, q, h).clamp(0, 1) * 255.0f)
-  result.b = int16 round(hue2rgb(p, q, h - 1.0f/3.0f).clamp(0, 1) * 255.0f)
+  result.r = RgbComponent round(hue2rgb(p, q, h + 1.0f/3.0f).clamp(0, 1) * 255.0f)
+  result.g = RgbComponent round(hue2rgb(p, q, h).clamp(0, 1) * 255.0f)
+  result.b = RgbComponent round(hue2rgb(p, q, h - 1.0f/3.0f).clamp(0, 1) * 255.0f)
 
 func toHsl*(col: Rgb): Hsl =
   let r = col.r.float32 / 255.0f
@@ -210,9 +211,9 @@ func generateRgbToLinearCache(gamma: float = defaultGamma): array[256, RgbLinear
   for i, _ in result:
     result[i] = RgbLinearComponent round((i / 255).linearize1(gamma) * rgbMultiplier)
 
-func generateRgbFromLinearCache(gamma: float = defaultGamma): array[rgbMultiplier, int16] {.compileTime.} =
+func generateRgbFromLinearCache(gamma: float = defaultGamma): array[rgbMultiplier, RgbComponent] {.compileTime.} =
   for i, _ in result:
-    result[i] = int16 round((i / rgbMultiplier).delinearize1(gamma) * 255)
+    result[i] = RgbComponent round((i / rgbMultiplier).delinearize1(gamma) * 255)
 
 const rgbToLinearCache = generateRgbToLinearCache(defaultGamma)
 const rgbFromLinearCache = generateRgbFromLinearCache(defaultGamma)
@@ -235,14 +236,14 @@ func toLinear*(c: Rgb; gamma: float = defaultGamma; cheat = false): RgbLinear =
 
 func fromLinear*(c: RgbLinear; gamma: float = defaultGamma; cheat = false): Rgb =
   if cheat:
-    result.r = int16 round(c.r.float / (rgbMultiplier.float / 255)).clamp(0, 255)
-    result.g = int16 round(c.g.float / (rgbMultiplier.float / 255)).clamp(0, 255)
-    result.b = int16 round(c.b.float / (rgbMultiplier.float / 255)).clamp(0, 255)
+    result.r = RgbComponent round(c.r.float / (rgbMultiplier.float / 255)).clamp(0, 255)
+    result.g = RgbComponent round(c.g.float / (rgbMultiplier.float / 255)).clamp(0, 255)
+    result.b = RgbComponent round(c.b.float / (rgbMultiplier.float / 255)).clamp(0, 255)
   else:
     if gamma != defaultGamma:
-      result.r = int16 round((c.r.float / rgbMultiplier).clamp(0, 1).delinearize1(gamma).clamp(0, 1) * 255)
-      result.g = int16 round((c.g.float / rgbMultiplier).clamp(0, 1).delinearize1(gamma).clamp(0, 1) * 255)
-      result.b = int16 round((c.b.float / rgbMultiplier).clamp(0, 1).delinearize1(gamma).clamp(0, 1) * 255)
+      result.r = RgbComponent round((c.r.float / rgbMultiplier).clamp(0, 1).delinearize1(gamma).clamp(0, 1) * 255)
+      result.g = RgbComponent round((c.g.float / rgbMultiplier).clamp(0, 1).delinearize1(gamma).clamp(0, 1) * 255)
+      result.b = RgbComponent round((c.b.float / rgbMultiplier).clamp(0, 1).delinearize1(gamma).clamp(0, 1) * 255)
     else:
       result.r = rgbFromLinearCache[c.r.clamp(0, rgbMultiplier - 1)]
       result.g = rgbFromLinearCache[c.g.clamp(0, rgbMultiplier - 1)]
@@ -324,10 +325,10 @@ func distance*(c1, c2: RgbLinear): uint =
 # perceived which avoids expensive colour space conversions.
 # described in detail at https://www.compuphase.com/cmetric.htm
 proc distance*(self, c: Rgb): uint =
-  let rmean = (self.r.int64 + c.r) div 2
-  let rx = self.r.int64 - c.r
-  let gx = self.g.int64 - c.g
-  let bx = self.b.int64 - c.b
+  let rmean = (self.r.int64 + c.r.int64) div 2
+  let rx = self.r.int64 - c.r.int64
+  let gx = self.g.int64 - c.g.int64
+  let bx = self.b.int64 - c.b.int64
   return uint abs(
     (((512 + rmean) * rx * rx) shr 8) + 4 * gx * gx + (((767 - rmean) * bx * bx) shr 8)
   )
@@ -374,9 +375,9 @@ func level*(self: Rgb; black: float32 = 0; white: float32 = 1; gamma: float32 = 
     g = pow(g, ngamma)
     b = pow(b, ngamma)
 
-  result.r = (r * 255.0f).int16
-  result.g = (g * 255.0f).int16
-  result.b = (b * 255.0f).int16
+  result.r = RgbComponent r * 255.0f
+  result.g = RgbComponent g * 255.0f
+  result.b = RgbComponent b * 255.0f
 
 func contrast*(self: Rgb; value: float32): Rgb =
   var r = self.r.float32 / 255.0f
@@ -387,9 +388,9 @@ func contrast*(self: Rgb; value: float32): Rgb =
   g = clamp((g - 0.5f) * value + 0.5f, 0, 1)
   b = clamp((b - 0.5f) * value + 0.5f, 0, 1)
 
-  result.r = (r * 255.0f).int16
-  result.g = (g * 255.0f).int16
-  result.b = (b * 255.0f).int16
+  result.r = RgbComponent r * 255.0f
+  result.g = RgbComponent g * 255.0f
+  result.b = RgbComponent b * 255.0f
 
 func saturate*(self: Rgb; factor: float32): Rgb =
   var hsl = self.toHsl()
@@ -434,7 +435,7 @@ func toRgb888*(self: Rgb): Rgb888 =
   )
 
 func rgbToRgb332*(r, g, b: uint8): Rgb332 =
-  constructRgb(r.int16, g.int16, b.int16).toRgb332()
+  constructRgb(r.RgbComponent, g.RgbComponent, b.RgbComponent).toRgb332()
 
 func rgb332ToRgb565Be*(c: Rgb332): Rgb565 =
   let p =
@@ -452,7 +453,7 @@ func rgb565ToRgb332*(c: Rgb565): Rgb332 =
   ).Rgb332
 
 func rgbToRgb565*(r, g, b: uint8): Rgb565 =
-  constructRgb(r.int16, g.int16, b.int16).toRgb565Be()
+  constructRgb(r.RgbComponent, g.RgbComponent, b.RgbComponent).toRgb565Be()
 
 func rgb332ToRgb*(c: Rgb332): Rgb = constructRgb(c)
 

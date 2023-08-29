@@ -120,9 +120,9 @@ func getCacheColor*(key: uint): Rgb =
   let g = (key and cacheGreenMask shl cacheBlueBits) shr cacheBlueBits shl (cacheRgbBits - cacheGreenBits)
   let b = (key and cacheBlueMask) shl (cacheRgbBits - cacheBlueBits)
   return Rgb(
-    r: int16 r or (r shr cacheBlueBits) or (r shr (cacheGreenBits + cacheBlueBits)),
-    g: int16 g or (g shr cacheBlueBits) or (g shr (cacheGreenBits + cacheBlueBits)),
-    b: int16 b or (b shr cacheBlueBits) or (b shr (cacheGreenBits + cacheBlueBits))
+    r: RgbComponent r or (r shr cacheBlueBits) or (r shr (cacheGreenBits + cacheBlueBits)),
+    g: RgbComponent g or (g shr cacheBlueBits) or (g shr (cacheGreenBits + cacheBlueBits)),
+    b: RgbComponent b or (b shr cacheBlueBits) or (b shr (cacheGreenBits + cacheBlueBits))
   )
 
 iterator cacheColors*(): tuple[i: int, c: RgbLinear] =
