@@ -20,3 +20,5 @@ switch("d", "nimEmulateOverflowChecks")
 switch("maxLoopIterationsVM", "100000000")
 
 switch("d", "mock")
+
+switch("nimcache", "build/nimcache")

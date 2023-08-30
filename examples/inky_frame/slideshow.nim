@@ -1,4 +1,3 @@
-import std/strutils
 import std/random
 import std/typetraits
 
