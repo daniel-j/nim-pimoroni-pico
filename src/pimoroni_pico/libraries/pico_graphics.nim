@@ -190,15 +190,15 @@ type
       ditherCandidateCache*: array[ditherPatternLength, uint8]
       ditherCandidateColor*: RgbLinear
 
-const luma7_3 = 1/1.05
-const sat7_3 = 1/1.5
+const luma7_3 = 1/1.08
+const sat7_3 = 1/1.45
 
 const PicoGraphicsPen3BitPalette7_3* = [
   LChToLab(0.03, sat7_3 * 0.00,  90).fromLab(), ##  black
   LChToLab(0.99, sat7_3 * 0.00,  40).fromLab(), ##  white
   LChToLab(luma7_3 * 0.53, sat7_3 * 0.65, 150).fromLab(), ##  green
   LChToLab(luma7_3 * 0.52, sat7_3 * 0.52, 265).fromLab(), ##  blue
-  LChToLab(luma7_3 * 0.55, sat7_3 * 0.65,  30).fromLab(), ##  red
+  LChToLab(luma7_3 * 0.55, sat7_3 * 0.70,  30).fromLab(), ##  red
   LChToLab(luma7_3 * 0.90, sat7_3 * 0.70, 110).fromLab(), ##  yellow
   LChToLab(luma7_3 * 0.65, sat7_3 * 0.68,  60).fromLab(), ##  orange
   LChToLab(luma7_3 * 0.98, sat7_3 * 0.00,  90).fromLab(), ##  clean - do not use on inky7 as colour
@@ -217,18 +217,18 @@ const PicoGraphicsPen3BitPalette7_3* = [
 
 # const PicoGraphicsPen3BitPaletteLut7_3* = generateNearestCache(PicoGraphicsPen3BitPalette7_3[0..<7])
 
-const luma5_7 = 1/1.15
-const sat5_7 = 1/1.3
+const luma5_7 = 1/1.20
+const sat5_7 = 1/1.50
 
 const PicoGraphicsPen3BitPalette5_7* = [
-  LChToLab(0.03, sat5_7 * 0.00,  90).fromLab(), ##  black
+  LChToLab(0.15, sat5_7 * 0.15, 200).fromLab(), ##  black
   LChToLab(0.99, sat5_7 * 0.00,  90).fromLab(), ##  white
-  LChToLab(luma5_7 * 0.65, sat5_7 * 0.75, 135).fromLab(), ##  green
-  LChToLab(luma5_7 * 0.55, sat5_7 * 0.45, 260).fromLab(), ##  blue
+  LChToLab(luma5_7 * 0.66, sat5_7 * 0.85, 135).fromLab(), ##  green
+  LChToLab(luma5_7 * 0.62, sat5_7 * 0.38, 260).fromLab(), ##  blue
   LChToLab(luma5_7 * 0.50, sat5_7 * 0.80,  30).fromLab(), ##  red
   LChToLab(0.88, sat5_7 * 0.70, 100).fromLab(), ##  yellow
   LChToLab(luma5_7 * 0.70, sat5_7 * 0.70,  40).fromLab(), ##  orange
-  LChToLab(luma5_7 * 0.92, sat5_7 * 0.13,  50).fromLab(), ##  clean
+  LChToLab(luma5_7 * 0.90, sat5_7 * 0.60,  80).fromLab(), ##  clean
 ]
 
 # const PicoGraphicsPen3BitPaletteLut5_7* = generateNearestCache(PicoGraphicsPen3BitPalette5_7[0..<7])

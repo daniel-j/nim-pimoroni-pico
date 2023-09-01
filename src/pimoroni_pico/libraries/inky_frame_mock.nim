@@ -5,11 +5,11 @@ export pixie, pico_graphics
 const paletteGamma = 1.8
 
 const palette7_3 = [
-  Hsl(h: 200/360, s: 0.67, l: 0.15).toRgb().toLinear(paletteGamma), ##  black
+  Hsl(h: 200/360, s: 0.67, l: 0.05).toRgb().toLinear(paletteGamma), ##  black
   Hsl(h:  45/360, s: 0.20, l: 0.82).toRgb().toLinear(paletteGamma), ##  white
   Hsl(h: 125/360, s: 0.65, l: 0.35).toRgb().toLinear(paletteGamma), ##  green
   Hsl(h: 220/360, s: 0.15, l: 0.52).toRgb().toLinear(paletteGamma), ##  blue
-  Hsl(h:   7/360, s: 0.48, l: 0.60).toRgb().toLinear(paletteGamma), ##  red
+  Hsl(h:  14/360, s: 0.50, l: 0.55).toRgb().toLinear(paletteGamma), ##  red
   Hsl(h:  50/360, s: 0.80, l: 0.60).toRgb().toLinear(paletteGamma), ##  yellow
   Hsl(h:  28/360, s: 0.60, l: 0.57).toRgb().toLinear(paletteGamma), ##  orange
   constructRgb(255, 0, 255).toLinear(paletteGamma), ##  clean - do not use on inky7 as colour
@@ -27,14 +27,14 @@ const palette7_3 = [
 # ]
 
 const palette5_7 = [
-  Hsl(h: 180/360, s: 1.00, l: 0.15).toRgb().toLinear(paletteGamma), ##  black
-  Hsl(h:  45/360, s: 0.20, l: 0.82).toRgb().toLinear(paletteGamma), ##  white
-  Hsl(h: 140/360, s: 1.25, l: 0.28).toRgb().toLinear(paletteGamma), ##  green
-  Hsl(h: 230/360, s: 0.10, l: 0.48).toRgb().toLinear(paletteGamma), ##  blue
-  Hsl(h:  20/360, s: 0.45, l: 0.60).toRgb().toLinear(paletteGamma), ##  red
-  Hsl(h:  47/360, s: 0.65, l: 0.62).toRgb().toLinear(paletteGamma), ##  yellow
-  Hsl(h:  35/360, s: 0.85, l: 0.46).toRgb().toLinear(paletteGamma), ##  orange
-  constructRgb(245, 215, 191).toLinear(paletteGamma), ##  clean
+  Hsl(h: 200/360, s: 0.67, l: 0.18).toRgb().toLinear(paletteGamma), ##  black
+  Hsl(h:  45/360, s: 0.25, l: 0.85).toRgb().toLinear(paletteGamma), ##  white
+  Hsl(h: 125/360, s: 0.82, l: 0.38).toRgb().toLinear(paletteGamma), ##  green
+  Hsl(h: 245/360, s: 0.12, l: 0.60).toRgb().toLinear(paletteGamma), ##  blue
+  Hsl(h:  10/360, s: 0.55, l: 0.62).toRgb().toLinear(paletteGamma), ##  red
+  Hsl(h:  50/360, s: 0.80, l: 0.60).toRgb().toLinear(paletteGamma), ##  yellow
+  Hsl(h:  25/360, s: 0.80, l: 0.65).toRgb().toLinear(paletteGamma), ##  orange
+  Hsl(h:  32/360, s: 0.70, l: 0.80).toRgb().toLinear(paletteGamma), ##  clean
 ]
 
 
