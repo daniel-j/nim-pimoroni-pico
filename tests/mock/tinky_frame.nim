@@ -13,8 +13,9 @@ proc drawHslChart(kind: InkyFrameKind; drawMode: DrawMode; matrix: ErrorDiffusio
   if drawMode == DrawMode.ErrorDiffusion:
     errDiff = ErrorDiffusion[inky](backend: autobackend(inky))
     errDiff.init(inky, 0, 0, inky.width, inky.height, matrix)
-    errDiff.alternateRow = false
+    errDiff.alternateRow = true
     errDiff.hybridDither = false
+    errDiff.variableDither = true
     errDiff.orientation = 0
     if errDiff.backend == ErrorDiffusionBackend.BackendPsram:
       errDiff.psramAddress = PsramAddress inky.width * inky.height
@@ -46,7 +47,7 @@ proc drawHslChart(kind: InkyFrameKind; drawMode: DrawMode; matrix: ErrorDiffusio
         inky.setPen(pen)
         inky.setPixel(p)
       of OrderedDither:
-        inky.setPixelDither(p, color)
+        discard inky.setPixelDither(p, color)
       of DrawMode.ErrorDiffusion:
         row[x] = color
     if drawMode == DrawMode.ErrorDiffusion:
@@ -67,7 +68,7 @@ proc drawHslChart(kind: InkyFrameKind; drawMode: DrawMode; matrix: ErrorDiffusio
     echo "Writing image to " & filename & "..."
     inky.image.writeFile(filename)
 
-proc drawFile(filename: string; kind: InkyFrameKind; drawMode: DrawMode; matrix: ErrorDiffusionMatrix = ErrorDiffusionMatrix(); hybridDither: bool = false): bool =
+proc drawFile(filename: string; kind: InkyFrameKind; drawMode: DrawMode; matrix: ErrorDiffusionMatrix = ErrorDiffusionMatrix(); hybridDither: bool = false; variableDither: bool = false): bool =
   var inky = InkyFrame(kind: kind)
   var jpegDecoder: JpegDecoder[PicoGraphicsPen3Bit]
   # jpegDecoder.setErrorDiffusionMatrix(Sierra)
@@ -88,10 +89,11 @@ proc drawFile(filename: string; kind: InkyFrameKind; drawMode: DrawMode; matrix:
   jpegDecoder.init(inky)
 
   jpegDecoder.errDiff.matrix = matrix
-  jpegDecoder.errDiff.alternateRow = false
+  jpegDecoder.errDiff.alternateRow = true
+  jpegDecoder.errDiff.variableDither = variableDither
   jpegDecoder.errDiff.hybridDither = hybridDither
-  # jpegDecoder.colorModifier = proc (color: var Rgb) =
-  #   color = color.contrast(1.2)
+  jpegDecoder.colorModifier = proc (color: var Rgb) =
+    color = color.contrast(1.15).level(gamma=1.6)
 
   if jpegDecoder.drawJpeg(filename, x, y, w, h, gravity=(0.5f, 0.5f), contains = false, drawMode) == 1:
     echo "Converting image..."
@@ -116,7 +118,7 @@ proc drawFile(filename: string; kind: InkyFrameKind; drawMode: DrawMode; matrix:
 
     inky.update()
     if matrix.s > 0:
-      let filename = "tinky_frame_" & $kind & "_image_" & $ErrorDiffusionMatrices.find(matrix) & (if hybridDither: "_hybrid" else: "") & ".png"
+      let filename = "tinky_frame_" & $kind & "_image_" & $ErrorDiffusionMatrices.find(matrix) & (if hybridDither: "_hybrid" else: "") & (if variableDither: "_var" else: "") & ".png"
       echo "Writing image to " & filename & "..."
       inky.image.writeFile(filename)
     else:
@@ -142,7 +144,8 @@ for kind in InkyFrameKind:
   for drawMode in drawModes:
     if drawMode == DrawMode.ErrorDiffusion:
       for matrix in matrices:
-        doAssert drawFile(paramStr(1), kind, drawMode, matrix, false)
-        doAssert drawFile(paramStr(1), kind, drawMode, matrix, true)
+        doAssert drawFile(paramStr(1), kind, drawMode, matrix)
+        doAssert drawFile(paramStr(1), kind, drawMode, matrix, variableDither=true)
+        # doAssert drawFile(paramStr(1), kind, drawMode, matrix, hybridDither=true)
     else:
       doAssert drawFile(paramStr(1), kind, drawMode)

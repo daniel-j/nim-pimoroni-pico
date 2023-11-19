@@ -14,8 +14,6 @@ type
   DitherKind* = enum
     NoDither, Bayer, BlueNoise, Cluster
 
-# const multiplier = rgbMultiplier * 1.0
-
 const
   # How many bits for each colour in cache
   cacheRedBits = 3
@@ -30,8 +28,8 @@ const
   # 4 = 16x16
   # 5 = 32x32
   # 6 = 64x64
-  ditherPatternSize* {.intdefine.} = 2
   ditherPatternKind* = DitherKind.Bayer
+  ditherPatternSize* {.intdefine.} = 2
   ditherGenerateCache* = true
 
 const
@@ -136,7 +134,7 @@ func getDitherCandidates*(col: RgbLinear; paletteLab: seq[Lab]; candidates: var 
     # let col = col.getCacheKey().getCacheColor()
     candidates[i] = (col + error).clamp().toLab().closest(paletteLab).uint8
     error += (col - paletteLab[candidates[i]].fromLab())
-    error = error.clamp(RgbLinearComponent.low + rgbMultiplier * 4, RgbLinearComponent.high - rgbMultiplier * 4)
+    error = error.clamp(RgbLinearComponent.low + rgbMultiplier * 3, RgbLinearComponent.high - rgbMultiplier * 3)
 
   # sort by luminance, this ensures that neighbouring pixels
   # in the dither matrix are at extreme opposites of luminence

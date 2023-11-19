@@ -3,7 +3,6 @@ import std/typetraits
 
 import picostdlib
 import picostdlib/pico/rand
-import picostdlib/pico/cyw43_arch
 
 import pimoroni_pico/libraries/pico_graphics/drawjpeg
 import pimoroni_pico/libraries/inky_frame
@@ -40,10 +39,11 @@ jpegDecoder.init(inky)
 
 jpegDecoder.errDiff.matrix = FloydSteinberg
 jpegDecoder.errDiff.alternateRow = false
+jpegDecoder.errDiff.variableDither = false
 jpegDecoder.errDiff.hybridDither = false
 
-# jpegDecoder.colorModifier = proc (color: var Rgb) =
-#   color = color.contrast(1.1)
+jpegDecoder.colorModifier = proc (color: var Rgb) =
+  color = color.contrast(1.15).level(gamma=1.6)
 
 proc drawFile(filename: string) =
   inky.led(LedActivity, 50)
@@ -52,10 +52,12 @@ proc drawFile(filename: string) =
   inky.setBorder(White)
   inky.clear()
 
-  let (x, y, w, h) = case inky.kind:
-    of InkyFrame4_0: (0, 0, inky.width, inky.height)
-    of InkyFrame5_7: (0, -1, 600, 450)
-    of InkyFrame7_3: (-27, 0, 854, 480)
+  # let (x, y, w, h) = case inky.kind:
+  #   of InkyFrame4_0: (0, 0, inky.width, inky.height)
+  #   of InkyFrame5_7: (0, -1, 600, 450)
+  #   of InkyFrame7_3: (-27, 0, 854, 480)
+
+  let (x, y, w, h) = (0, 0, inky.width, inky.height)
 
   if jpegDecoder.drawJpeg(filename, x, y, w, h, gravity=(0.5f, 0.5f), contains = false, DrawMode.ErrorDiffusion) == 1:
     let endTime = getAbsoluteTime()

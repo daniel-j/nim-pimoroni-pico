@@ -130,7 +130,7 @@ proc drawScaled(self: var JpegDecoder; draw: ptr JPEGDRAW): bool =
         self.graphics[].setPen(pen)
         self.graphics[].setPixel(pos)
       of OrderedDither:
-        self.graphics[].setPixelDither(pos, color.toLinear())
+        discard self.graphics[].setPixelDither(pos, color.toLinear())
       of ErrorDiffusion:
         self.errDiffRow[x] = color.toLinear()
 
