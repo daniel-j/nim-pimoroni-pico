@@ -190,11 +190,11 @@ type
       ditherCandidateCache*: array[ditherPatternLength, uint8]
       ditherCandidateColor*: RgbLinear
 
-const luma7_3 = 1/1.10
-const sat7_3 = 1/1.50
+const luma7_3 = 1/1.00
+const sat7_3 = 1/1.60
 
 const PicoGraphicsPen3BitPalette7_3* = [
-  LChToLab(0.03, sat7_3 * 0.00,  90).fromLab(), ##  black
+  LChToLab(0.10, sat7_3 * 0.25, 150).fromLab(), ##  black
   LChToLab(0.99, sat7_3 * 0.00,  40).fromLab(), ##  white
   LChToLab(luma7_3 * 0.53, sat7_3 * 0.65, 150).fromLab(), ##  green
   LChToLab(luma7_3 * 0.52, sat7_3 * 0.52, 265).fromLab(), ##  blue
@@ -217,7 +217,7 @@ const PicoGraphicsPen3BitPalette7_3* = [
 
 # const PicoGraphicsPen3BitPaletteLut7_3* = generateNearestCache(PicoGraphicsPen3BitPalette7_3[0..<7])
 
-const luma5_7 = 1/1.25
+const luma5_7 = 1/1.20
 const sat5_7 = 1/1.50
 
 const PicoGraphicsPen3BitPalette5_7* = [
