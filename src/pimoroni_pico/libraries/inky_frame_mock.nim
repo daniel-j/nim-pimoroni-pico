@@ -6,11 +6,11 @@ const paletteGamma = 1.8
 
 const palette7_3 = [
   Hsl(h: 200/360, s: 0.67, l: 0.05).toRgb().toLinear(paletteGamma), ##  black
-  Hsl(h:  45/360, s: 0.20, l: 0.82).toRgb().toLinear(paletteGamma), ##  white
-  Hsl(h: 125/360, s: 0.65, l: 0.35).toRgb().toLinear(paletteGamma), ##  green
+  Hsl(h:  45/360, s: 0.25, l: 0.80).toRgb().toLinear(paletteGamma), ##  white
+  Hsl(h: 125/360, s: 0.60, l: 0.38).toRgb().toLinear(paletteGamma), ##  green
   Hsl(h: 220/360, s: 0.15, l: 0.52).toRgb().toLinear(paletteGamma), ##  blue
   Hsl(h:  14/360, s: 0.50, l: 0.55).toRgb().toLinear(paletteGamma), ##  red
-  Hsl(h:  50/360, s: 0.80, l: 0.60).toRgb().toLinear(paletteGamma), ##  yellow
+  Hsl(h:  50/360, s: 0.60, l: 0.60).toRgb().toLinear(paletteGamma), ##  yellow
   Hsl(h:  28/360, s: 0.60, l: 0.57).toRgb().toLinear(paletteGamma), ##  orange
   constructRgb(255, 0, 255).toLinear(paletteGamma), ##  clean - do not use on inky7 as colour
 ]

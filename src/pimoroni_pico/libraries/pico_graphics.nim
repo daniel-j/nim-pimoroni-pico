@@ -191,16 +191,16 @@ type
       ditherCandidateColor*: RgbLinear
 
 const luma7_3 = 1/1.00
-const sat7_3 = 1/1.60
+const sat7_3 = 1/1.65
 
 const PicoGraphicsPen3BitPalette7_3* = [
-  LChToLab(0.10, sat7_3 * 0.25, 150).fromLab(), ##  black
-  LChToLab(0.99, sat7_3 * 0.00,  40).fromLab(), ##  white
+  LChToLab(0.15, sat7_3 * 0.30, 150).fromLab(), ##  black
+  LChToLab(1.00, sat7_3 * 0.00,  90).fromLab(), ##  white
   LChToLab(luma7_3 * 0.53, sat7_3 * 0.65, 150).fromLab(), ##  green
   LChToLab(luma7_3 * 0.52, sat7_3 * 0.52, 265).fromLab(), ##  blue
-  LChToLab(luma7_3 * 0.55, sat7_3 * 0.70,  30).fromLab(), ##  red
+  LChToLab(luma7_3 * 0.58, sat7_3 * 0.60,  30).fromLab(), ##  red
   LChToLab(luma7_3 * 0.90, sat7_3 * 0.70, 110).fromLab(), ##  yellow
-  LChToLab(luma7_3 * 0.65, sat7_3 * 0.68,  60).fromLab(), ##  orange
+  LChToLab(luma7_3 * 0.67, sat7_3 * 0.65,  60).fromLab(), ##  orange
   LChToLab(luma7_3 * 0.98, sat7_3 * 0.00,  90).fromLab(), ##  clean - do not use on inky7 as colour
 ]
 
