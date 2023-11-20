@@ -52,14 +52,14 @@ proc drawFile(filename: string) =
   inky.setBorder(White)
   inky.clear()
 
-  # let (x, y, w, h) = case inky.kind:
-  #   of InkyFrame4_0: (0, 0, inky.width, inky.height)
-  #   of InkyFrame5_7: (0, -1, 600, 450)
-  #   of InkyFrame7_3: (-27, 0, 854, 480)
+  let (x, y, w, h) = case inky.kind:
+    of InkyFrame4_0: (0, 0, inky.width, inky.height)
+    of InkyFrame5_7: (0, -1, 600, 450)
+    of InkyFrame7_3: (-27, 0, 854, 480)
 
-  let (x, y, w, h) = (0, 0, inky.width, inky.height)
+  # let (x, y, w, h) = (0, 0, inky.width, inky.height)
 
-  if jpegDecoder.drawJpeg(filename, x, y, w, h, gravity=(0.5f, 0.5f), contains = false, DrawMode.ErrorDiffusion) == 1:
+  if jpegDecoder.drawJpeg(filename, x, y, w, h, gravity=(0.5f, 0.5f), contains = true, DrawMode.ErrorDiffusion) == 1:
     let endTime = getAbsoluteTime()
     echo "Time: ", diffUs(startTime, endTime) div 1000, "ms"
     inky.led(LedActivity, 100)

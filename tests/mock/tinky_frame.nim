@@ -77,12 +77,12 @@ proc drawFile(filename: string; kind: InkyFrameKind; drawMode: DrawMode; matrix:
   inky.setPen(White)
   inky.clear()
 
-  # let (x, y, w, h) = case inky.kind:
-  #   of InkyFrame4_0: (0, 0, inky.width, inky.height)
-  #   of InkyFrame5_7: (0, -1, 600, 450)
-  #   of InkyFrame7_3: (-27, 0, 854, 480)
+  let (x, y, w, h) = case inky.kind:
+    of InkyFrame4_0: (0, 0, inky.width, inky.height)
+    of InkyFrame5_7: (0, -1, 600, 450)
+    of InkyFrame7_3: (-27, 0, 854, 480)
 
-  let (x, y, w, h) = (0, 0, inky.width, inky.height)
+  # let (x, y, w, h) = (0, 0, inky.width, inky.height)
 
   echo "Decoding jpeg file ", filename, "..."
 
@@ -95,7 +95,7 @@ proc drawFile(filename: string; kind: InkyFrameKind; drawMode: DrawMode; matrix:
   jpegDecoder.colorModifier = proc (color: var Rgb) =
     color = color.contrast(1.15).level(gamma=1.6)
 
-  if jpegDecoder.drawJpeg(filename, x, y, w, h, gravity=(0.5f, 0.5f), contains = false, drawMode) == 1:
+  if jpegDecoder.drawJpeg(filename, x, y, w, h, gravity=(0.5f, 0.5f), contains = true, drawMode) == 1:
     echo "Converting image..."
 
     let height = 15
