@@ -187,7 +187,7 @@ proc init*(self: var InkyFrame) =
     self.width.uint16,
     self.height.uint16,
     pins,
-    resetPin = PinEinkReset,
+    PinEinkReset,
     isBusy,
     blocking = true)
 
@@ -195,7 +195,7 @@ proc update*(self: var InkyFrame) =
   if not self.einkDriver.getBlocking():
     while isBusy():
       tightLoopContents()
-  self.einkDriver.update(self)
+  self.einkDriver.update(PicoGraphicsPen3Bit(self))
   if not self.einkDriver.getBlocking():
     while isBusy():
       tightLoopContents()

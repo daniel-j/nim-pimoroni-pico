@@ -31,6 +31,9 @@ task test, "Runs the test suite":
 
 task examples, "Build the examples":
   const examples = [
+    # Badger 2040
+    "badger2040/hello",
+
     # Galaxy Unicorn
     "galactic_unicorn/lightmeter",
     "galactic_unicorn/rainbow",

@@ -87,7 +87,8 @@ function(add_example target name)
   # pico_set_program_url(${target} "")
 endfunction()
 
-
+# Badger 2040
+add_example(badger2040_hello hello)
 
 if(NOT PICO_CYW43_SUPPORTED)
 

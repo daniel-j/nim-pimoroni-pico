@@ -41,7 +41,10 @@ type
     Vdcs  = 0x82
     Pws   = 0xE3
 
+converter toEinkReg(reg: Reg): EinkReg = reg.EinkReg
+
 proc initUc8159*(self: var EinkDriver; width: uint16; height: uint16; pins: SpiPins; resetPin: Gpio; isBusyProc: IsBusyProc = nil; blocking: bool = true) =
+  doAssert(self.kind == KindUc8159)
   self.spi = pins.spi
   self.csPin = pins.cs
   self.sckPin = pins.sck
@@ -51,7 +54,8 @@ proc initUc8159*(self: var EinkDriver; width: uint16; height: uint16; pins: SpiP
   self.isBusyProc = isBusyProc
   self.resetPin = resetPin
 
-  self.blocking = blocking
+  self.setBlocking(blocking)
+  self.setBorder(White)
 
   ##  configure spi interface and pins
   echo "Eink Uc8159 SPI init: ", self.spi.init(20_000_000)
@@ -77,9 +81,6 @@ proc reset(self: var EinkDriver) =
   sleepMs(10)
   self.busyWait()
 
-proc command(self: var EinkDriver; reg: Reg; data: varargs[uint8]) =
-  self.command(reg.uint8, data)
-
 proc setup(self: var EinkDriver) =
   self.reset()
   self.busyWait()
@@ -103,7 +104,7 @@ proc setup(self: var EinkDriver) =
     uint8(self.height and 0b11111111)
   ]
 
-  let cdi = (self.borderColour.uint8 shl 5) or 0b1_0111 # DDX = 1, CDI = 10 (default)
+  let cdi = (self.getBorder().uint8 shl 5) or 0b1_0111 # DDX = 1, CDI = 10 (default)
 
   # Power Setting
   self.command(Pwr,
@@ -150,10 +151,9 @@ proc powerOffUc8159*(self: var EinkDriver) =
   self.busyWait()
   self.command(Pof) ##  turn off
 
-proc updateUc8159*(self: var EinkDriver; graphics: var PicoGraphics) =
-  static: doAssert(graphics is PicoGraphicsPen3Bit, "Pen type must be 3Bit")
+proc updateUc8159*(self: var EinkDriver; graphics: var PicoGraphicsPen3Bit) =
 
-  if self.blocking:
+  if self.getBlocking():
     self.busyWait()
 
   self.setup()
@@ -192,7 +192,7 @@ proc updateUc8159*(self: var EinkDriver; graphics: var PicoGraphics) =
 
   self.command(Drf, 0) ##  start display refresh
 
-  if self.blocking:
+  if self.getBlocking():
     self.busyWait(28 * 1000)
     self.command(Pof) ##  turn off
   else:

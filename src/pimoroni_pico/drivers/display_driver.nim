@@ -17,23 +17,23 @@ proc init*(self: var DisplayDriver; width: uint16; height: uint16; rotation: Rot
   self.height = height
   self.rotation = rotation
 
-method update*(self: var DisplayDriver; display: var PicoGraphicsBase) {.base.} =
-  discard
+# method update*(self: var DisplayDriver; display: var PicoGraphicsBase) {.base.} =
+#   discard
 
-method partialUpdate*(self: var DisplayDriver; display: var PicoGraphicsBase; region: Rect) {.base.} =
-  discard
+# method partialUpdate*(self: var DisplayDriver; display: var PicoGraphicsBase; region: Rect) {.base.} =
+#   discard
 
-method setUpdateSpeed*(self: var DisplayDriver; updateSpeed: int): bool {.base.} =
-  return false
+# method setUpdateSpeed*(self: var DisplayDriver; updateSpeed: int): bool {.base.} =
+#   return false
 
-method setBacklight*(self: var DisplayDriver; brightness: uint8) {.base.} =
-  discard
+# method setBacklight*(self: var DisplayDriver; brightness: uint8) {.base.} =
+#   discard
 
-method isBusy*(self: var DisplayDriver): bool {.base.} =
-  return false
+# method isBusy*(self: var DisplayDriver): bool {.base.} =
+#   return false
 
-method powerOff*(self: var DisplayDriver) {.base.} =
-  discard
+# method powerOff*(self: var DisplayDriver) {.base.} =
+#   discard
 
-method cleanup*(self: var DisplayDriver) {.base.} =
-  discard
+# method cleanup*(self: var DisplayDriver) {.base.} =
+#   discard

@@ -29,8 +29,8 @@ const
   # 5 = 32x32
   # 6 = 64x64
   ditherPatternKind* = DitherKind.Bayer
-  ditherPatternSize* {.intdefine.} = 2
-  ditherGenerateCache* = true
+  ditherPatternSize* {.intdefine.} = 4
+  ditherGenerateCache* = false
 
 const
   cacheRgbBits = 8
@@ -48,11 +48,11 @@ else:
 func genereateGammaLut*[T](bitdepth: static[uint]; size: static[uint]; gamma = defaultGamma): array[size, T] {.compileTime.} =
   let mult = float32 (1 shl bitdepth) - 1
   for n in 0..<size:
-    result[n] = T pow(n / 255, gamma) * mult + 0.5
+    result[n] = T linearize1(n / 255, gamma) * mult
 
 const
-  Gamma8Bit* = genereateGammaLut[uint8](8, 256, 2.2)
-  Gamma14Bit* = genereateGammaLut[uint16](14, 256, 2.2)
+  Gamma8Bit* = genereateGammaLut[uint8](8, 256, 2.4)
+  Gamma14Bit* = genereateGammaLut[uint16](14, 256, 2.4)
 
 const rgb332ToRgb565Lut*: array[256, uint16] = [
     0x0000.uint16, 0x0800, 0x1000, 0x1800, 0x0001,

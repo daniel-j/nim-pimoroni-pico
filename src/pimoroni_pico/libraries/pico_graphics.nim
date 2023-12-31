@@ -44,6 +44,8 @@ type
     bitmapFont*: pointer # ptr BitmapFont
     hersheyFont*: ptr HersheyFont
 
+const RGB_FLAG: uint = 0x7f000000
+
 proc setDimensions*(self: var PicoGraphicsBase; width: uint16; height: uint16) =
   self.bounds.x = 0
   self.bounds.y = 0
@@ -102,28 +104,36 @@ proc init*(self: var PicoGraphicsPen1Bit; width: uint16; height: uint16; backend
     if self.frameBuffer.len == 0:
       self.frameBuffer = newSeq[uint8](self.bufferSize(width, height))
 
-proc setPen*(self: var PicoGraphicsPen1Bit; c: uint) =
-  self.color = c.uint8
+proc setPen*(self: var PicoGraphicsPen1Bit; c: SomeInteger) {.inline.} =
+  self.color = c.clamp(0, 255).uint8
 
 proc setPen*(self: var PicoGraphicsPen1Bit; c: Rgb) =
-  self.color = (max(c.r, max(c.g, c.b)) shr 4).uint8
+  self.color = (c.toLinear().toLab().L * 256).int.clamp(0, 255).uint8
 
 proc setPixel*(self: var PicoGraphicsPen1Bit; p: Point) =
-  ##  pointer to byte in framebuffer that contains this pixel
-  let f = self.frameBuffer[(p.x div 8) + (p.y * self.bounds.w div 8)].addr
-  let bo: uint = 7 - (uint p.x and 0b111)
-  var dc: uint8 = 0
-  if self.color == 0:
-    dc = 0
-  elif self.color == 15:
-    dc = 1
+  if not self.bounds.contains(p) or not self.clip.contains(p):
+    return
+
+  let base = (p.x div 8) + (p.y * self.bounds.w div 8)
+  let bitOffsetMask = 1'u8 shl (7 - (p.x and 0b111))
+  let buf = self.frameBuffer[base].addr
+
+  let bit = if self.color == uint8.low:
+    false
+  elif self.color == uint8.high:
+    true
   else:
-    let dmv = dither16Pattern[(p.x and 0b11) or ((p.y and 0b11) shl 2)]
-    dc = if self.color > dmv: 1 else: 0
-  ##  forceably clear the bit
-  f[] = f[] and not (uint8 1 shl bo)
-  ##  set pixel
-  f[] = f[] or (dc shl bo)
+    # dither
+    const mask = (1 shl ditherPatternSize) - 1
+    # find the pattern coordinate offset
+    let patternIndex = (p.x and mask) or ((p.y and mask) shl ditherPatternSize)
+    let error = ditherMatrix[patternIndex]
+    Gamma8Bit[self.color] > (error.uint * 256) div min(256, ditherPatternLength)
+
+  if bit:
+    buf[].setMask(bitOffsetMask)
+  else:
+    buf[].clearMask(bitOffsetMask)
 
 proc setPixelSpan*(self: var PicoGraphicsPen1Bit; p: Point; l: uint) =
   var lp: Point = p
@@ -140,38 +150,38 @@ proc setPixelSpan*(self: var PicoGraphicsPen1Bit; p: Point; l: uint) =
 ## Pico Graphics Pen 1-Bit Y
 ##
 
-type
-  PicoGraphicsPen1BitY* = object of PicoGraphicsPen1Bit
+# type
+#   PicoGraphicsPen1BitY* = object of PicoGraphicsPen1Bit
 
-proc setPen*(self: var PicoGraphicsPen1BitY; c: Rgb) =
-  self.color = (max(c.r, max(c.g, c.b)) shr 4).uint8
+# proc setPen*(self: var PicoGraphicsPen1BitY; c: Rgb) =
+#   self.color = (max(c.r, max(c.g, c.b)) shr 4).uint8
 
-proc setPixel*(self: var PicoGraphicsPen1BitY; p: Point) =
-  ##  pointer to byte in framebuffer that contains this pixel
-  let f = self.frameBuffer[(p.y div 8) + (p.x * self.bounds.h div 8)].addr
-  let bo: uint = 7 - (uint p.y and 0b111)
-  var dc: uint8 = 0
-  if self.color == 0:
-    dc = 0
-  elif self.color == 15:
-    dc = 1
-  else:
-    let dmv = dither16Pattern[(p.x and 0b11) or ((p.y and 0b11) shl 2)]
-    dc = if self.color > dmv: 1 else: 0
-  ##  forceably clear the bit
-  f[] = f[] and not (uint8 1 shl bo)
-  ##  set pixel
-  f[] = f[] or (dc shl bo)
+# proc setPixel*(self: var PicoGraphicsPen1BitY; p: Point) =
+#   ##  pointer to byte in framebuffer that contains this pixel
+#   let f = self.frameBuffer[(p.y div 8) + (p.x * self.bounds.h div 8)].addr
+#   let bo: uint = 7 - (uint p.y and 0b111)
+#   var dc: uint8 = 0
+#   if self.color == 0:
+#     dc = 0
+#   elif self.color == 15:
+#     dc = 1
+#   else:
+#     let dmv = dither16Pattern[(p.x and 0b11) or ((p.y and 0b11) shl 2)]
+#     dc = if self.color > dmv: 1 else: 0
+#   ##  forceably clear the bit
+#   f[] = f[] and not (uint8 1 shl bo)
+#   ##  set pixel
+#   f[] = f[] or (dc shl bo)
 
-proc setPixelSpan*(self: var PicoGraphicsPen1BitY; p: Point; l: uint) =
-  var lp: Point = p
-  var length = l.int
-  if p.x + length >= self.bounds.w:
-    length = self.bounds.w - p.x
-  while length > 0:
-    self.setPixel(lp)
-    inc(lp.x)
-    dec(length)
+# proc setPixelSpan*(self: var PicoGraphicsPen1BitY; p: Point; l: uint) =
+#   var lp: Point = p
+#   var length = l.int
+#   if p.x + length >= self.bounds.w:
+#     length = self.bounds.w - p.x
+#   while length > 0:
+#     self.setPixel(lp)
+#     inc(lp.x)
+#     dec(length)
 
 
 ##
@@ -182,7 +192,7 @@ type
   PicoGraphicsPen3Bit* = object of PicoGraphicsBase
     color*: uint
     palette: array[8, RgbLinear]
-    paletteLuminance: array[8, int8]
+    # paletteLuminance: array[8, int8]
     paletteSize: uint8
     cacheNearest*: NearestColorCache
     cacheNearestBuilt*: bool
@@ -242,8 +252,6 @@ static:
     echo c.fromLinear()
 
 
-const RGB_FLAG*: uint = 0x7f000000
-
 func bufferSize*(self: PicoGraphicsPen3Bit; w: uint; h: uint): uint =
   return (w * h div 8) * 3
 
@@ -256,8 +264,8 @@ proc init*(self: var PicoGraphicsPen3Bit; width: uint16; height: uint16; backend
   self.palette = palette
   self.setPaletteSize(paletteSize)
   self.cacheNearestBuilt = false
-  for i, c in palette:
-    self.paletteLuminance[i] = int8 c.toLab().L * 100
+  # for i, c in palette:
+  #   self.paletteLuminance[i] = int8 c.toLab().L * 100
   case self.backend:
   of BackendMemory:
     if self.frameBuffer.len == 0:
@@ -573,7 +581,7 @@ proc setPixelSpan*(self: var PicoGraphicsPenRgb888; p: Point; l: uint) =
 ##
 
 type
-  PicoGraphics* = PicoGraphicsPen1Bit | PicoGraphicsPen1BitY |
+  PicoGraphics* = PicoGraphicsPen1Bit | # PicoGraphicsPen1BitY |
                   PicoGraphicsPen3Bit | PicoGraphicsPenP4 | PicoGraphicsPenP8 |
                   PicoGraphicsPenRGB332 | PicoGraphicsPenRgb565 | PicoGraphicsPenRgb888
 

@@ -38,7 +38,10 @@ type
     Pws   = 0xE3
     Tsset = 0xE6
 
+converter toEinkReg(reg: Reg): EinkReg = reg.EinkReg
+
 proc initAc073tc1a*(self: var EinkDriver; width: uint16; height: uint16; pins: SpiPins; resetPin: Gpio; isBusyProc: IsBusyProc = nil; blocking: bool = true) =
+  doAssert(self.kind == KindAc073tc1a)
   self.spi = pins.spi
   self.csPin = pins.cs
   self.sckPin = pins.sck
@@ -48,7 +51,8 @@ proc initAc073tc1a*(self: var EinkDriver; width: uint16; height: uint16; pins: S
   self.isBusyProc = isBusyProc
   self.resetPin = resetPin
 
-  self.blocking = blocking
+  self.setBlocking(blocking)
+  self.setBorder(White)
 
   ##  configure spi interface and pins
   echo "Eink Ac073tc1a SPI init: ", self.spi.init(20_000_000)
@@ -74,16 +78,13 @@ proc reset(self: var EinkDriver) =
   sleepMs(10)
   self.busyWait()
 
-proc command(self: var EinkDriver; reg: Reg; data: varargs[uint8]) =
-  self.command(reg.uint8, data)
-
 proc setup(self: var EinkDriver) =
   assert(self.width == 800 and self.height == 480, "Panel size must be 800x480!")
 
   self.reset()
   self.busyWait()
 
-  let cdi = (self.borderColour.uint8 shl 5) or 0b11111
+  let cdi = (self.getBorder().uint8 shl 5) or 0b11111
 
   self.command(Cmdh, 0x49, 0x55, 0x20, 0x08, 0x09, 0x18)
   self.command(Pwr,0x3F, 0x00, 0x32, 0x2A, 0x0E, 0x2A)
@@ -113,10 +114,9 @@ proc powerOffAc073tc1a*(self: var EinkDriver) =
   self.busyWait()
   self.command(Pof) ##  turn off
 
-proc updateAc073tc1a*(self: var EinkDriver; graphics: var PicoGraphics) =
-  static: doAssert(graphics is PicoGraphicsPen3Bit, "Pen type must be 3Bit")
+proc updateAc073tc1a*(self: var EinkDriver; graphics: var PicoGraphicsPen3Bit) =
 
-  if self.blocking:
+  if self.getBlocking():
     self.busyWait()
 
   self.setup()
@@ -149,7 +149,7 @@ proc updateAc073tc1a*(self: var EinkDriver; graphics: var PicoGraphics) =
 
   self.command(Drf, 0) ##  start display refresh
 
-  if self.blocking:
+  if self.getBlocking():
     self.busyWait(28 * 1000)
     self.command(Pof) ##  turn off
   else:
