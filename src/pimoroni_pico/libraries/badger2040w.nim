@@ -60,7 +60,7 @@ proc init*(self: var Badger2040W) =
   PinLed.setFunction(Pwm)
   PinLed.setPwmLevel(0)
 
-  PicoGraphicsPen1Bit(self).init(128, 296)
+  PicoGraphicsPen1Bit(self).init(296, 128)
 
   let pins = SpiPins(spi: PimoroniSpiDefaultInstance, cs: PinEinkCs, sck: PinClk, mosi: PinMosi, dc: PinEinkDc)
 

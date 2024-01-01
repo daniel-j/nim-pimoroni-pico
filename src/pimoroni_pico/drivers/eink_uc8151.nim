@@ -179,8 +179,6 @@ proc setup*(self: var Uc8151) =
   elif self.rotation == Rotate_180:
     psr.shiftRight = false
     psr.scanUp = true
-  else:
-    raise newException(ValueError, "Invalid rotation: " & $self.rotation)
 
   self.command(Psr, sizeof(psr), cast[ptr uint8](psr.addr))
 
