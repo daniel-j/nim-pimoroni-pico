@@ -3,7 +3,7 @@ import picostdlib/hardware/[pwm]
 import ./badger2040 except PinLed, PinUser, Button, buttons, buttonPins
 import ../drivers/[eink_uc8151, rtc_pcf85063a]
 
-export badger2040
+export badger2040, rtc_pcf85063a
 
 type
   Button* = enum
@@ -51,6 +51,9 @@ proc init*(self: var Badger2040W) =
   PinEinkBusy.setDir(In)
   PinEinkBusy.setPulls(true, false)
 
+  PinRtcAlarm.setFunction(Sio)
+  PinRtcAlarm.setDir(In)
+
   self.wakeButtonStates = gpioGetAll() * buttonPins
 
   const pwmSlice = PinLed.toPwmSliceNum()
@@ -91,3 +94,38 @@ proc led*(self: Badger2040W; brightness: range[0.uint8..100.uint8]) =
   ## the 16-bit pwm channel. Brightness values are from 0 to 100.
   PinLed.setPwmLevel((pow(brightness.float / 100, 2.8) * 65535.0f + 0.5f).uint16)
 
+proc turnOff*(self: var Badger2040W) =
+  sleepMs(50)
+  PinEnable3v3.put(Low)
+  # Simulate an idle state on USB power by blocking
+  # until an RTC alarm or button event
+  while PinRtcAlarm.get() == Low and (gpioGetAll() * buttonPins).len == 0:
+    tightLoopContents()
+  self.rtc.enableAlarmInterrupt(false)
+
+proc sleep*(self: var Badger2040W; wakeInMinutes: int = -1; emulateSleep = false) =
+  ## Set an alarm to wake up in wakeInMinutes
+  ## Negative or zero value means sleep without a wakeup timer (default)
+
+  if wakeInMinutes > 0:
+    echo "Going to sleep for ", wakeInMinutes, " minute(s)"
+  else:
+    echo "Going to sleep"
+
+  # Can't sleep beyond a month, so clamp the sleep to a 28 day maximum
+  var minutes = min(40320, wakeInMinutes)
+
+  self.rtc.clearAlarmFlag()
+  if wakeInMinutes > 0:
+    let now = self.rtc.getDatetime().toNimDateTime()
+    if minutes == 1 and now.second >= 55:
+      inc(minutes)
+
+    var dt = now + initDuration(minutes = minutes, seconds = -now.second)
+    echo "sleeping from ", now, " until ", dt
+    echo (dt.second, dt.minute, dt.hour, dt.monthday, dt.weekday.ord)
+    self.rtc.enableAlarmInterrupt(false)
+    self.rtc.setAlarm(-1, dt.minute, dt.hour, dt.monthday)
+    self.rtc.enableAlarmInterrupt(true)
+
+  self.turnOff()

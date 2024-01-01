@@ -227,6 +227,10 @@ proc init*(self: var Pcf85063a; i2c: I2c; interrupt: GpioOptional = GpioUnused) 
     Gpio(self.interrupt).setDir(In)
     Gpio(self.interrupt).setPulls(up=false, down=true)
 
+  # clear timers and alarms, disable clock_out
+  var data = [uint8 0x00, 0b111]
+  discard self.i2c.writeBytes(self.address, Registers.CONTROL_1.uint8, data[0].addr, data.len.uint)
+
   self.initialState = self.readAll()
 
   let ts = self.initialState.timestamp
@@ -240,10 +244,6 @@ proc init*(self: var Pcf85063a; i2c: I2c; interrupt: GpioOptional = GpioUnused) 
     # self.reset()
     self.waitForOscillator()
     self.wasReset = true
-
-  # clear timers and alarms, disable clock_out
-  var data = [uint8 0x00, 0b111]
-  discard self.i2c.writeBytes(self.address, Registers.CONTROL_1.uint8, data[0].addr, data.len.uint)
 
 # i2c helper methods
 func getI2c*(self: var Pcf85063a): ptr I2cInst =
