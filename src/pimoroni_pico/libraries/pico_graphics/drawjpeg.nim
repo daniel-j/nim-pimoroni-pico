@@ -7,6 +7,19 @@ import ../pico_graphics/error_diffusion
 
 var jpeg: JPEGDEC
 
+const PicoGraphicsJpeg888* {.booldefine.} = false
+
+when PicoGraphicsJpeg888:
+  type
+    JpegdecPixel* = uint32
+    JpegPixelRgbType* = Rgb888
+  const jpegdecPixelType* = Rgb8888
+else:
+  type
+    JpegdecPixel* = uint16
+    JpegPixelRgbType* = Rgb565
+  const jpegdecPixelType* = Rgb565LittleEndian
+
 type
   DrawMode* = enum
     Default, OrderedDither, ErrorDiffusion
@@ -71,7 +84,7 @@ proc jpegdecSeekCallback(jpeg: ptr JPEGFILE, p: int32): int32 {.cdecl.} =
 
 
 proc drawScaled(self: var JpegDecoder; draw: ptr JPEGDRAW): bool =
-  let p = cast[ptr UncheckedArray[uint16]](draw.pPixels)
+  let p = cast[ptr UncheckedArray[JpegdecPixel]](draw.pPixels)
 
   let dx = (draw.x * self.w div self.jpegW)
   let dy = (draw.y * self.h div self.jpegH)
@@ -107,7 +120,7 @@ proc drawScaled(self: var JpegDecoder; draw: ptr JPEGDRAW): bool =
       let sxmin = x * self.jpegW div self.w
       # if sxmin >= draw.iWidth: continue
 
-      var color = constructRgb(Rgb565(p[poffset + sxmin]))
+      var color = constructRgb(JpegPixelRgbType(p[poffset + sxmin]))
       # color = color.getCacheKey().getCacheColor()
 
       case jpeg.getOrientation():
@@ -148,7 +161,7 @@ proc drawScaled(self: var JpegDecoder; draw: ptr JPEGDRAW): bool =
   return true
 
 proc drawFast(self: var JpegDecoder; draw: ptr JPEGDRAW): bool =
-  let p = cast[ptr UncheckedArray[uint16]](draw.pPixels)
+  let p = cast[ptr UncheckedArray[JpegdecPixel]](draw.pPixels)
   let lastProgress = (self.progress * 100) div (self.jpegW * self.jpegH)
 
   for y in 0 ..< draw.iHeight:
@@ -156,7 +169,7 @@ proc drawFast(self: var JpegDecoder; draw: ptr JPEGDRAW): bool =
       if x >= draw.iWidthUsed: break  # Clip to the used width
       let i = y * draw.iWidth + x
       if draw.iBpp == 16:
-        var color = constructRgb(Rgb565(p[i]))
+        var color = constructRgb(JpegPixelRgbType(p[i]))
         let pos = Point(x: draw.x + x, y: draw.y + y)
         case self.drawMode:
         of Default:
@@ -273,7 +286,7 @@ proc drawJpeg*(self: var JpegDecoder; filename: string; x, y, w, h: int; gravity
 
     echo (self.drawArea, self.cropArea)
 
-    jpeg.setPixelType(RGB565_LITTLE_ENDIAN)
+    jpeg.setPixelType(jpegdecPixelType)
 
     if self.drawMode == ErrorDiffusion:
       self.errDiff.init(self.graphics[], self.drawArea.x, self.drawArea.y, self.cropArea.w, self.cropArea.h, self.errDiff.matrix)
