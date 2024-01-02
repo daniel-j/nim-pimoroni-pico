@@ -41,7 +41,7 @@ type
 converter toEinkReg(reg: Reg): EinkReg = reg.EinkReg
 
 proc initAc073tc1a*(self: var EinkDriver; width: uint16; height: uint16; pins: SpiPins; resetPin: Gpio; isBusyProc: IsBusyProc = nil; blocking: bool = true) =
-  doAssert(self.kind == KindAc073tc1a)
+  assert self.kind == KindAc073tc1a
   self.spi = pins.spi
   self.csPin = pins.cs
   self.sckPin = pins.sck

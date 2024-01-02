@@ -243,7 +243,7 @@ proc sleep*(self: var InkyFrame; wakeInMinutes: int = -1; emulateSleep = false) 
   # self.rtc.clearAlarmFlag()
 
   # Can't sleep beyond a month, so clamp the sleep to a 28 day maximum
-  let minutes = min(40320, wakeInMinutes)
+  var minutes = min(40320, wakeInMinutes)
 
   if wakeInMinutes > 0:
     # if minutes <= 255:
@@ -255,10 +255,13 @@ proc sleep*(self: var InkyFrame; wakeInMinutes: int = -1; emulateSleep = false) 
     # else:
     #   # more than 255 minutes, calculate wakeup time and day
     let now = self.rtc.getDatetime().toNimDateTime()
-    var dt = now + initDuration(minutes = minutes)
+    if minutes == 1 and now.second >= 55:
+      inc(minutes)
+    let dt = now + initDuration(minutes = minutes, seconds = -now.second)
     # echo "sleeping from ", now, " until ", dt
-    # echo (dt.second, dt.minute, dt.hour, dt.monthday, dt.weekday.ord)
-    self.rtc.setAlarm(dt.second, dt.minute, dt.hour, dt.monthday)
+    # echo (dt.second, dt.minute, dt.hour, dt.monthday)
+    self.rtc.enableAlarmInterrupt(false)
+    self.rtc.setAlarm(-1, dt.minute, dt.hour, dt.monthday)
     self.rtc.enableAlarmInterrupt(true)
 
   self.turnOff()

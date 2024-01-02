@@ -120,10 +120,9 @@ proc sleep*(self: var Badger2040W; wakeInMinutes: int = -1; emulateSleep = false
     let now = self.rtc.getDatetime().toNimDateTime()
     if minutes == 1 and now.second >= 55:
       inc(minutes)
-
-    var dt = now + initDuration(minutes = minutes, seconds = -now.second)
+    let dt = now + initDuration(minutes = minutes, seconds = -now.second)
     echo "sleeping from ", now, " until ", dt
-    echo (dt.second, dt.minute, dt.hour, dt.monthday, dt.weekday.ord)
+    echo (dt.second, dt.minute, dt.hour, dt.monthday)
     self.rtc.enableAlarmInterrupt(false)
     self.rtc.setAlarm(-1, dt.minute, dt.hour, dt.monthday)
     self.rtc.enableAlarmInterrupt(true)

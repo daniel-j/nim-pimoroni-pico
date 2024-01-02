@@ -68,7 +68,7 @@ type
     Vghl_15V = 0b01
     Vghl_14V = 0b10
     Vghl_13V = 0b11
-  
+
   PwrOptionsPowerSel = range[0'u8 .. 0b101011'u8]
 
   PwrOptions {.packed.} = object
@@ -101,13 +101,13 @@ type
     Strength_6 = 0b101
     Strength_7 = 0b110
     Strength_8 = 0b111
-  
+
   BtstStart = enum
     Start_10ms = 0b00
     Start_20ms = 0b01
     Start_30ms = 0b10
     Start_40ms = 0b11
-  
+
   BtstOptions {.packed.} = object
     offTimeA {.bitsize: 3.}: BtstOffTime
     strengthA {.bitsize: 3.}: BtstStrength
@@ -119,7 +119,7 @@ type
 
     offTimeC {.bitsize: 3, align: 1.}: BtstOffTime
     strengthC {.bitsize: 3.}: BtstStrength
-  
+
   PfsTimeOff {.size: 1.} = enum
     Frames_1  = 0b00000000
     Frames_2  = 0b00010000
@@ -136,19 +136,19 @@ type
     Pll_40Hz      = 0b00111101
     Pll_33Hz      = 0b00111110
     Pll_29Hz      = 0b00111111
-  
+
   CdiOptions {.packed.} = object
     cdi {.bitsize: 4.}: range[0'u8 .. 0b1111'u8]
     ddx {.bitsize: 2.}: range[0'u8 .. 0b11'u8]
     vbd {.bitsize: 2.}: range[0'u8 .. 0b11'u8]
-  
+
   PtlOptions {.packed.} = object
     hrStart: uint8 # lower 3 bits ignored
     hrEnd: uint8 # lower 3 bits 0b111
     vrStart: uint16 # big endian
     vrEnd: uint16 # big endian
     ptScan {.bitsize: 1.}: bool
-  
+
   Uc8151* = object of EinkDriver
     updateSpeed*: uint8
     inverted*: bool
@@ -232,7 +232,7 @@ proc setup*(self: var Uc8151) =
   self.busyWait()
 
 proc initUc8151*(self: var Uc8151; width: uint16; height: uint16; pins: SpiPins; resetPin: Gpio; isBusyProc: IsBusyProc = nil; blocking: bool = true) =
-  doAssert(self.kind == KindUc8151)
+  assert self.kind == KindUc8151
   self.spi = pins.spi
   self.csPin = pins.cs
   self.sckPin = pins.sck
@@ -295,7 +295,7 @@ proc partialUpdateUc8151*(self: var Uc8151; graphics: var PicoGraphicsPen1Bit; r
   var fb = cast[ptr UncheckedArray[uint8]](graphics.frameBuffer[0].addr)
   if self.getBlocking():
     self.busyWait()
-  
+
   let cols = region.h div 8
   let y1 = region.y div 8
   let rows = region.w

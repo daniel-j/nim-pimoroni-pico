@@ -3,7 +3,7 @@ switch("path", "$projectDir/../../src")
 # switch("define", "release")
 # switch("opt", "size")
 
-switch("mm", "orc") # use "arc", "orc" or "none"
+switch("mm", "arc") # use "arc", "orc" or "none"
 switch("deepcopy", "on")
 switch("threads", "off")
 
