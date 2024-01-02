@@ -28,8 +28,8 @@ const
   # 5 = 32x32
   # 6 = 64x64
   ditherPatternKind* = DitherKind.Bayer
-  ditherPatternSize* {.intdefine.} = 4
-  ditherGenerateCache* = false
+  ditherPatternSize* {.intdefine.} = 3
+  ditherGenerateCache* = true
 
 const
   cacheRgbBits = 8
