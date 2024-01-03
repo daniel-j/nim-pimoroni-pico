@@ -77,6 +77,14 @@ func constructRgb*(l: RgbComponent): Rgb =
   result.g = l
   result.b = l
 
+func blend*(s, d, a: uint8): uint8 =
+  return d + ((a * (s - d) + 127) shr 8)
+
+func blend*(self: Rgb; with: Rgb; alpha: uint8): Rgb =
+  result.r = blend(with.r, self.r, alpha)
+  result.g = blend(with.g, self.g, alpha)
+  result.b = blend(with.b, self.b, alpha)
+
 
 func toRgb*(hsv: Hsv): Rgb =
   ## Converts from HSV to RGB
