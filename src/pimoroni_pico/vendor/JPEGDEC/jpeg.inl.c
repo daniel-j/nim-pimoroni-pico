@@ -32,10 +32,7 @@
 #endif
 
 // forward references
-int JPEGInit(JPEGIMAGE *pJPEG);
-int JPEGParseInfo(JPEGIMAGE *pPage, int bExtractThumb);
 static void JPEGGetMoreData(JPEGIMAGE *pPage);
-int DecodeJPEG(JPEGIMAGE *pImage);
 
 static int32_t readRAM(JPEGFILE *pFile, uint8_t *pBuf, int32_t iLen);
 static int32_t seekMem(JPEGFILE *pFile, int32_t iPosition);

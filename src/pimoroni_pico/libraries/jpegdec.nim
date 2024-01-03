@@ -20,7 +20,6 @@
 ## limitations under the License.
 ##
 
-
 import std/os, std/strutils
 
 
@@ -53,11 +52,6 @@ else:
     renameCallback futharkRenameCallback
 
     "JPEGDEC.h"
-
-##  forward references
-proc JPEGInit*(pJPEG: ptr JPEGIMAGE): cint {.importc: "JPEGInit", nodecl.}
-proc JPEGParseInfo*(pPage: ptr JPEGIMAGE; bExtractThumb: cint): cint {.importc: "JPEGParseInfo", nodecl.}
-proc DecodeJPEG*(pImage: ptr JPEGIMAGE): cint {.importc: "DecodeJPEG", nodecl.}
 
 ##
 ##  The JPEGDEC class wraps portable C code which does the actual work

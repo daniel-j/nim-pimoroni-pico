@@ -110,7 +110,7 @@ typedef struct jpeg_draw_tag
 typedef int32_t (*JPEG_READ_CALLBACK)(JPEGFILE *pFile, uint8_t *pBuf, int32_t iLen);
 typedef int32_t (*JPEG_SEEK_CALLBACK)(JPEGFILE *pFile, int32_t iPosition);
 typedef int (*JPEG_DRAW_CALLBACK)(JPEGDRAW *pDraw);
-typedef void * (*JPEG_OPEN_CALLBACK)(char *szFilename, int32_t *pFileSize);
+typedef void * (*JPEG_OPEN_CALLBACK)(const char *szFilename, int32_t *pFileSize);
 typedef void (*JPEG_CLOSE_CALLBACK)(void *pHandle);
 
 /* JPEG color component info */
@@ -189,44 +189,6 @@ typedef struct jpeg_image_tag
     uint16_t usHuffAC[HUFF11SIZE * 2];
 } JPEGIMAGE;
 
-#ifdef __cplusplus
-#if defined(__has_include) && __has_include(<FS.h>)
-#include "FS.h"
-#endif
-#define JPEG_STATIC static
-//
-// The JPEGDEC class wraps portable C code which does the actual work
-//
-class JPEGDEC
-{
-  public:
-    int openRAM(uint8_t *pData, int iDataSize, JPEG_DRAW_CALLBACK pfnDraw);
-    int openFLASH(uint8_t *pData, int iDataSize, JPEG_DRAW_CALLBACK pfnDraw);
-    int open(const char *szFilename, JPEG_OPEN_CALLBACK pfnOpen, JPEG_CLOSE_CALLBACK pfnClose, JPEG_READ_CALLBACK pfnRead, JPEG_SEEK_CALLBACK pfnSeek, JPEG_DRAW_CALLBACK pfnDraw);
-    int open(void *fHandle, int iDataSize, JPEG_CLOSE_CALLBACK pfnClose, JPEG_READ_CALLBACK pfnRead, JPEG_SEEK_CALLBACK pfnSeek, JPEG_DRAW_CALLBACK pfnDraw);
-#ifdef FS_H
-    int open(File &file, JPEG_DRAW_CALLBACK pfnDraw);
-#endif
-    void close();
-    int decode(int x, int y, int iOptions);
-    int decodeDither(uint8_t *pDither, int iOptions);
-    int getOrientation();
-    int getWidth();
-    int getHeight();
-    int getBpp();
-    void setUserPointer(void *p);
-    int getSubSample();
-    int hasThumb();
-    int getThumbWidth();
-    int getThumbHeight();
-    int getLastError();
-    void setPixelType(int iType); // defaults to little endian
-    void setMaxOutputSize(int iMaxMCUs);
-
-  private:
-    JPEGIMAGE _jpeg;
-};
-#else
 #define JPEG_STATIC
 int JPEG_openRAM(JPEGIMAGE *pJPEG, uint8_t *pData, int iDataSize, JPEG_DRAW_CALLBACK pfnDraw);
 int JPEG_openFile(JPEGIMAGE *pJPEG, const char *szFilename, JPEG_DRAW_CALLBACK pfnDraw);
@@ -245,7 +207,11 @@ int JPEG_getThumbHeight(JPEGIMAGE *pJPEG);
 int JPEG_getLastError(JPEGIMAGE *pJPEG);
 void JPEG_setPixelType(JPEGIMAGE *pJPEG, int iType); // defaults to little endian
 void JPEG_setMaxOutputSize(JPEGIMAGE *pJPEG, int iMaxMCUs);
-#endif // __cplusplus
+
+// forward references
+int JPEGInit(JPEGIMAGE *pJPEG);
+int JPEGParseInfo(JPEGIMAGE *pPage, int bExtractThumb);
+int DecodeJPEG(JPEGIMAGE *pImage);
 
 // Due to unaligned memory causing an exception, we have to do these macros the slow way
 #define INTELSHORT(p) ((*p) + (*(p+1)<<8))
