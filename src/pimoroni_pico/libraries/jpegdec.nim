@@ -26,9 +26,7 @@ import std/os, std/strutils
 
 const currentDir = currentSourcePath.parentDir
 const jpegdecInclude = currentDir / ".." / "vendor" / "JPEGDEC"
-{.emit:
-  staticRead(jpegdecInclude / "jpeg.inl")
-  .replace("JPEGDEC.h", jpegdecInclude / "JPEGDEC.h").}
+{.compile: jpegdecInclude / "jpeg.inl.c".}
 
 when defined(nimcheck):
   include ../futharkgen/futhark_jpegdec
@@ -57,8 +55,9 @@ else:
     "JPEGDEC.h"
 
 ##  forward references
-proc JPEGInit(pJPEG: ptr JPEGIMAGE): cint {.importc: "JPEGInit", nodecl.}
-proc DecodeJPEG(pImage: ptr JPEGIMAGE): cint {.importc: "DecodeJPEG", nodecl.}
+proc JPEGInit*(pJPEG: ptr JPEGIMAGE): cint {.importc: "JPEGInit", nodecl.}
+proc JPEGParseInfo*(pPage: ptr JPEGIMAGE; bExtractThumb: cint): cint {.importc: "JPEGParseInfo", nodecl.}
+proc DecodeJPEG*(pImage: ptr JPEGIMAGE): cint {.importc: "DecodeJPEG", nodecl.}
 
 ##
 ##  The JPEGDEC class wraps portable C code which does the actual work
@@ -66,7 +65,7 @@ proc DecodeJPEG(pImage: ptr JPEGIMAGE): cint {.importc: "DecodeJPEG", nodecl.}
 
 type
   JPEGDEC* {.bycopy.} = object
-    jpeg: JPEGIMAGE
+    jpeg*: JPEGIMAGE
 
 ##
 ##  Memory initialization
