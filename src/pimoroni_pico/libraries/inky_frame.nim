@@ -82,6 +82,9 @@ type
     width*, height*: int
     wakeUpEvents: set[WakeUpEvent]
 
+const PicoGraphicsPen3BitPaletteLut7_3* = generateNearestCache(PicoGraphicsPen3BitPalette7_3[0..<7].toLab())
+const PicoGraphicsPen3BitPaletteLut5_7* = generateNearestCache(PicoGraphicsPen3BitPalette5_7[0..<7].toLab())
+
 proc gpioConfigure*(gpio: Gpio; dir: Direction; value: Value = Low) =
   gpio.setFunction(Sio)
   gpio.setDir(dir)
@@ -176,7 +179,7 @@ proc init*(self: var InkyFrame) =
     palette = if self.kind == InkyFrame7_3: PicoGraphicsPen3BitPalette7_3 else: PicoGraphicsPen3BitPalette5_7,
     # paletteSize = if self.kind == InkyFrame5_7: 8 else: 7 # clean colour is a greenish gradient on inky7, so avoid it
   )
-  # self.cacheNearest = if self.kind == InkyFrame7_3: PicoGraphicsPen3BitPaletteLut7_3 else: PicoGraphicsPen3BitPaletteLut5_7
+  self.cacheNearest = if self.kind == InkyFrame7_3: PicoGraphicsPen3BitPaletteLut7_3.unsafeAddr else: PicoGraphicsPen3BitPaletteLut5_7.unsafeAddr
   # self.cacheNearestBuilt = true
 
   let pins = SpiPins(spi: PimoroniSpiDefaultInstance, cs: PinEinkCs, sck: PinClk, mosi: PinMosi, dc: PinEinkDc)

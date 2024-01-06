@@ -363,6 +363,15 @@ func closest*(self: Lab; palette: openArray[Lab]): int =
       result = i
       best = dist
 
+func toLab*(palette: openArray[RgbLinear]): seq[Lab] =
+  result.setLen(palette.len)
+  for i in 0..<palette.len:
+    result[i] = palette[i].toLab()
+
+func fromLab*[L](palette: array[L, Lab]): array[L, RgbLinear] {.compileTime.} =
+  for i in 0..<palette.len:
+    result[i] = palette[i].fromLab()
+
 func level*(self: Rgb; black: float32 = 0; white: float32 = 1; gamma: float32 = 1): Rgb =
   var r = self.r.float32 / 255.0f
   var g = self.g.float32 / 255.0f

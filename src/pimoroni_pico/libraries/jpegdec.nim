@@ -20,11 +20,11 @@
 ## limitations under the License.
 ##
 
-import std/os, std/strutils
-
+import std/os
 
 const currentDir = currentSourcePath.parentDir
 const jpegdecInclude = currentDir / ".." / "vendor" / "JPEGDEC"
+
 {.compile: jpegdecInclude / "jpeg.inl.c".}
 
 when defined(nimcheck):

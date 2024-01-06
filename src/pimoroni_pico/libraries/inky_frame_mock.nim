@@ -58,6 +58,9 @@ type
     width*, height*: int
     image*: Image
 
+const PicoGraphicsPen3BitPaletteLut7_3* = generateNearestCache(PicoGraphicsPen3BitPalette7_3[0..<7].toLab())
+const PicoGraphicsPen3BitPaletteLut5_7* = generateNearestCache(PicoGraphicsPen3BitPalette5_7[0..<7].toLab())
+
 proc init*(self: var InkyFrame) =
   (self.width, self.height) =
     case self.kind:
@@ -71,7 +74,7 @@ proc init*(self: var InkyFrame) =
     palette = if self.kind == InkyFrame7_3: PicoGraphicsPen3BitPalette7_3 else: PicoGraphicsPen3BitPalette5_7,
     # paletteSize = if self.kind == InkyFrame5_7: 8 else: 7 # clean colour is a greenish gradient on inky7, so avoid it
   )
-  # self.cacheNearest = if self.kind == InkyFrame7_3: PicoGraphicsPen3BitPaletteLut7_3 else: PicoGraphicsPen3BitPaletteLut5_7
+  self.cacheNearest = if self.kind == InkyFrame7_3: PicoGraphicsPen3BitPaletteLut7_3.unsafeAddr else: PicoGraphicsPen3BitPaletteLut5_7.unsafeAddr
   # self.cacheNearestBuilt = true
 
   self.image = newImage(self.width, self.height)

@@ -1,6 +1,5 @@
 import std/bitops
 import std/algorithm
-import std/sugar
 
 import ./rgb
 export rgb
@@ -129,29 +128,29 @@ iterator cacheColors*(): tuple[i: int, c: RgbLinear] =
 func getDitherCandidates*(col: RgbLinear; paletteLab: seq[Lab]; candidates: var openArray[uint8]; length: int) =
   # var col = col.fromLinear().getCacheKey().getCacheColor().toLinear()
   var error: RgbLinear
+  const errorFactor = 0.5
   for i in 0 ..< length:
     # let col = col.getCacheKey().getCacheColor()
-    candidates[i] = (col + error).clamp().toLab().closest(paletteLab).uint8
+    let targetColor = col + (error * errorFactor)
+    candidates[i] = targetColor.clamp().toLab().closest(paletteLab).uint8
     error += (col - paletteLab[candidates[i]].fromLab())
     error = error.clamp(RgbLinearComponent.low + rgbMultiplier * 3, RgbLinearComponent.high - rgbMultiplier * 3)
 
   # sort by luminance, this ensures that neighbouring pixels
   # in the dither matrix are at extreme opposites of luminence
   # giving a more balanced output
-  candidates.sort(func (a, b: uint8): int =
-    capture paletteLab:
-      if a == 255: return 1
-      elif b == 255: return -1
-      let l1 = paletteLab[a].L
-      let l2 = paletteLab[b].L
-      return int(l1 > l2)
+  candidates.sort(func (a, b: uint8): int {.closure.} =
+    if a == 255: return 1 # 255 indicates original color, sort to the end
+    elif b == 255: return -1
+    let l1 = paletteLab[a].L
+    let l2 = paletteLab[b].L
+    return int(l1 > l2)
   )
 
-func generateNearestCache*(cache: var NearestColorCache; palette: openArray[RgbLinear]) =
-  debugEcho "Generating nearest color cache with size ", sizeof(cache)
-  var paletteLab = newSeq[Lab](palette.len)
-  for i, col in palette:
-    paletteLab[i] = col.toLab()
+func generateNearestCache*(cache: var NearestColorCache; paletteLab: seq[Lab]) =
+  # cache.setLen(colorCacheSize)
+  debugEcho "Generating nearest color cache with size ", sizeof(cache[0]) * cache.len
+
   for i, col in cacheColors():
     when ditherGenerateCache:
       cache[i][ditherPatternLength] = 255 # placeholder for the closest colour
@@ -160,7 +159,7 @@ func generateNearestCache*(cache: var NearestColorCache; palette: openArray[RgbL
     else:
       cache[i] = col.toLab().closest(paletteLab).uint8
 
-func generateNearestCache*(palette: openArray[RgbLinear]): NearestColorCache =
+func generateNearestCache*(palette: seq[Lab]): NearestColorCache =
   result.generateNearestCache(palette)
 
 # code from https://nelari.us/post/quick_and_dirty_dithering/#bayer-matrix
