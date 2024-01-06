@@ -38,12 +38,12 @@ echo "Wake Up Events: ", inky.getWakeUpEvents()
 jpegDecoder.init(inky)
 
 jpegDecoder.errDiff.matrix = FloydSteinberg
-jpegDecoder.errDiff.alternateRow = false
-jpegDecoder.errDiff.variableDither = false
+jpegDecoder.errDiff.alternateRow = true
+jpegDecoder.errDiff.variableDither = true
 jpegDecoder.errDiff.hybridDither = false
 
 jpegDecoder.colorModifier = proc (color: var Rgb) =
-  color = color.contrast(1.15).level(gamma=1.6)
+  color = color.level(gamma=1.4)
 
 proc drawFile(filename: string) =
   inky.led(LedActivity, 50)
@@ -102,7 +102,7 @@ proc inkyProc() =
 
     var errDiff = ErrorDiffusion[inky](backend: autobackend(inky))
     errDiff.init(inky, 0, 0, inky.width, inky.height, FloydSteinberg)
-    errDiff.alternateRow = false
+    errDiff.alternateRow = true
     errDiff.hybridDither = false
     errDiff.orientation = 0
     if errDiff.backend == ErrorDiffusionBackend.BackendPsram:

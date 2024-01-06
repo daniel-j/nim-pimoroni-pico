@@ -93,7 +93,7 @@ proc drawFile(filename: string; kind: InkyFrameKind; drawMode: DrawMode; matrix:
   jpegDecoder.errDiff.variableDither = variableDither
   jpegDecoder.errDiff.hybridDither = hybridDither
   jpegDecoder.colorModifier = proc (color: var Rgb) =
-    color = color.contrast(1.15).level(gamma=1.6)
+    color = color.level(gamma=1.4) #.contrast(1.15) #.level(gamma=1.6)
 
   if jpegDecoder.drawJpeg(filename, x, y, w, h, gravity=(0.5f, 0.5f), contains = true, drawMode) == 1:
     echo "Converting image..."
@@ -146,6 +146,7 @@ for kind in InkyFrameKind:
       for matrix in matrices:
         doAssert drawFile(paramStr(1), kind, drawMode, matrix)
         doAssert drawFile(paramStr(1), kind, drawMode, matrix, variableDither=true)
-        # doAssert drawFile(paramStr(1), kind, drawMode, matrix, hybridDither=true)
+        doAssert drawFile(paramStr(1), kind, drawMode, matrix, hybridDither=true)
+        doAssert drawFile(paramStr(1), kind, drawMode, matrix, hybridDither=true, variableDither=true)
     else:
       doAssert drawFile(paramStr(1), kind, drawMode)

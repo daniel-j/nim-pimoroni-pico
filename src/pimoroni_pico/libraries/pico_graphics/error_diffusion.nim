@@ -157,7 +157,7 @@ const
   ]
 
 type
-  ThreeCoefs = tuple
+  ThreeCoefs {.packed.} = tuple
     r: int16      # right
     dl: int16     # down-left
     d: int16      # down

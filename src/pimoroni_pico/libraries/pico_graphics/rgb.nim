@@ -7,7 +7,7 @@ proc builtinBswap16(a: uint16): uint16 {.importc: "__builtin_bswap16", nodecl, n
 ##
 
 const defaultGamma*: float = 2.4
-const rgbBits* = 10
+const rgbBits* = 9
 const rgbMultiplier* = 1 shl rgbBits
 
 type
@@ -197,10 +197,15 @@ proc `+=`*(self: var RgbLinear; c: RgbLinear) =
   self.g += c.g
   self.b += c.b
 
-func clamp*(self: RgbLinear; lower: RgbLinearComponent = 0; upper: RgbLinearComponent = rgbMultiplier): RgbLinear =
+func clamp*(self: RgbLinear; lower: RgbLinearComponent = 0; upper: RgbLinearComponent = rgbMultiplier - 1): RgbLinear =
   result.r = self.r.clamp(lower, upper)
   result.g = self.g.clamp(lower, upper)
   result.b = self.b.clamp(lower, upper)
+
+func clamp*(palette: openArray[RgbLinear]): seq[RgbLinear] =
+  result.setLen(palette.len)
+  for i, c in palette:
+    result[i] = c.clamp()
 
 # From https://github.com/makew0rld/dither/blob/master/color_spaces.go
 func linearize1*(v: float; gamma: float = defaultGamma): float =
@@ -227,13 +232,13 @@ const rgbToLinearCache = generateRgbToLinearCache(defaultGamma)
 const rgbFromLinearCache = generateRgbFromLinearCache(defaultGamma)
 
 # From https://github.com/makew0rld/dither/blob/master/color_spaces.go
-func toLinear*(c: Rgb; gamma: float = defaultGamma; cheat = false): RgbLinear =
-  if cheat:
+func toLinear*(c: Rgb; gamma: static[float] = defaultGamma; cheat: static[bool] = false): RgbLinear =
+  when cheat:
     result.r = RgbLinearComponent round((c.r.float / 255).clamp(0, 1).pow(gamma) * rgbMultiplier)
     result.g = RgbLinearComponent round((c.g.float / 255).clamp(0, 1).pow(gamma) * rgbMultiplier)
     result.b = RgbLinearComponent round((c.b.float / 255).clamp(0, 1).pow(gamma) * rgbMultiplier)
   else:
-    if gamma != defaultGamma:
+    when gamma != defaultGamma:
       result.r = RgbLinearComponent round((c.r.float / 255).clamp(0, 1).linearize1(gamma).clamp(0, 1) * rgbMultiplier)
       result.g = RgbLinearComponent round((c.g.float / 255).clamp(0, 1).linearize1(gamma).clamp(0, 1) * rgbMultiplier)
       result.b = RgbLinearComponent round((c.b.float / 255).clamp(0, 1).linearize1(gamma).clamp(0, 1) * rgbMultiplier)
@@ -242,13 +247,13 @@ func toLinear*(c: Rgb; gamma: float = defaultGamma; cheat = false): RgbLinear =
       result.g = rgbToLinearCache[c.g.clamp(0, 255)]
       result.b = rgbToLinearCache[c.b.clamp(0, 255)]
 
-func fromLinear*(c: RgbLinear; gamma: float = defaultGamma; cheat = false): Rgb =
-  if cheat:
+func fromLinear*(c: RgbLinear; gamma: static[float] = defaultGamma; cheat: static[bool] = false): Rgb =
+  when cheat:
     result.r = RgbComponent round(c.r.float / (rgbMultiplier.float / 255)).clamp(0, 255)
     result.g = RgbComponent round(c.g.float / (rgbMultiplier.float / 255)).clamp(0, 255)
     result.b = RgbComponent round(c.b.float / (rgbMultiplier.float / 255)).clamp(0, 255)
   else:
-    if gamma != defaultGamma:
+    when gamma != defaultGamma:
       result.r = RgbComponent round((c.r.float / rgbMultiplier).clamp(0, 1).delinearize1(gamma).clamp(0, 1) * 255)
       result.g = RgbComponent round((c.g.float / rgbMultiplier).clamp(0, 1).delinearize1(gamma).clamp(0, 1) * 255)
       result.b = RgbComponent round((c.b.float / rgbMultiplier).clamp(0, 1).delinearize1(gamma).clamp(0, 1) * 255)
@@ -340,6 +345,72 @@ proc distance*(self, c: Rgb): uint =
   return uint abs(
     (((512 + rmean) * rx * rx) shr 8) + 4 * gx * gx + (((767 - rmean) * bx * bx) shr 8)
   )
+
+# https://bisqwit.iki.fi/story/howto/dither/jy/#GammaCorrection
+# func distanceYliluoma*(c1: Rgb; c2: Rgb): float64 =
+#   let r1 = c1.r.int
+#   let g1 = c1.g.int
+#   let b1 = c1.b.int
+#   let r2 = c2.r.int
+#   let g2 = c2.g.int
+#   let b2 = c2.b.int
+#   let luma1: float64 = (r1*299 + g1*587 + b1*114) / (255*1000)
+#   let luma2: float64 = (r2*299 + g2*587 + b2*114) / (255*1000)
+#   let lumadiff: float64 = luma1 - luma2
+#   let diffR: float64 = (r1-r2)/255
+#   let diffG: float64 = (g1-g2)/255
+#   let diffB: float64 = (b1-b2)/255
+#   return (diffR * diffR * 0.299 + diffG * diffG * 0.587 + diffB * diffB * 0.114) * 0.75 + lumadiff*lumadiff
+
+# func deviseBestMixingPlan2*(input: Rgb; limit: int; palette: seq[RgbLinear]; paletteLuma: seq[int]): seq[uint8] =
+#   # Tally so far (gamma-corrected)
+#   var soFar: RgbLinear
+
+#   while result.len < limit:
+#     var chosenAmount = 1
+#     var chosen: uint8 = 0
+
+#     let maxTestCount = if result.len == 0: 1 else: result.len
+
+#     var leastPenalty: float64 = -1
+#     for index in 0'u8 ..< palette.len.uint8:
+#       var sum: RgbLinear = soFar
+#       var add: RgbLinear = palette[index]
+
+#       var p = 1
+#       while p <= maxTestCount:
+#         sum += add
+#         add += add
+
+#         let t = result.len + p
+
+#         let test = RgbLinear(
+#           r: RgbLinearComponent sum.r / t,
+#           g: RgbLinearComponent sum.g / t,
+#           b: RgbLinearComponent sum.b / t
+#         ).fromLinear()
+
+#         let penalty = input.distanceYliluoma(test)
+#         # LabItem test_lab( test[0], test[1], test[2] );
+#         # double penalty = ColorCompare(test_lab, input);
+#         if penalty < leastPenalty or leastPenalty < 0:
+#           leastPenalty = penalty
+#           chosen        = index
+#           chosenAmount = p
+#         p *= 2
+
+#     # Append "chosenAmount" times "chosen" to the color list
+#     for i in 0 ..< chosenAmount:
+#       result.add(chosen)
+
+#     soFar += palette[chosen] * chosenAmount.float
+
+#   # Sort the colors according to luminance
+#   result.sort(func (a, b: uint8): int {.closure.} =
+#     let l1 = paletteLuma[a]
+#     let l2 = paletteLuma[b]
+#     return int(l1 < l2)
+#   )
 
 func closest*(self: RgbLinear; palette: openArray[RgbLinear]): int =
   var best = uint.high

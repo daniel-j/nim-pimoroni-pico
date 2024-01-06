@@ -82,8 +82,8 @@ type
     width*, height*: int
     wakeUpEvents: set[WakeUpEvent]
 
-const PicoGraphicsPen3BitPaletteLut7_3* = generateNearestCache(PicoGraphicsPen3BitPalette7_3[0..<7].toLab())
-const PicoGraphicsPen3BitPaletteLut5_7* = generateNearestCache(PicoGraphicsPen3BitPalette5_7[0..<7].toLab())
+const PicoGraphicsPen3BitPaletteLut7_3* = generateNearestCache(PicoGraphicsPen3BitPalette7_3[0..<7])
+const PicoGraphicsPen3BitPaletteLut5_7* = generateNearestCache(PicoGraphicsPen3BitPalette5_7[0..<7])
 
 proc gpioConfigure*(gpio: Gpio; dir: Direction; value: Value = Low) =
   gpio.setFunction(Sio)
