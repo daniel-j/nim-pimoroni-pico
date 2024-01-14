@@ -31,7 +31,7 @@ const
   GalacticUnicornHeight* = 11
 
   SwitchAPin* = 0.Gpio
-  SwitchBPin * = 1.Gpio
+  SwitchBPin* = 1.Gpio
   SwitchCPin* = 3.Gpio
   SwitchDPin* = 6.Gpio
   SwitchVolumeUpPin* = 7.Gpio
@@ -181,9 +181,9 @@ proc init*(self: var GalacticUnicorn) =
   # setup light sensor adc
   if (adcHw.cs and ADC_CS_EN_BITS) == 0:
     adcInit()
-  
+
   LightSensorPin.initAdc()
-  
+
   const columnPinMask = {ColumnClockPin, ColumnDataPin, ColumnLatchPin, ColumnBlankPin}
   columnPinMask.init()
   columnPinMask.setDirOut()
@@ -225,7 +225,7 @@ proc init*(self: var GalacticUnicorn) =
 
     if i == 4:
       ColumnLatchPin.put(High)
-  
+
   ColumnLatchPin.put(Low)
 
   # reapply the blank as the above seems to cause a slight glow.

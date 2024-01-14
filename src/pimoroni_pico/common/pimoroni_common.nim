@@ -26,9 +26,9 @@ const
   SpiDefaultMosi* = 19.Gpio # DefaultSpiTxPin
   SpiDefaultMiso* = 16.Gpio # DefaultSpiRxPin
   SpiDefaultDc* = 16.Gpio
-  SpiDefaultSck* = 18.Gpio # DefaultSpiSckPin
+  SpiDefaultSck* = 18.Gpio  # DefaultSpiSckPin
   SpiBgFrontPwm* = 20.Gpio
-  SpiBgFrontCs* = 17.Gpio # DefaultSpiCsnPin
+  SpiBgFrontCs* = 17.Gpio   # DefaultSpiCsnPin
   SpiBgBackPwm* = 21.Gpio
   SpiBgBackCs* = 22.Gpio
 

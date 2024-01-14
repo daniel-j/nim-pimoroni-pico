@@ -57,7 +57,7 @@ proc init*(self: var Badger2040) =
     pin.setFunction(Sio)
     pin.setDir(In)
     pin.setPulls(false, true)
-  
+
   PinVbusDetect.setFunction(Sio)
   PinVbusDetect.setDir(In)
   PinVbusDetect.put(High)

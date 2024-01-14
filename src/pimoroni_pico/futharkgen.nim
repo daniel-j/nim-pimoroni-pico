@@ -1,4 +1,4 @@
-{.warning[UnusedImport]:off.}
+{.warning[UnusedImport]: off.}
 
 import ./drivers/fatfs
 import ./drivers/bme68x

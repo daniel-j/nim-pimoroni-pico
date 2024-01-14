@@ -46,7 +46,7 @@ proc init*(self: var Badger2040W) =
     pin.setFunction(Sio)
     pin.setDir(In)
     pin.setPulls(false, true)
-  
+
   PinEinkBusy.setFunction(Sio)
   PinEinkBusy.setDir(In)
   PinEinkBusy.setPulls(true, false)

@@ -34,7 +34,7 @@ const
 
 type
   Pcf85063a* = object
-    i2c*: I2c               # Interface pins with our standard defaults where appropriate
+    i2c*: I2c # Interface pins with our standard defaults where appropriate
     address: I2cAddress
     interrupt: GpioOptional
     initialState: Pcf85063aState
@@ -225,7 +225,7 @@ proc init*(self: var Pcf85063a; i2c: I2c; interrupt: GpioOptional = GpioUnused) 
   if self.interrupt != GpioUnused:
     Gpio(self.interrupt).setFunction(GpioFunction.Sio)
     Gpio(self.interrupt).setDir(In)
-    Gpio(self.interrupt).setPulls(up=false, down=true)
+    Gpio(self.interrupt).setPulls(up = false, down = true)
 
   # clear timers and alarms, disable clock_out
   var data = [uint8 0x00, 0b111]
@@ -273,13 +273,13 @@ proc getDatetime*(self: var Pcf85063a): DatetimeT =
   var data: Pcf85063aTimestamp
   discard self.i2c.readBytes(self.address, Registers.SECONDS.uint8, cast[ptr uint8](data.addr), sizeof(data).uint)
   return DatetimeT(
-    year:  data.years.years.bcdDecode().int16 + 2000,
+    year: data.years.years.bcdDecode().int16 + 2000,
     month: data.months.months.bcdDecode().int8,
-    day:   data.days.days.bcdDecode().int8,
-    dotw:  data.weekdays.weekdays.ord.int8,
-    hour:  data.hours.hours.bcdDecode().int8,
-    min:   data.minutes.minutes.bcdDecode().int8,
-    sec:   data.seconds.seconds.bcdDecode().int8
+    day: data.days.days.bcdDecode().int8,
+    dotw: data.weekdays.weekdays.ord.int8,
+    hour: data.hours.hours.bcdDecode().int8,
+    min: data.minutes.minutes.bcdDecode().int8,
+    sec: data.seconds.seconds.bcdDecode().int8
   )
 
 proc setDatetime*(self: var Pcf85063a; t: DatetimeT) =

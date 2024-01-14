@@ -166,7 +166,7 @@ proc drawFast(self: var JpegDecoder; draw: ptr JPEGDRAW): bool =
 
   for y in 0 ..< draw.iHeight:
     for x in 0 ..< draw.iWidth:
-      if x >= draw.iWidthUsed: break  # Clip to the used width
+      if x >= draw.iWidthUsed: break # Clip to the used width
       let i = y * draw.iWidth + x
       if draw.iBpp == 16:
         var color = constructRgb(JpegPixelRgbType(p[i]))

@@ -16,9 +16,9 @@ type
     BackendMemory, BackendPsram, BackendFile
 
   ErrorDiffusionMatrix* = object
-    s*: int # stride/width
+    s*: int                     # stride/width
     m*: seq[RgbLinearComponent] # matrix
-    d*: RgbLinearComponent # divider
+    d*: RgbLinearComponent      # divider
 
   ErrorDiffusion*[PGT: PicoGraphics] = object
     x*, y*, width*, height*: int

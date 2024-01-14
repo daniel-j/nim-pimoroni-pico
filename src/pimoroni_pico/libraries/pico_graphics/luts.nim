@@ -128,7 +128,7 @@ func getCacheColor*(key: uint): Rgb =
     b: RgbComponent b or (b shr cacheBlueBits) or (b shr (cacheGreenBits + cacheBlueBits))
   )
 
-iterator cacheColors*(): tuple[i: int, c: RgbLinear] =
+iterator cacheColors*(): tuple[i: int; c: RgbLinear] =
   for i in 0 ..< colorCacheSize:
     yield (i, getCacheColor(i.uint).toLinear())
 

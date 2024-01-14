@@ -75,7 +75,7 @@ proc openRAM*(self: var JPEGDEC; pData: ptr uint8; iDataSize: cint; pfnDraw: JPE
   self.jpeg.pfnClose = nil
   self.jpeg.JPEGFile.iSize = iDataSize
   self.jpeg.JPEGFile.pData = pData
-  self.jpeg.iMaxMCUs = 1000  ##  set to an unnaturally high value to start
+  self.jpeg.iMaxMCUs = 1000 ##  set to an unnaturally high value to start
   return JPEGInit(self.jpeg.addr)
 
 proc openFLASH*(self: var JPEGDEC; pData: ptr uint8; iDataSize: cint; pfnDraw: JPEG_DRAW_CALLBACK): cint =
@@ -88,7 +88,7 @@ proc openFLASH*(self: var JPEGDEC; pData: ptr uint8; iDataSize: cint; pfnDraw: J
   self.jpeg.pfnClose = nil
   self.jpeg.JPEGFile.iSize = iDataSize
   self.jpeg.JPEGFile.pData = pData
-  self.jpeg.iMaxMCUs = 1000  ##  set to an unnaturally high value to start
+  self.jpeg.iMaxMCUs = 1000 ##  set to an unnaturally high value to start
   return JPEGInit(self.jpeg.addr)
 
 ##
@@ -102,7 +102,7 @@ proc open*(self: var JPEGDEC; szFilename: string; pfnOpen: JPEG_OPEN_CALLBACK; p
   self.jpeg.pfnDraw = pfnDraw
   self.jpeg.pfnOpen = pfnOpen
   self.jpeg.pfnClose = pfnClose
-  self.jpeg.iMaxMCUs = 1000  ##  set to an unnaturally high value to start
+  self.jpeg.iMaxMCUs = 1000 ##  set to an unnaturally high value to start
   self.jpeg.JPEGFile.fHandle = pfnOpen(szFilename.cstring, addr(self.jpeg.JPEGFile.iSize))
   if self.jpeg.JPEGFile.fHandle == nil:
     return 0
@@ -118,12 +118,12 @@ proc open*(self: var JPEGDEC; fHandle: pointer; iDataSize: cint; pfnClose: JPEG_
   self.jpeg.pfnSeek = pfnSeek
   self.jpeg.pfnDraw = pfnDraw
   self.jpeg.pfnClose = pfnClose
-  self.jpeg.iMaxMCUs = 1000   ##  set to an unnaturally high value to start
+  self.jpeg.iMaxMCUs = 1000 ##  set to an unnaturally high value to start
   self.jpeg.JPEGFile.iSize = iDataSize
   self.jpeg.JPEGFile.fHandle = fHandle
   return JPEGInit(self.jpeg.addr)
 
-proc close*(self: var JPEGDEC)  =
+proc close*(self: var JPEGDEC) =
   #if self.jpeg.pfnClose != nil:
   self.jpeg.pfnClose(self.jpeg.JPEGFile.fHandle)
 

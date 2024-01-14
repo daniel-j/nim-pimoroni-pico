@@ -61,7 +61,7 @@ proc isBusy*(self: EinkDriver): bool =
   if not self.isBusyProc.isNil:
     return self.isBusyProc()
 
-proc busyWait*(self: var EinkDriver, minimumWaitMs: uint32 = 0) =
+proc busyWait*(self: var EinkDriver; minimumWaitMs: uint32 = 0) =
   # echo "busyWait ", minimumWaitMs
   # let startTime = getAbsoluteTime()
   self.timeout = makeTimeoutTimeMs(minimumWaitMs)
@@ -91,7 +91,7 @@ proc command*(self: var EinkDriver; reg: EinkReg; data: varargs[uint8]) =
   else:
     self.command(reg, 0, nil)
 
-proc data*(self: var EinkDriver, len: uint; data: varargs[uint8]) =
+proc data*(self: var EinkDriver; len: uint; data: varargs[uint8]) =
   self.csPin.put(Low)
   # data mode
   self.dcPin.put(High)

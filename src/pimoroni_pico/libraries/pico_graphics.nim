@@ -219,7 +219,8 @@ func getPaletteSize*(self: PicoGraphicsPen3Bit): uint8 = self.paletteSize
 func setPaletteSize*(self: var PicoGraphicsPen3Bit; paletteSize: uint8) =
   self.paletteSize = paletteSize.clamp(1'u8, self.palette.len.uint8)
 
-proc init*(self: var PicoGraphicsPen3Bit; width: uint16; height: uint16; backend: PicoGraphicsBackend = BackendMemory; frameBuffer: seq[uint8] = @[]; palette: array[8, RgbLinear]; paletteSize: uint8 = 7) =
+proc init*(self: var PicoGraphicsPen3Bit; width: uint16; height: uint16; backend: PicoGraphicsBackend = BackendMemory; frameBuffer: seq[uint8] = @[]; palette: array[8, RgbLinear];
+    paletteSize: uint8 = 7) =
   PicoGraphicsBase(self).init(width, height, backend, frameBuffer)
   self.palette = palette
   self.setPaletteSize(paletteSize)
@@ -547,8 +548,8 @@ proc setPixelSpan*(self: var PicoGraphicsPenRgb888; p: Point; l: uint) =
 
 type
   PicoGraphics* = PicoGraphicsPen1Bit | # PicoGraphicsPen1BitY |
-                  PicoGraphicsPen3Bit | PicoGraphicsPenP4 | PicoGraphicsPenP8 |
-                  PicoGraphicsPenRGB332 | PicoGraphicsPenRgb565 | PicoGraphicsPenRgb888
+    PicoGraphicsPen3Bit | PicoGraphicsPenP4 | PicoGraphicsPenP8 |
+    PicoGraphicsPenRGB332 | PicoGraphicsPenRgb565 | PicoGraphicsPenRgb888
 
 proc pixel*(self: var PicoGraphics; p: Point) =
   if self.clip.contains(p):
@@ -643,7 +644,7 @@ proc measureText*(self: var PicoGraphics; t: string; s: float32 = 2.0; letterSpa
 
 proc polygon*(self: var PicoGraphics; points: openArray[Point]) =
   var
-    nodes: array[64, int]  ##  maximum allowed number of nodes per scanline for polygon rendering
+    nodes: array[64, int] ##  maximum allowed number of nodes per scanline for polygon rendering
 
     miny = points[0].y
     maxy = points[0].y
@@ -783,9 +784,9 @@ proc line*(self: var PicoGraphics; p1, p2: Point) =
   var shallow = abs(dx) > abs(dy)
   if shallow:
     ##  shallow version
-    var s = abs(dx)  ##  number of steps
-    let sx = if dx < 0: -1 else: 1  ##  x step value
-    let sy = (dy shl 16) div s  ##  y step value in fixed 16:16
+    var s = abs(dx) ##  number of steps
+    let sx = if dx < 0: -1 else: 1 ##  x step value
+    let sy = (dy shl 16) div s ##  y step value in fixed 16:16
     var x = p1.x
     var y = p1.y shl 16
     while s > 0:
@@ -797,9 +798,9 @@ proc line*(self: var PicoGraphics; p1, p2: Point) =
 
   else:
     ##  steep version
-    var s = abs(dy)  ##  number of steps
-    let sy = if dy < 0: -1 else: 1  ##  y step value
-    let sx = (dx shl 16) div s  ##  x step value in fixed 16:16
+    var s = abs(dy) ##  number of steps
+    let sy = if dy < 0: -1 else: 1 ##  y step value
+    let sx = (dx shl 16) div s ##  x step value in fixed 16:16
     var y = p1.y
     var x = p1.x shl 16
     while s > 0:
@@ -835,9 +836,9 @@ proc thickLine*(self: var PicoGraphics; p1, p2: Point; thickness: Positive = sel
   var shallow = abs(dx) > abs(dy)
   if shallow:
     ##  shallow version
-    var s = abs(dx)  ##  number of steps
-    let sx = if dx < 0: -1 else: 1  ##  x step value
-    let sy = (dy shl 16) div s  ##  y step value in fixed 16:16
+    var s = abs(dx) ##  number of steps
+    let sx = if dx < 0: -1 else: 1 ##  x step value
+    let sy = (dy shl 16) div s ##  y step value in fixed 16:16
     var x = p1.x
     var y = p1.y shl 16
     while s > 0:
@@ -848,9 +849,9 @@ proc thickLine*(self: var PicoGraphics; p1, p2: Point; thickness: Positive = sel
 
   else:
     ##  steep version
-    var s = abs(dy)  ##  number of steps
-    let sy = if dy < 0: -1 else: 1  ##  y step value
-    let sx = (dx shl 16) div s  ##  x step value in fixed 16:16
+    var s = abs(dy) ##  number of steps
+    let sy = if dy < 0: -1 else: 1 ##  y step value
+    let sx = (dx shl 16) div s ##  x step value in fixed 16:16
     var y = p1.y
     var x = p1.x shl 16
     while s > 0:
@@ -894,7 +895,7 @@ proc frameConvert*(self: var PicoGraphicsPen3Bit; `type`: typedesc[PicoGraphics]
 
         callback(cast[pointer](rowBuf[0].addr), byteCount)
 
-proc frameConvert*[T: Rgb565|Rgb888](self: var PicoGraphics; callback: PicoGraphicsConversionCallbackFunc, getNextPixel: proc(): T) =
+proc frameConvert*[T: Rgb565|Rgb888](self: var PicoGraphics; callback: PicoGraphicsConversionCallbackFunc; getNextPixel: proc(): T) =
   ## Allocate two temporary buffers, as the callback may transfer by DMA
   ##  while we're preparing the next part of the row
   const BUF_LEN = 64

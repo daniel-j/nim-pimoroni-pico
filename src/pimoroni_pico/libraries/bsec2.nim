@@ -77,7 +77,7 @@ import ../drivers/bme68x
 const
   BSEC_TOTAL_HEAT_DUR* = 140.uint16
   BSEC_INSTANCE_SIZE* = 3272
-  BSEC_E_INSUFFICIENT_INSTANCE_SIZE* =  -105.BsecLibraryReturnT
+  BSEC_E_INSUFFICIENT_INSTANCE_SIZE* = -105.BsecLibraryReturnT
 
 type
   Bsec2* = object
@@ -230,17 +230,17 @@ proc processData(self: var Bsec2; currTimeNs: int64; data: var Bme68xData): bool
   var nInputs: uint8 = 0
   # Checks all the required sensor inputs, required for the BSEC library for the requested outputs
   if BSEC_CHECK_INPUT(self.bmeConf.process_data, BSEC_INPUT_TEMPERATURE):
-      inputs[nInputs].sensor_id = BSEC_INPUT_HEATSOURCE.uint8
-      inputs[nInputs].signal = self.extTempOffset
-      inputs[nInputs].time_stamp = currTimeNs
-      inc(nInputs)
-      when true or defined(BME68X_USE_FPU):
-        inputs[nInputs].signal = data.temperature
-      else:
-        inputs[nInputs].signal = data.temperature / 100.0f
-      inputs[nInputs].sensor_id = BSEC_INPUT_TEMPERATURE.uint8
-      inputs[nInputs].time_stamp = currTimeNs
-      inc(nInputs)
+    inputs[nInputs].sensor_id = BSEC_INPUT_HEATSOURCE.uint8
+    inputs[nInputs].signal = self.extTempOffset
+    inputs[nInputs].time_stamp = currTimeNs
+    inc(nInputs)
+    when true or defined(BME68X_USE_FPU):
+      inputs[nInputs].signal = data.temperature
+    else:
+      inputs[nInputs].signal = data.temperature / 100.0f
+    inputs[nInputs].sensor_id = BSEC_INPUT_TEMPERATURE.uint8
+    inputs[nInputs].time_stamp = currTimeNs
+    inc(nInputs)
 
   if BSEC_CHECK_INPUT(self.bmeConf.process_data, BSEC_INPUT_HUMIDITY):
     when true or defined(BME68X_USE_FPU):
@@ -279,7 +279,7 @@ proc processData(self: var Bsec2; currTimeNs: int64; data: var Bme68xData): bool
     self.status = bsec_do_steps_m(self.bsecInstance, inputs[0].addr, nInputs, self.outputs.output[0].addr, self.outputs.nOutputs.addr)
 
     if self.status != BSEC_OK:
-        return false
+      return false
 
     if not self.newDataCallback.isNil:
       self.newDataCallback(data, self.outputs, self)
@@ -381,8 +381,10 @@ proc allocateMemory*(self: var Bsec2; memBlock: var array[BSEC_INSTANCE_SIZE, ui
   ## Function to assign the memory block to the bsec instance
   ## @param[in] memBlock : reference to the memory block
   # self.bsecInstance = memBlock[0].addr
+  discard
 
 proc clearMemory*(self: var Bsec2) =
   ## Function to de-allocate the dynamically allocated memory
   # dealloc(self.bsecInstance)
+  discard
 

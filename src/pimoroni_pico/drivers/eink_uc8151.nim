@@ -55,13 +55,13 @@ type
     Res_160x296  = 0b11
 
   PsrOptions {.packed.} = object
-    resetNone {.bitsize: 1}: bool
-    boosterOn {.bitsize: 1}: bool
-    shiftRight {.bitsize: 1}: bool
-    scanUp {.bitsize: 1}: bool
-    formatBw {.bitsize: 1}: bool
-    lutReg {.bitsize: 1}: bool
-    resolution {.bitsize: 2}: PsrResolution
+    resetNone {.bitsize: 1.}: bool
+    boosterOn {.bitsize: 1.}: bool
+    shiftRight {.bitsize: 1.}: bool
+    scanUp {.bitsize: 1.}: bool
+    formatBw {.bitsize: 1.}: bool
+    lutReg {.bitsize: 1.}: bool
+    resolution {.bitsize: 2.}: PsrResolution
 
   PwrVghlLv = enum
     Vghl_16V = 0b00
@@ -111,11 +111,11 @@ type
   BtstOptions {.packed.} = object
     offTimeA {.bitsize: 3.}: BtstOffTime
     strengthA {.bitsize: 3.}: BtstStrength
-    startA {.bitsize: 2}: BtstStart
+    startA {.bitsize: 2.}: BtstStart
 
     offTimeB {.bitsize: 3, align: 1.}: BtstOffTime
     strengthB {.bitsize: 3.}: BtstStrength
-    startB {.bitsize: 2}: BtstStart
+    startB {.bitsize: 2.}: BtstStart
 
     offTimeC {.bitsize: 3, align: 1.}: BtstOffTime
     strengthC {.bitsize: 3.}: BtstStrength
@@ -143,10 +143,10 @@ type
     vbd {.bitsize: 2.}: range[0'u8 .. 0b11'u8]
 
   PtlOptions {.packed.} = object
-    hrStart: uint8 # lower 3 bits ignored
-    hrEnd: uint8 # lower 3 bits 0b111
+    hrStart: uint8  # lower 3 bits ignored
+    hrEnd: uint8    # lower 3 bits 0b111
     vrStart: uint16 # big endian
-    vrEnd: uint16 # big endian
+    vrEnd: uint16   # big endian
     ptScan {.bitsize: 1.}: bool
 
   Uc8151* = object of EinkDriver

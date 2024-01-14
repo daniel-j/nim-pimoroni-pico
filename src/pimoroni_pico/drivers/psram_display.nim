@@ -114,7 +114,7 @@ proc pointToAddress(self: PsramDisplay; p: Point): PsramAddress =
 proc writePixel*(self: var PsramDisplay; p: Point; colour: uint8) =
   self.write(self.pointToAddress(p), 1, colour)
 
-proc writePixelSpan*(self: var PsramDisplay; p: Point; l: uint, colour: uint8) =
+proc writePixelSpan*(self: var PsramDisplay; p: Point; l: uint; colour: uint8) =
   # echo "writing pixel span ", p, " ", l, " ", colour
   self.write(self.pointToAddress(p), l, colour)
 

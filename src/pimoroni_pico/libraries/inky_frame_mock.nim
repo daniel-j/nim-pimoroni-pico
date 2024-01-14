@@ -52,7 +52,7 @@ type
   Pen* = Colour
 
   InkyFrameKind* = enum
-     InkyFrame4_0, InkyFrame5_7, InkyFrame7_3
+    InkyFrame4_0, InkyFrame5_7, InkyFrame7_3
   InkyFrame* = object of PicoGraphicsPen3Bit
     kind*: InkyFrameKind
     width*, height*: int
@@ -90,7 +90,7 @@ proc update*(self: var InkyFrame) =
         let x = i div 2
         let offset = (i mod 2)
         let pen = if offset == 0: (arr[x] shr 4) else: (arr[x] and 0b1111)
-        let color = palette[pen].fromLinear(cheat=true)
+        let color = palette[pen].fromLinear(cheat = true)
         image[i, y] = ColorRGB(
           r: color.r.uint8,
           g: color.g.uint8,
