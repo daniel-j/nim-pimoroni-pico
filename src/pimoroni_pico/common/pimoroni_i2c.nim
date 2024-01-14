@@ -3,6 +3,8 @@ import pimoroni_common
 
 export i2c, gpio, pimoroni_common
 
+const i2cTimeout = 100_0000
+
 type
   I2c* = object
     i2c: ptr I2cInst
@@ -52,18 +54,18 @@ proc getBaudrate*(self: var I2c|ptr I2c): auto = self.baudrate
 
 ##  Basic wrappers for devices using i2c functions directly
 
-# proc writeBlocking*(self: var I2c|ptr I2c; `addr`: I2cAddress; src: ptr uint8; len: csize_t; nostop: bool): cint =
-#   return self.i2c.writeBlocking(`addr`, src, len, nostop)
+# proc writeTimeoutUs*(self: var I2c|ptr I2c; `addr`: I2cAddress; src: ptr uint8; len: csize_t; nostop: bool): cint =
+#   return self.i2c.writeTimeoutUs(`addr`, src, len, nostop)
 
-# proc readBlocking*(self: var I2c|ptr I2c; `addr`: I2cAddress; dst: ptr uint8; len: csize_t; nostop: bool): cint =
-#   return self.i2c.readBlocking(`addr`, dst, len, nostop)
+# proc readTimeoutUs*(self: var I2c|ptr I2c; `addr`: I2cAddress; dst: ptr uint8; len: csize_t; nostop: bool): cint =
+#   return self.i2c.readTimeoutUs(`addr`, dst, len, nostop)
 
 ##  Convenience functions for various common i2c operations
 
 proc readBytes*(self: var I2c|ptr I2c; address: I2cAddress; reg: uint8; buf: ptr uint8; len: uint): cint =
-  let res = self.i2c.writeBlocking(address, reg.unsafeAddr, 1, true)
+  let res = self.i2c.writeTimeoutUs(address, reg.unsafeAddr, 1, true, i2cTimeout)
   if res <= 0: return res
-  return self.i2c.readBlocking(address, buf, len.csize_t, false)
+  return self.i2c.readTimeoutUs(address, buf, len.csize_t, false, i2cTimeout)
 
 proc writeBytes*(self: var I2c|ptr I2c; address: I2cAddress; reg: uint8; buf: ptr uint8; len: uint): cint =
   var buffer: seq[uint8]
@@ -73,35 +75,35 @@ proc writeBytes*(self: var I2c|ptr I2c; address: I2cAddress; reg: uint8; buf: pt
   while x < len:
     buffer[x + 1] = cast[ptr UncheckedArray[uint8]](buf)[x]
     inc(x)
-  return self.i2c.writeBlocking(address, buffer[0].addr, buffer.len.cuint, false)
+  return self.i2c.writeTimeoutUs(address, buffer[0].addr, buffer.len.cuint, false, i2cTimeout)
 
 
 proc regWriteUint8*(self: var I2c|ptr I2c; address: I2cAddress; reg: uint8; value: uint8): cint =
   var buffer: array[2, uint8] = [reg, value]
-  return self.i2c.writeBlocking(address, buffer[0].addr, 2, false)
+  return self.i2c.writeTimeoutUs(address, buffer[0].addr, 2, false, i2cTimeout)
 
 proc regReadUint8*(self: var I2c|ptr I2c; address: I2cAddress; reg: uint8): uint8 =
   var value: uint8
-  discard self.i2c.writeBlocking(address, reg.unsafeAddr, 1, false)
-  discard self.i2c.readBlocking(address, value.addr, 1, false)
+  discard self.i2c.writeTimeoutUs(address, reg.unsafeAddr, 1, false, i2cTimeout)
+  discard self.i2c.readTimeoutUs(address, value.addr, 1, false, i2cTimeout)
   return value
 
 proc regReadUint16*(self: var I2c|ptr I2c; address: I2cAddress; reg: uint8): uint16 =
   var value: uint16
-  discard self.i2c.writeBlocking(address, reg.unsafeAddr, 1, true)
-  discard self.i2c.readBlocking(address, cast[ptr uint8](addr(value)), sizeof((uint16)).csize_t, false)
+  discard self.i2c.writeTimeoutUs(address, reg.unsafeAddr, 1, true, i2cTimeout)
+  discard self.i2c.readTimeoutUs(address, cast[ptr uint8](addr(value)), sizeof((uint16)).csize_t, false, i2cTimeout)
   return value
 
 proc regReadUint32*(self: var I2c|ptr I2c; address: I2cAddress; reg: uint8): uint32 =
   var value: uint32
-  discard self.i2c.writeBlocking(address, reg.unsafeAddr, 1, true)
-  discard self.i2c.readBlocking(address, cast[ptr uint8](addr(value)), sizeof((uint32)).csize_t, false)
+  discard self.i2c.writeTimeoutUs(address, reg.unsafeAddr, 1, true, i2cTimeout)
+  discard self.i2c.readTimeoutUs(address, cast[ptr uint8](addr(value)), sizeof((uint32)).csize_t, false, i2cTimeout)
   return value
 
 proc regReadInt16*(self: var I2c|ptr I2c; address: I2cAddress; reg: uint8): int16 =
   var value: int16
-  discard self.i2c.writeBlocking(address, reg.unsafeAddr, 1, true)
-  discard self.i2c.readBlocking(address, cast[ptr uint8](addr(value)), sizeof((int16)).csize_t, false)
+  discard self.i2c.writeTimeoutUs(address, reg.unsafeAddr, 1, true, i2cTimeout)
+  discard self.i2c.readTimeoutUs(address, cast[ptr uint8](addr(value)), sizeof((int16)).csize_t, false, i2cTimeout)
   return value
 
 

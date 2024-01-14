@@ -229,7 +229,10 @@ proc init*(self: var Pcf85063a; i2c: I2c; interrupt: GpioOptional = GpioUnused) 
 
   # clear timers and alarms, disable clock_out
   var data = [uint8 0x00, 0b111]
-  discard self.i2c.writeBytes(self.address, Registers.CONTROL_1.uint8, data[0].addr, data.len.uint)
+  var res = self.i2c.writeBytes(self.address, Registers.CONTROL_1.uint8, data[0].addr, data.len.uint)
+  if res <= 0:
+    echo "failed to initialize RTC: ", res
+    return
 
   self.initialState = self.readAll()
 
@@ -240,6 +243,7 @@ proc init*(self: var Pcf85063a; i2c: I2c; interrupt: GpioOptional = GpioUnused) 
 
   # read the oscillator stop bit and reset if it is set
   var status = self.i2c.regReadUint8(self.address, SECONDS.uint8)
+
   if status.testBit(7):
     # self.reset()
     self.waitForOscillator()
