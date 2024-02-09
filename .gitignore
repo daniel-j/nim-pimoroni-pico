@@ -2,3 +2,4 @@ build
 tests/nimcache
 csource/imports.cmake
 /src/pimoroni_pico/futharkgen
+/secret.nims
