@@ -56,7 +56,7 @@ func genereateGammaLut*[T](bitdepth: static[uint]; size: static[uint]; gamma = d
     result[n] = T linearize1(n / 255, gamma) * mult
 
 const
-  Gamma8Bit* = genereateGammaLut[uint8](8, 256, 2.4)
+  Gamma8Bit* = genereateGammaLut[uint8](8, 256, 2.2)
   Gamma14Bit* = genereateGammaLut[uint16](14, 256, 2.4)
 
 const rgb332ToRgb565Lut*: array[256, uint16] = [
