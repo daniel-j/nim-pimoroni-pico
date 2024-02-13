@@ -124,6 +124,7 @@ else()
 
   # Inky Frame
   add_example(inky_frame_slideshow slideshow)
+  add_example(inky_frame_slideshow_gphotos slideshow_gphotos)
   # pico_startup_pinmask(inky_frame_slideshow "((0b1 << 2) | (0b1 << 6))")
   add_example(inky_frame_sleepy_head sleepy_head)
   # pico_startup_pinmask(inky_frame_sleepy_head "((0b1 << 2) | (0b1 << 6))")

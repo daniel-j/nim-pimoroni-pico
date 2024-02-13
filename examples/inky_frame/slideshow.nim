@@ -3,16 +3,19 @@ import std/typetraits
 
 import picostdlib
 import picostdlib/pico/rand
+import picostdlib/hardware/watchdog
 
 import pimoroni_pico/libraries/pico_graphics/drawjpeg
 import pimoroni_pico/libraries/inky_frame
 import pimoroni_pico/libraries/pico_graphics/error_diffusion
 
 
-var inky: InkyFrame
-inky.boot()
+const pictureDelay = 5
 
 discard stdioInitAll()
+
+var inky: InkyFrame
+inky.boot()
 
 var fs: FATFS
 var jpegDecoder: JpegDecoder[PicoGraphicsPen3Bit]
@@ -67,7 +70,8 @@ proc drawFile(filename: string) =
     inky.update()
     echo "Update complete. Sleeping..."
     inky.led(LedActivity, 0)
-    inky.sleep(10, true)
+    # inky.sleep(pictureDelay, true)
+    sleepMs(pictureDelay * 60 * 1000)
   else:
     inky.led(LedActivity, 0)
 
@@ -292,6 +296,8 @@ proc inkyProc() =
       drawFile(filename)
 
     discard f_unmount("")
+    sleepMs(30 * 1000)
+    watchdogReboot(0, 0, 0)
 
 inkyProc()
 

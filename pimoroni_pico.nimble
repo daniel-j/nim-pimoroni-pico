@@ -41,6 +41,7 @@ task examples, "Build the examples":
 
     # Inky Frame
     "inky_frame/slideshow",
+    "inky_frame/slideshow_gphotos",
     "inky_frame/sleepy_head"
   ]
 
