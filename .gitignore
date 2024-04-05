@@ -1,5 +1,4 @@
-build
-tests/nimcache
-csource/imports.cmake
+/build
+/tests/mock/tinky_frame
 /src/pimoroni_pico/futharkgen
 /secret.nims

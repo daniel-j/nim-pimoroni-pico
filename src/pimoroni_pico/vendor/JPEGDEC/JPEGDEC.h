@@ -13,12 +13,30 @@
 //
 #ifndef __JPEGDEC__
 #define __JPEGDEC__
-
+#if defined( __MACH__ ) || defined( __linux__ ) || defined( __MCUXPRESSO ) || defined( ESP_PLATFORM ) || defined(PICO_BUILD)
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
 #include <stdio.h>
+#else
+#include <Arduino.h>
+#if !defined(HAL_ESP32_HAL_H_) && defined(__has_include) && __has_include(<FS.h>)
+#include <FS.h>
+#endif
+#endif
+#ifndef PROGMEM
+#define memcpy_P memcpy
+#define PROGMEM
+#endif
+// Cortex-M4/M7 allow unaligned access to SRAM
+#if defined(HAL_ESP32_HAL_H_) || defined(TEENSYDUINO) || defined(ARM_MATH_CM4) || defined(ARM_MATH_CM7) || defined (__x86_64__) || defined(TEENSYDUINO)
+#define ALLOWS_UNALIGNED
+#endif
 
+#if defined (__aarch64__) || defined (__arm64__)
+#define HAS_NEON
+#define ALLOWS_UNALIGNED
+#endif // __aarch64
 //
 // JPEG Decoder
 // Written by Larry Bank
@@ -55,6 +73,16 @@
 #define MCU4 (DCTSIZE * 4)
 #define MCU5 (DCTSIZE * 5)
 
+#if 0 //defined(__arm64__) || defined(__aarch64__) || defined (__x86_64__)
+#define REGISTER_WIDTH 64
+typedef uint64_t my_ulong;
+typedef int64_t my_long;
+#else
+#define REGISTER_WIDTH 32
+typedef uint32_t my_ulong;
+typedef int32_t my_long;
+#endif
+
 // Pixel types (defaults to little endian RGB565)
 enum {
     RGB565_LITTLE_ENDIAN = 0,
@@ -84,7 +112,7 @@ enum {
 typedef struct buffered_bits
 {
 unsigned char *pBuf; // buffer pointer
-uint32_t ulBits; // buffered bits
+my_ulong ulBits; // buffered bits
 uint32_t ulBitOff; // current bit offset
 } BUFFERED_BITS;
 
@@ -162,8 +190,9 @@ typedef struct jpeg_image_tag
     uint8_t ucMode, ucOrientation, ucHasThumb, b11Bit;
     uint8_t ucComponentsInScan, cApproxBitsLow, cApproxBitsHigh;
     uint8_t iScanStart, iScanEnd, ucFF, ucNumComponents;
-    uint8_t ucACTable, ucDCTable, ucMaxACCol, ucMaxACRow;
+    uint8_t ucACTable, ucDCTable;
     uint8_t ucMemType, ucPixelType;
+    uint16_t u16MCUFlags;
     int iEXIF; // Offset to EXIF 'TIFF' file
     int iError;
     int iOptions;
@@ -181,16 +210,60 @@ typedef struct jpeg_image_tag
     BUFFERED_BITS bb;
     void *pUser;
     uint8_t *pDitherBuffer; // provided externally to do Floyd-Steinberg dithering
-    uint16_t usPixels[MAX_BUFFERED_PIXELS];
-    int16_t sMCUs[DCTSIZE * MAX_MCU_COUNT]; // 4:2:0 needs 6 DCT blocks per MCU
+    uint16_t *usPixels; // needs to be 16-byte aligned for S3 SIMD
+    uint16_t usUnalignedPixels[MAX_BUFFERED_PIXELS+8];
+    int16_t *sMCUs; // needs to be 16-byte aligned for S3 SIMD
+    int16_t sUnalignedMCUs[8+(DCTSIZE * MAX_MCU_COUNT)]; // 4:2:0 needs 6 DCT blocks per MCU
+    void *pFramebuffer;
     int16_t sQuantTable[DCTSIZE*4]; // quantization tables
     uint8_t ucFileBuf[JPEG_FILE_BUF_SIZE]; // holds temp data and pixel stack
     uint8_t ucHuffDC[DC_TABLE_SIZE * 2]; // up to 2 'short' tables
     uint16_t usHuffAC[HUFF11SIZE * 2];
 } JPEGIMAGE;
 
+#ifdef __cplusplus
+#if defined(__has_include) && __has_include(<FS.h>)
+#include "FS.h"
+#endif
+#define JPEG_STATIC static
+//
+// The JPEGDEC class wraps portable C code which does the actual work
+//
+class JPEGDEC
+{
+  public:
+    int openRAM(uint8_t *pData, int iDataSize, JPEG_DRAW_CALLBACK pfnDraw);
+    int openFLASH(uint8_t *pData, int iDataSize, JPEG_DRAW_CALLBACK pfnDraw);
+    int open(const char *szFilename, JPEG_OPEN_CALLBACK pfnOpen, JPEG_CLOSE_CALLBACK pfnClose, JPEG_READ_CALLBACK pfnRead, JPEG_SEEK_CALLBACK pfnSeek, JPEG_DRAW_CALLBACK pfnDraw);
+    int open(void *fHandle, int iDataSize, JPEG_CLOSE_CALLBACK pfnClose, JPEG_READ_CALLBACK pfnRead, JPEG_SEEK_CALLBACK pfnSeek, JPEG_DRAW_CALLBACK pfnDraw);
+    void setFramebuffer(void *pFramebuffer);
+
+#ifdef FS_H
+    int open(File &file, JPEG_DRAW_CALLBACK pfnDraw);
+#endif
+    void close();
+    int decode(int x, int y, int iOptions);
+    int decodeDither(uint8_t *pDither, int iOptions);
+    int getOrientation();
+    int getWidth();
+    int getHeight();
+    int getBpp();
+    void setUserPointer(void *p);
+    int getSubSample();
+    int hasThumb();
+    int getThumbWidth();
+    int getThumbHeight();
+    int getLastError();
+    void setPixelType(int iType); // defaults to little endian
+    void setMaxOutputSize(int iMaxMCUs);
+
+  private:
+    JPEGIMAGE _jpeg;
+};
+#else
 #define JPEG_STATIC
 int JPEG_openRAM(JPEGIMAGE *pJPEG, uint8_t *pData, int iDataSize, JPEG_DRAW_CALLBACK pfnDraw);
+void JPEG_setFramebuffer(JPEGIMAGE *pJPEG, void *pFramebuffer);
 int JPEG_openFile(JPEGIMAGE *pJPEG, const char *szFilename, JPEG_DRAW_CALLBACK pfnDraw);
 int JPEG_getWidth(JPEGIMAGE *pJPEG);
 int JPEG_getHeight(JPEGIMAGE *pJPEG);
@@ -207,19 +280,28 @@ int JPEG_getThumbHeight(JPEGIMAGE *pJPEG);
 int JPEG_getLastError(JPEGIMAGE *pJPEG);
 void JPEG_setPixelType(JPEGIMAGE *pJPEG, int iType); // defaults to little endian
 void JPEG_setMaxOutputSize(JPEGIMAGE *pJPEG, int iMaxMCUs);
+#endif // __cplusplus
 
 // forward references
 int JPEGInit(JPEGIMAGE *pJPEG);
 int JPEGParseInfo(JPEGIMAGE *pPage, int bExtractThumb);
 int DecodeJPEG(JPEGIMAGE *pImage);
 
+#ifdef ALLOWS_UNALIGNED
+#define INTELSHORT(p) (*(uint16_t *)p)
+#define INTELLONG(p) (*(uint32_t *)p)
+#define MOTOSHORT(p) __builtin_bswap16(*(uint16_t *)p)
+#if REGISTER_WIDTH == 64
+#define MOTOLONG(p) __builtin_bswap64(*(uint64_t *)p)
+#else
+#define MOTOLONG(p) __builtin_bswap32(*(uint32_t *)p)
+#endif
+#else
 // Due to unaligned memory causing an exception, we have to do these macros the slow way
 #define INTELSHORT(p) ((*p) + (*(p+1)<<8))
 #define INTELLONG(p) ((*p) + (*(p+1)<<8) + (*(p+2)<<16) + (*(p+3)<<24))
 #define MOTOSHORT(p) (((*(p))<<8) + (*(p+1)))
 #define MOTOLONG(p) (((*p)<<24) + ((*(p+1))<<16) + ((*(p+2))<<8) + (*(p+3)))
-
-// Must be a 32-bit target processor
-#define REGISTER_WIDTH 32
+#endif // ALLOWS_UNALIGNED
 
 #endif // __JPEGDEC__

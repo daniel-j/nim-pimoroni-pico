@@ -95,6 +95,8 @@ proc drawFile(filename: string; kind: InkyFrameKind; drawMode: DrawMode; matrix:
   jpegDecoder.colorModifier = proc (color: var Rgb) =
     color = color.level(gamma=1.4) #.contrast(1.15) #.level(gamma=1.6)
 
+  echo "Drawing jpeg image..."
+
   if jpegDecoder.drawJpeg(filename, x, y, w, h, gravity=(0.5f, 0.5f), contains = true, drawMode) == 1:
     echo "Converting image..."
 

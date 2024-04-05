@@ -24,26 +24,47 @@
 
 #ifdef TEENSYDUINO
 #include "my_cm4_simd.h"
+//#define HAS_SIMD
+#endif
+
+#if !defined(NO_SIMD) && (defined(ARM_MATH_CM4) || defined(ARM_MATH_CM7))
 #define HAS_SIMD
 #endif
 
-#if defined(ARM_MATH_CM4) || defined(ARM_MATH_CM7)
-#define HAS_SIMD
+#if defined (ARDUINO_ARCH_ESP32) && !defined(NO_SIMD)
+#include "dsps_fft2r_platform.h"
+#if (dsps_fft2r_sc16_aes3_enabled == 1)
+#define ESP32S3_SIMD
+extern "C" {
+void s3_ycbcr_convert_444(uint8_t *pY, uint8_t *pCB, uint8_t *pCR, uint16_t *pOut, int16_t *pConsts, uint8_t ucPixelType);
+void s3_ycbcr_convert_420(uint8_t *pY, uint8_t *pCB, uint8_t *pCR, uint16_t *pOut, int16_t *pConsts, uint8_t ucPixelType);
+void s3_dequant(int16_t *pMCU, int16_t *pQuant);
+}
+int16_t i16_Consts[8] = {0x80, 113, 90, 22, 46, 1,32,2048};
+#endif // S3 SIMD
+#endif // ESP32
+
+#if defined( __x86_64__ ) && !defined(NO_SIMD)
+#define HAS_SSE
+#include <emmintrin.h>
+#include <tmmintrin.h>
+#include <smmintrin.h>
+//#include <immintrin.h> // AVX2
 #endif
 
-#if defined(__ARM_NEON) || defined(__arm64__) || defined(__aarch64__)
+#if !defined(HAS_SIMD) && !defined(NO_SIMD) && (defined(__arm64__) || defined(__aarch64__))
 #include <arm_neon.h>
 #define HAS_NEON
 #endif
 
 // forward references
-//static int JPEGInit(JPEGIMAGE *pJPEG);
-//static int JPEGParseInfo(JPEGIMAGE *pPage, int bExtractThumb);
+int JPEGInit(JPEGIMAGE *pJPEG);
+int JPEGParseInfo(JPEGIMAGE *pPage, int bExtractThumb);
 static void JPEGGetMoreData(JPEGIMAGE *pPage);
-//static int DecodeJPEG(JPEGIMAGE *pImage);
+int DecodeJPEG(JPEGIMAGE *pImage);
 static int32_t readRAM(JPEGFILE *pFile, uint8_t *pBuf, int32_t iLen);
 static int32_t seekMem(JPEGFILE *pFile, int32_t iPosition);
-#if defined (__MACH__) || defined( __LINUX__ ) || defined( __MCUXPRESSO )
+#if defined (__MACH__) || defined( __linux__ ) || defined( __MCUXPRESSO )
 static int32_t readFile(JPEGFILE *pFile, uint8_t *pBuf, int32_t iLen);
 static int32_t seekFile(JPEGFILE *pFile, int32_t iPosition);
 static void closeFile(void *handle);
@@ -81,6 +102,37 @@ static const int16_t __attribute__((aligned(16))) s2613[8] = {-10703,-10703,-107
 static const int16_t __attribute__((aligned(16))) sp2613[8] = {10703,10703,10703,10703,10703,10703,10703,10703}; // 2.6131259
 static const int16_t __attribute__((aligned(16))) s1082[8] = {4433*2,4433*2,4433*2,4433*2,4433*2,4433*2,4433*2,4433*2}; // 1.08239
 #endif // HAS_NEON
+
+#ifdef HAS_SSE
+#if defined ( __GNUC__ ) || defined( _GCC_ANDROID ) || defined( __APPLE__)
+signed short s1402[8] __attribute__((aligned(16))) = { 5742, 5742, 5742, 5742, 5742, 5742, 5742, 5742 };
+signed short s0714[8] __attribute__((aligned(16))) = { -2925, -2925, -2925, -2925, -2925, -2925, -2925, -2925 };
+signed short s0344[8] __attribute__((aligned(16))) = { -1409, -1409, -1409, -1409, -1409, -1409, -1409, -1409 };
+signed short s1772[8] __attribute__((aligned(16))) = { 7258, 7258, 7258, 7258, 7258, 7258, 7258, 7258 };
+// 16-bit constants for IDCT calculation
+signed short s0414[8] __attribute__((aligned(16))) = { 1697 * 4, 1697 * 4, 1697 * 4, 1697 * 4, 1697 * 4, 1697 * 4, 1697 * 4, 1697 * 4 }; // 1.414213562 - 1.0
+signed short s1414[8] __attribute__((aligned(16))) = { 5793 * 4, 5793 * 4, 5793 * 4, 5793 * 4, 5793 * 4, 5793 * 4, 5793 * 4, 5793 * 4 }; // 1.414213562
+signed short s1847[8] __attribute__((aligned(16))) = { 7568 * 4, 7568 * 4, 7568 * 4, 7568 * 4, 7568 * 4, 7568 * 4, 7568 * 4, 7568 * 4 }; // 1.8477
+signed short s2613[8] __attribute__((aligned(16))) = { -10703 * 2, -10703 * 2, -10703 * 2, -10703 * 2, -10703 * 2, -10703 * 2, -10703 * 2, -10703 * 2 }; // -2.6131259
+signed short sp2613[8] __attribute__((aligned(16))) = { 10703 * 2, 10703 * 2, 10703 * 2, 10703 * 2, 10703 * 2, 10703 * 2, 10703 * 2, 10703 * 2 }; // 2.6131259
+signed short s1082[8] __attribute__((aligned(16))) = { 4433 * 4, 4433 * 4, 4433 * 4, 4433 * 4, 4433 * 4, 4433 * 4, 4433 * 4, 4433 * 4 }; // 1.08239
+signed short sfastDCT[8] __attribute__((aligned(16))) = { 4096, 4096, 4096, 4096, -815, 2320, 3472, 4096 };
+#else
+// 16-bit Constants for SSE ycc->rgb conversion
+__declspec(align(16)) signed short s1402[8] = {5742,5742,5742,5742,5742,5742,5742,5742};
+__declspec(align(16)) signed short s0714[8] = {-2925,-2925,-2925,-2925,-2925,-2925,-2925,-2925};
+__declspec(align(16)) signed short s0344[8] = {-1409,-1409,-1409,-1409,-1409,-1409,-1409,-1409};
+__declspec(align(16)) signed short s1772[8] = {7258,7258,7258,7258,7258,7258,7258,7258};
+// 16-bit constants for IDCT calculation
+__declspec(align(16)) signed short s0414[8] = {1697*4,1697*4,1697*4,1697*4,1697*4,1697*4,1697*4,1697*4}; // 1.414213562 - 1.0
+__declspec(align(16)) signed short s1414[8] = {5793*4,5793*4,5793*4,5793*4,5793*4,5793*4,5793*4,5793*4}; // 1.414213562
+__declspec(align(16)) signed short s1847[8] = {7568*4,7568*4,7568*4,7568*4,7568*4,7568*4,7568*4,7568*4}; // 1.8477
+__declspec(align(16)) signed short s2613[8] = {-10703*2,-10703*2,-10703*2,-10703*2,-10703*2,-10703*2,-10703*2,-10703*2}; // -2.6131259
+__declspec(align(16)) signed short sp2613[8] = {10703*2,10703*2,10703*2,10703*2,10703*2,10703*2,10703*2,10703*2}; // 2.6131259
+__declspec(align(16)) signed short s1082[8] = {4433*4,4433*4,4433*4,4433*4,4433*4,4433*4,4433*4,4433*4}; // 1.08239
+__declspec(align(16)) signed short sfastDCT[8] = {4096,4096,4096,4096,-815,2320,3472,4096};
+#endif // GCC
+#endif // HAS_SSE
 
 // For AA&N IDCT method, multipliers are equal to quantization
 // coefficients scaled by scalefactor[row]*scalefactor[col], where
@@ -574,18 +626,27 @@ int JPEG_hasThumb(JPEGIMAGE *pJPEG)
 {
     return (int)pJPEG->ucHasThumb;
 } /* JPEG_hasThumb() */
+
 int JPEG_getThumbWidth(JPEGIMAGE *pJPEG)
 {
     return pJPEG->iThumbWidth;
 } /* JPEG_getThumbWidth() */
+
 int JPEG_getThumbHeight(JPEGIMAGE *pJPEG)
 {
     return pJPEG->iThumbHeight;
 } /* JPEG_getThumbHeight() */
+
 void JPEG_setPixelType(JPEGIMAGE *pJPEG, int iType)
 {
     pJPEG->ucPixelType = (uint8_t)iType;
 } /* JPEG_setPixelType() */
+
+void JPEG_setFramebuffer(JPEGIMAGE *pJPEG, void *pFramebuffer)
+{
+    pJPEG->pFramebuffer = pFramebuffer;
+} /* JPEG_setFramebuffer() */
+
 void JPEG_setMaxOutputSize(JPEGIMAGE *pJPEG, int iMaxMCUs)
 {
     if (iMaxMCUs < 1)
@@ -1296,7 +1357,17 @@ static int JPEGGetSOS(JPEGIMAGE *pJPEG, int *iOff)
 //
 static int JPEGFilter(uint8_t *pBuf, uint8_t *d, int iLen, uint8_t *bFF)
 {
-    // since we have the entire jpeg buffer in memory already, we can just change it in place
+#ifdef HAS_SSE
+	__m128i xmmIn, xmmOut;
+        __m128i xmmFF = _mm_cmpeq_epi8(xmmIn, xmmIn);
+#endif // HAS_SSE
+#ifdef HAS_NEON
+	uint8x16_t u816FF = vdupq_n_u8(0xff);
+	uint8x16_t u816In, u816Out;
+	uint8x8_t u88Merged;
+	uint32x2_t u322merged;
+#endif // HAS_NEON
+
     unsigned char c, *s, *pEnd, *pStart;
     
     pStart = d;
@@ -1309,6 +1380,67 @@ static int JPEGFilter(uint8_t *pBuf, uint8_t *d, int iLen, uint8_t *bFF)
         s++;
         *bFF = 0;
     }
+#ifdef HAS_SSE
+	while (s < pEnd-16)
+	{
+		xmmIn = _mm_loadu_si128((__m128i*)s);
+		xmmOut = _mm_cmpeq_epi8(xmmFF, xmmIn); // any FF's in these 16 bytes?
+		if (_mm_movemask_epi8(xmmOut) == 0) // no FF's, just copy this block
+		{
+			_mm_storeu_si128((__m128i*)d, xmmIn);
+			s += 16;
+			d += 16;
+		}
+		else
+		{
+                        int i = 16; // do these 16 bytes the slow way
+                        while (i) {
+                                c = *d++ = *s++;
+                                if (c == 0xff) { // marker or stuffed zeros?
+                                        if (s[0] != 0) { // it's a marker, skip both
+                                                d--;
+                                        }
+                                s++; // for stuffed 0's, store the FF, skip the 00
+                                } // found FF
+                                i--;
+                        } // while processing the 16 "slow" bytes
+		}
+	} // while SSE filtering
+#endif // HAS_SSE
+#ifdef HAS_NEON
+		while (s < pEnd - 16)
+		{
+			u816In = vld1q_u8(s);
+			u816Out = vceqq_u8(u816FF, u816In); // any FF's in these 16 bytes?
+#ifdef OLD_NEON
+			u88Merged = vpadd_u8(vget_high_u8(u816Out), vget_low_u8(u816Out));
+			u322merged = vpadd_u32 (vreinterpret_u32_u8(u88Merged), vreinterpret_u32_u8(u88Merged));
+			if (vget_lane_u32 (u322merged, 0)  == 0) // no FF's, just copy this block
+#else
+                        if (vaddvq_u8(u816Out) == 0) // any byte != 0 means FFs
+#endif
+			{
+				vst1q_u8(d, u816In);
+				s += 16;
+				d += 16;
+			}
+			else
+			{
+			int i = 16; // do these 16 bytes the slow way
+			while (i) {
+				c = *d++ = *s++;
+				if (c == 0xff) { // marker or stuffed zeros?
+					if (s[0] != 0) { // it's a marker, skip both
+						d--;
+					}
+				s++; // for stuffed 0's, store the FF, skip the 00
+				} // found FF
+				i--;
+			} // while processing the 16 "slow" bytes
+			} // if need to remove stuffed FF's or markers
+		} // while processing buffer with SIMD
+#endif // HAS_NEON
+
     while (s < pEnd)
     {
         c = *d++ = *s++;
@@ -1370,6 +1502,18 @@ int JPEGParseInfo(JPEGIMAGE *pPage, int bExtractThumb)
     uint16_t usMarker, usLen = 0;
     int iFilePos = 0;
     
+    pPage->pFramebuffer = NULL; // this must be set AFTER calling this function
+    // make sure usPixels is 16-byte aligned for S3 SIMD (and possibly others)
+    i = (int)(int64_t)pPage->usUnalignedPixels;
+    i &= 15;
+    if (i == 0) i = 16; // already 16-byte aligned
+    pPage->usPixels = &pPage->usUnalignedPixels[(16-i)>>1];
+    // do the same for the MCU buffers
+    i = (int)(int64_t)pPage->sUnalignedMCUs;
+    i &= 15;
+    if (i == 0) i = 16;
+    pPage->sMCUs = &pPage->sUnalignedMCUs[(16-i)>>1];
+
     if (bExtractThumb) // seek to the start of the thumbnail image
     {
         iFilePos = pPage->iThumbData;
@@ -1440,10 +1584,9 @@ int JPEGParseInfo(JPEGIMAGE *pPage, int bExtractThumb)
                     iTagCount = TIFFSHORT(&s[iOffset+16], bMotorola);
                     GetTIFFInfo(pPage, bMotorola, IFD+iOffset+8);
                     // The second IFD defines the thumbnail (if present)
-                    // TODO: Fix this code, seems to access data outside of buffer
                     // if (iTagCount >= 1 && iTagCount < 32) // valid number of tags for EXIF data 'page'
                     // {
-                    //    // point to next IFD
+                    //     // point to next IFD
                     //     IFD += (12 * iTagCount) + 2;
                     //     IFD = TIFFLONG(&s[IFD + iOffset + 8], bMotorola);
                     //     if (IFD != 0) // Thumbnail present?
@@ -1591,16 +1734,17 @@ static void JPEGFixQuantD(JPEGIMAGE *pJPEG)
 //
 static int JPEGDecodeMCU(JPEGIMAGE *pJPEG, int iMCU, int *iDCPredictor)
 {
-    uint32_t ulCode, ulTemp;
+    my_ulong ulCode, ulTemp;
     uint8_t *pZig;
     signed char cCoeff;
     unsigned short *pFast;
     unsigned char ucHuff, *pucFast;
     uint32_t usHuff; // this prevents an unnecessary & 65535 for shorts
-    uint32_t ulBitOff, ulBits; // local copies to allow compiler to use register vars
+    uint32_t ulBitOff;
+    my_ulong ulBits; // local copies to allow compiler to use register vars
     uint8_t *pBuf, *pEnd, *pEnd2;
     signed short *pMCU = &pJPEG->sMCUs[iMCU];
-    uint8_t ucMaxACCol, ucMaxACRow;
+    uint16_t u16MCUFlags;
     
     #define MIN_DCT_THRESHOLD 8
         
@@ -1627,7 +1771,7 @@ static int JPEGDecodeMCU(JPEGIMAGE *pJPEG, int iMCU, int *iDCPredictor)
         memset(pMCU, 0, 64*sizeof(short)); // pre-fill with zero since we may skip coefficients
         pEnd2 = (uint8_t *)&cZigZag2[64];
     }
-    ucMaxACCol = ucMaxACRow = 0;
+    u16MCUFlags = 0;
     pZig = (unsigned char *)&cZigZag2[1];
     pEnd = (unsigned char *)&cZigZag2[64];
 
@@ -1659,7 +1803,7 @@ static int JPEGDecodeMCU(JPEGIMAGE *pJPEG, int iMCU, int *iDCPredictor)
                 ulBits = MOTOLONG(pBuf);
             }
             ulCode = ulBits << ulBitOff;
-            ulTemp = ~(uint32_t)(((int32_t)ulCode)>>31); // slide sign bit across other 31 bits
+            ulTemp = ~(my_ulong)(((my_long)ulCode)>>(REGISTER_WIDTH-1)); // slide sign bit across other 63/31 bits
             ulCode >>= (REGISTER_WIDTH - ucHuff);
             ulCode -= ulTemp>>(REGISTER_WIDTH-ucHuff);
             ulBitOff += ucHuff; // add bit length
@@ -1697,27 +1841,26 @@ static int JPEGDecodeMCU(JPEGIMAGE *pJPEG, int iMCU, int *iDCPredictor)
             {
                 goto mcu_done;
             }
+            pZig += (usHuff >> 4);  // get the skip amount (RRRR)
+            usHuff &= 0xf; // get (SSSS) - extra length
+            if (pZig < pEnd && usHuff) // && piHisto)
+            {
+                ulCode = ulBits << ulBitOff;
+                ulTemp = ~(my_ulong) (((my_long) ulCode) >> (REGISTER_WIDTH-1)); // slide sign bit across other 63 bits
+                ulCode >>= (REGISTER_WIDTH - usHuff);
+                ulCode -= ulTemp >> (REGISTER_WIDTH - usHuff);
+                u16MCUFlags |= 1<<(*pZig & 7); // keep track of occupied columns
+                if (*pZig >= 0x20) u16MCUFlags |= 0x100; // bottom 4 rows
+                pMCU[*pZig] = (signed short)ulCode; // store AC coefficient (already reordered)
+            }
+            ulBitOff += usHuff; // add (SSSS) extra length
+            pZig++;
             if (ulBitOff > (REGISTER_WIDTH - 17)) // need to get more data
             {
                 pBuf += (ulBitOff >> 3);
                 ulBitOff &= 7;
                 ulBits = MOTOLONG(pBuf);
             }
-            pZig += (usHuff >> 4);  // get the skip amount (RRRR)
-            usHuff &= 0xf; // get (SSSS) - extra length
-            if (pZig < pEnd && usHuff) // && piHisto)
-            {
-                ulCode = ulBits << ulBitOff;
-                ulTemp = ~(uint32_t) (((int32_t) ulCode) >> (REGISTER_WIDTH-1)); // slide sign bit across other 63 bits
-                ulCode >>= (REGISTER_WIDTH - usHuff);
-                ulCode -= ulTemp >> (REGISTER_WIDTH - usHuff);
-                ucMaxACCol |= 1<<(*pZig & 7); // keep track of occupied columns
-                if (*pZig >= 0x20) // if more than 4 rows used in a col, mark it
-                    ucMaxACRow |= 1<<(*pZig & 7); // keep track of the max AC term row
-                pMCU[*pZig] = (signed short)ulCode; // store AC coefficient (already reordered)
-            }
-            ulBitOff += usHuff; // add (SSSS) extra length
-            pZig++;
         } // while
     }
     else // 10-bit "fast" tables used
@@ -1755,31 +1898,29 @@ static int JPEGDecodeMCU(JPEGIMAGE *pJPEG, int iMCU, int *iDCPredictor)
             if (pZig < pEnd2 && usHuff)
             {
                 ulCode = ulBits << ulBitOff;
-                ulTemp = ~(uint32_t) (((int32_t) ulCode) >> (REGISTER_WIDTH-1)); // slide sign bit across other 63 bits
+                ulTemp = ~(my_ulong) (((my_long) ulCode) >> (REGISTER_WIDTH-1)); // slide sign bit across other 63 bits
                 ulCode >>= (REGISTER_WIDTH - usHuff);
                 ulCode -= ulTemp >> (REGISTER_WIDTH - usHuff);
-                ucMaxACCol |= 1<<(*pZig & 7); // keep track of occupied columns
-                if (*pZig >= 0x20) // if more than 4 rows used in a col, mark it
-                    ucMaxACRow |= 1<<(*pZig & 7); // keep track of the max AC term row
+                u16MCUFlags |= 1<<(*pZig & 7); // keep track of occupied columns
+                if (*pZig >= 0x20) u16MCUFlags |= 0x100;
                 pMCU[*pZig] = (signed short)ulCode; // store AC coefficient (already reordered)
             }
             ulBitOff += usHuff; // add (SSSS) extra length
             pZig++;
-        } // while
+      } // while
     } // 10-bit tables
 mcu_done:
     pJPEG->bb.pBuf = pBuf;
     pJPEG->iVLCOff = (int)(pBuf - pJPEG->ucFileBuf);
     pJPEG->bb.ulBitOff = ulBitOff;
     pJPEG->bb.ulBits = ulBits;
-    pJPEG->ucMaxACCol = ucMaxACCol;
-    pJPEG->ucMaxACRow = ucMaxACRow; // DEBUG
+    pJPEG->u16MCUFlags = u16MCUFlags;
     return 0;
 } /* JPEGDecodeMCU() */
 //
 // Inverse DCT
 //
-static void JPEGIDCT(JPEGIMAGE *pJPEG, int iMCUOffset, int iQuantTable, int iACFlags)
+static void JPEGIDCT(JPEGIMAGE *pJPEG, int iMCUOffset, int iQuantTable)
 {
     int iRow;
     unsigned char ucColMask;
@@ -1789,11 +1930,20 @@ static void JPEGIDCT(JPEGIMAGE *pJPEG, int iMCUOffset, int iQuantTable, int iACF
     signed int tmp0,tmp1,tmp2,tmp3,tmp4,tmp5;
     signed short *pQuant;
     unsigned char *pOutput;
-    unsigned char ucMaxACRow, ucMaxACCol;
+    uint16_t u16MCUFlags;
     int16_t *pMCUSrc = &pJPEG->sMCUs[iMCUOffset];
-    
-    ucMaxACRow = (unsigned char)(iACFlags >> 8);
-    ucMaxACCol = iACFlags & 0xff;
+#ifdef HAS_SSE
+__m128i mmxRow0, mmxRow1, mmxRow2, mmxRow3, mmxRow4, mmxRow5, mmxRow6, mmxRow7;
+__m128i mmxTemp, mmxTemp0, mmxTemp1, mmxTemp2, mmxTemp3, mmxTemp4, mmxTemp5, mmxTemp6, mmxTemp7, mmxTemp10, mmxTemp11, mmxTemp12, mmxTemp13;
+__m128i mmxZ5, mmxZ10, mmxZ11, mmxZ12, mmxZ13;
+#endif // HAS_SSE
+#ifdef HAS_NEON
+int16x8_t mmxRow0, mmxRow1, mmxRow2, mmxRow3, mmxRow4, mmxRow5, mmxRow6, mmxRow7;
+int16x8_t mmxTemp, mmxTemp0, mmxTemp1, mmxTemp2, mmxTemp3, mmxTemp4, mmxTemp5, mmxTemp6, mmxTemp7, mmxTemp10, mmxTemp11, mmxTemp12, mmxTemp13;
+int16x8_t mmxZ5, mmxZ10, mmxZ11, mmxZ12, mmxZ13;
+#endif // HAS_NEON
+ 
+    u16MCUFlags = pJPEG->u16MCUFlags;
         
     // my shortcut method appears to violate patent 20020080052
     // but the patent is invalidated by prior art:
@@ -1821,14 +1971,241 @@ static void JPEGIDCT(JPEGIMAGE *pJPEG, int iMCUOffset, int iQuantTable, int iACF
         pOutput[3] = ucRangeTable[(((tmp2 - tmp3)>>5) & 0x3ff)];
         return;
     }
+#ifdef HAS_SSE // SSE2 version
+    // Columns first
+    // even part
+    if (u16MCUFlags < 0x100) // rows 4-7 are not populated, simpler calculations
+       {
+       // even part
+       mmxTemp10 = _mm_loadu_si128((__m128i *)&pMCUSrc[0]); // row 0
+       mmxTemp1 = _mm_loadu_si128((__m128i *)&pMCUSrc[16]); // row 2
+       mmxTemp = _mm_loadu_si128((__m128i *)&pQuant[0]);
+       mmxTemp2 = _mm_loadu_si128((__m128i *)&pQuant[16]);
+       mmxTemp10 = _mm_mullo_epi16(mmxTemp10, mmxTemp); // dequant row 0
+       mmxTemp1 = _mm_mullo_epi16(mmxTemp1, mmxTemp2); // dequant row 2
+       mmxTemp = _mm_loadu_si128((__m128i *)&s0414[0]); // 0.414
+       mmxTemp12 = _mm_mulhi_epi16(_mm_slli_epi16(mmxTemp1, 2), mmxTemp); // tmp12 = ((tmp1*106)>>8)
+       mmxTemp0 = _mm_add_epi16(mmxTemp10, mmxTemp1); // 0+2
+       mmxTemp3 = _mm_sub_epi16(mmxTemp10, mmxTemp1); // 0-2
+       mmxTemp1 = _mm_add_epi16(mmxTemp10, mmxTemp12); // 10+12
+       mmxTemp2 = _mm_sub_epi16(mmxTemp10, mmxTemp12); // 10-12
+       // odd part
+       mmxTemp4 = _mm_loadu_si128((__m128i *)&pMCUSrc[8]); // row 1
+       mmxTemp5 = _mm_loadu_si128((__m128i *)&pMCUSrc[24]); // row 3
+       mmxTemp = _mm_loadu_si128((__m128i *)&pQuant[8]);
+       mmxTemp11 = _mm_loadu_si128((__m128i *)&pQuant[24]);
+       mmxTemp4 = _mm_mullo_epi16(mmxTemp4, mmxTemp); // dequant row 1
+       mmxTemp5 = _mm_mullo_epi16(mmxTemp5, mmxTemp11); // dequant row 3
+       mmxTemp7 = _mm_add_epi16(mmxTemp4, mmxTemp5); // tmp7 = tmp4 + tmp5
+       mmxTemp = _mm_loadu_si128((__m128i *)&s1414[0]); // load 1.414213562 constant
+       mmxTemp11 = _mm_mulhi_epi16(_mm_slli_epi16(_mm_sub_epi16(mmxTemp4, mmxTemp5), 2), mmxTemp); // tmp11 = (((tmp4-tmp5)*362)>>8)
+       mmxTemp = _mm_loadu_si128((__m128i *)&s1847[0]); // 1.8477
+       mmxZ5 = _mm_mulhi_epi16(_mm_slli_epi16(_mm_sub_epi16(mmxTemp4, mmxTemp5), 2), mmxTemp); // z5 = (((tmp4-tmp5)*473)>>8)
+       mmxTemp = _mm_loadu_si128((__m128i*)&sp2613[0]); // positive 2.6131259
+       mmxTemp12 = _mm_mulhi_epi16(_mm_slli_epi16(mmxTemp5, 2), mmxTemp); // tmp12 = ((-tmp5 * -669)>>8) + z5
+       // can't make that constant without overflowing, so double it after
+       mmxTemp12 = _mm_add_epi16(mmxTemp12, mmxTemp12);
+       mmxTemp12 = _mm_add_epi16(mmxTemp12, mmxZ5);
+       mmxTemp6 = _mm_sub_epi16(mmxTemp12, mmxTemp7); // tmp6 = tmp12 - tmp7
+       mmxTemp5 = _mm_sub_epi16(mmxTemp11, mmxTemp6); // tmp5 = tmp11 - tmp6
+       mmxTemp = _mm_loadu_si128((__m128i *)&s1082[0]); // 1.08239
+       mmxTemp10 = _mm_sub_epi16(_mm_mulhi_epi16(_mm_slli_epi16(mmxTemp4, 2), mmxTemp), mmxZ5); // tmp10 = ((tmp4 * 277)>>8) - z5
+       mmxTemp4 = _mm_add_epi16(mmxTemp10, mmxTemp5); // tmp4 = tmp10 + tmp5
+       }
+    else // need to do full calculation
+       {
+       // even part
+       mmxTemp0 = _mm_loadu_si128((__m128i *)&pMCUSrc[0]); // get row 0
+       mmxTemp2 = _mm_loadu_si128((__m128i *)&pMCUSrc[32]); // get row 4
+       mmxTemp10 = _mm_loadu_si128((__m128i *)&pQuant[0]);
+       mmxTemp11 = _mm_loadu_si128((__m128i *)&pQuant[32]);
+       mmxTemp0 = _mm_mullo_epi16(mmxTemp0, mmxTemp10); // dequant row 0
+       mmxTemp2 = _mm_mullo_epi16(mmxTemp2, mmxTemp11); // dequant row 4
+       mmxTemp10 = _mm_add_epi16(mmxTemp0, mmxTemp2); // 0+4
+       mmxTemp11 = _mm_sub_epi16(mmxTemp0, mmxTemp2); // 0-4
+       mmxTemp1 = _mm_loadu_si128((__m128i *)&pMCUSrc[16]); // get row 2
+       mmxTemp3 = _mm_loadu_si128((__m128i *)&pMCUSrc[48]); // get row 6
+       mmxTemp = _mm_loadu_si128((__m128i *)&pQuant[16]);
+       mmxTemp12 = _mm_loadu_si128((__m128i *)&pQuant[48]);
+       mmxTemp1 = _mm_mullo_epi16(mmxTemp1, mmxTemp); // dequant row 2
+       mmxTemp3 = _mm_mullo_epi16(mmxTemp3, mmxTemp12); // dequant row 6
+       mmxTemp13 = _mm_add_epi16(mmxTemp1, mmxTemp3); // 1+3
+       mmxTemp = _mm_loadu_si128((__m128i *)&s1414[0]); // load 1.414213562 constant
+       mmxTemp12 = _mm_sub_epi16(_mm_mulhi_epi16(_mm_slli_epi16(_mm_sub_epi16(mmxTemp1,mmxTemp3),2), mmxTemp), mmxTemp13); // tmp12 = (((tmp1 - tmp3) * 1.414) - tmp13;
+       mmxTemp0 = _mm_add_epi16(mmxTemp10, mmxTemp13); // tmp0 = tmp10 + tmp13
+       mmxTemp3 = _mm_sub_epi16(mmxTemp10, mmxTemp13); // tmp3 = tmp10 - tmp13
+       mmxTemp1 = _mm_add_epi16(mmxTemp11, mmxTemp12); // tmp1 = tmp11 + tmp12
+       mmxTemp2 = _mm_sub_epi16(mmxTemp11, mmxTemp12); // tmp2 = tmp11 - tmp12
+       // odd part
+       mmxTemp5 = _mm_loadu_si128((__m128i *)&pMCUSrc[24]); // get row 3
+       mmxTemp6 = _mm_loadu_si128((__m128i *)&pMCUSrc[40]); // get row 5
+       mmxTemp10 = _mm_loadu_si128((__m128i *)&pQuant[24]);
+       mmxTemp11 = _mm_loadu_si128((__m128i *)&pQuant[40]);
+       mmxTemp5 = _mm_mullo_epi16(mmxTemp5, mmxTemp10); // dequant row 3
+       mmxTemp6 = _mm_mullo_epi16(mmxTemp6, mmxTemp11); // dequant row 5
+       mmxZ13 = _mm_add_epi16(mmxTemp6, mmxTemp5); // z13 = tmp6 + tmp5;
+       mmxZ10 = _mm_sub_epi16(mmxTemp6, mmxTemp5); // z10 = tmp6 - tmp5;
+       mmxTemp4 = _mm_loadu_si128((__m128i *)&pMCUSrc[8]); // get row 1
+       mmxTemp7 = _mm_loadu_si128((__m128i *)&pMCUSrc[56]); // get row 7
+       mmxTemp10 = _mm_loadu_si128((__m128i *)&pQuant[8]);
+       mmxTemp11 = _mm_loadu_si128((__m128i *)&pQuant[56]);
+       mmxTemp4 = _mm_mullo_epi16(mmxTemp4, mmxTemp10); // dequant row 1
+       mmxTemp7 = _mm_mullo_epi16(mmxTemp7, mmxTemp11); // dequant row 7
+       mmxZ11 = _mm_add_epi16(mmxTemp4, mmxTemp7); // z11 = tmp4 + tmp7;
+       mmxZ12 = _mm_sub_epi16(mmxTemp4, mmxTemp7); // z12 = tmp4 - tmp7;
+       mmxTemp7 = _mm_add_epi16(mmxZ11, mmxZ13); // tmp7 = z11 + z13;
+       mmxTemp11 = _mm_mulhi_epi16(_mm_slli_epi16(_mm_sub_epi16(mmxZ11, mmxZ13),2), mmxTemp); // tmp11 = ((z11 - z13) * 1.1414);
+       mmxTemp = _mm_loadu_si128((__m128i *)&s1847[0]); // 1.8477
+       mmxZ5 = _mm_mulhi_epi16(_mm_slli_epi16(_mm_add_epi16(mmxZ10, mmxZ12),2), mmxTemp); // z5 = ((z10+z12)*1.8477);
+       mmxTemp = _mm_loadu_si128((__m128i *)&s2613[0]); // -2.6131259
+       mmxTemp12 = _mm_mulhi_epi16(_mm_slli_epi16(mmxZ10,2), mmxTemp); // tmp12 = (z10 * -2.6131259) + z5;
+       // can't make that constant without overflowing, so double it after
+       mmxTemp12 = _mm_add_epi16(mmxTemp12, mmxTemp12);
+       mmxTemp12 = _mm_add_epi16(mmxTemp12, mmxZ5);
+       mmxTemp = _mm_loadu_si128((__m128i *)&s1082[0]); // 1.08239
+       mmxTemp6 = _mm_sub_epi16(mmxTemp12, mmxTemp7); // tmp6 = tmp12 - tmp7
+       mmxTemp5 = _mm_sub_epi16(mmxTemp11, mmxTemp6); // tmp5 = tmp11 - tmp6
+       mmxTemp10 = _mm_sub_epi16(_mm_mulhi_epi16(_mm_slli_epi16(mmxZ12,2), mmxTemp), mmxZ5); // tmp10 = (z12 * 1.08239) - z5;
+       mmxTemp4 = _mm_add_epi16(mmxTemp10, mmxTemp5); // tmp4 = tmp10 + tmp5;
+       }
+    mmxRow0 = _mm_add_epi16(mmxTemp0, mmxTemp7); // row 0
+    _mm_storeu_si128((__m128i *)&pMCUSrc[0], mmxRow0);
+    mmxRow1 = _mm_add_epi16(mmxTemp1, mmxTemp6); // row 1
+    _mm_storeu_si128((__m128i *)&pMCUSrc[8], mmxRow1);
+    mmxRow2 = _mm_add_epi16(mmxTemp2, mmxTemp5); // row 2
+    _mm_storeu_si128((__m128i *)&pMCUSrc[16], mmxRow2);
+    mmxRow3 = _mm_sub_epi16(mmxTemp3, mmxTemp4); // row 3
+    _mm_storeu_si128((__m128i *)&pMCUSrc[24], mmxRow3);
+    mmxRow4 = _mm_add_epi16(mmxTemp3, mmxTemp4); // row 4
+    _mm_storeu_si128((__m128i *)&pMCUSrc[32], mmxRow4);
+    mmxRow5 = _mm_sub_epi16(mmxTemp2, mmxTemp5); // row 5
+    _mm_storeu_si128((__m128i *)&pMCUSrc[40], mmxRow5);
+    mmxRow6 = _mm_sub_epi16(mmxTemp1, mmxTemp6); // row 6
+    _mm_storeu_si128((__m128i *)&pMCUSrc[48], mmxRow6);
+    mmxRow7 = _mm_sub_epi16(mmxTemp0, mmxTemp7); // row 7
+    _mm_storeu_si128((__m128i *)&pMCUSrc[56], mmxRow7);
+#endif // HAS_SSE
+#ifdef HAS_NEON
+        if (u16MCUFlags < 0x100) // rows 4-7 are not populated, simpler calculations
+           {
+           // even part
+           mmxTemp10 = vld1q_s16(&pMCUSrc[0]); // row 0
+           mmxTemp1 = vld1q_s16(&pMCUSrc[16]); // row 2
+           mmxTemp = vld1q_s16(&pQuant[0]);
+           mmxTemp2 = vld1q_s16(&pQuant[16]);
+           mmxTemp10 = vmulq_s16(mmxTemp10, mmxTemp); // dequant row 0
+           mmxTemp1 = vmulq_s16(mmxTemp1, mmxTemp2); // dequant row 2
+           mmxTemp = vld1q_s16(&s0414[0]); // 0.414
+           mmxTemp12 = vqdmulhq_s16(vshlq_n_s16(mmxTemp1, 2), mmxTemp); // tmp12 = ((tmp1*106)>>8)
+           mmxTemp0 = vaddq_s16(mmxTemp10, mmxTemp1); // 0+2
+           mmxTemp3 = vsubq_s16(mmxTemp10, mmxTemp1); // 0-2
+           mmxTemp1 = vaddq_s16(mmxTemp10, mmxTemp12); // 10+12
+           mmxTemp2 = vsubq_s16(mmxTemp10, mmxTemp12); // 10-12
+           // odd part
+           mmxTemp4 = vld1q_s16(&pMCUSrc[8]); // row 1
+           mmxTemp5 = vld1q_s16(&pMCUSrc[24]); // row 3
+           mmxTemp = vld1q_s16(&pQuant[8]);
+           mmxTemp11 = vld1q_s16(&pQuant[24]);
+           mmxTemp4 = vmulq_s16(mmxTemp4, mmxTemp); // dequant row 1
+           mmxTemp5 = vmulq_s16(mmxTemp5, mmxTemp11); // dequant row 3
+           mmxTemp7 = vaddq_s16(mmxTemp4, mmxTemp5); // tmp7 = tmp4 + tmp5
+           mmxTemp = vld1q_s16(&s1414[0]); // load 1.414213562 constant
+           mmxTemp11 = vqdmulhq_s16(vshlq_n_s16(vsubq_s16(mmxTemp4, mmxTemp5), 2), mmxTemp); // tmp11 = (((tmp4-tmp5)*362)>>8)
+           mmxTemp = vld1q_s16(&s1847[0]); // 1.8477
+           mmxZ5 = vqdmulhq_s16(vshlq_n_s16(vsubq_s16(mmxTemp4, mmxTemp5), 2), mmxTemp); // z5 = (((tmp4-tmp5)*473)>>8)
+           mmxTemp = vld1q_s16(&sp2613[0]); // positive 2.6131259
+           mmxTemp12 = vqdmulhq_s16(vshlq_n_s16(mmxTemp5, 2), mmxTemp); // tmp12 = ((-tmp5 * -669)>>8) + z5
+           // can't make that constant without overflowing, so double it after
+           mmxTemp12 = vaddq_s16(mmxTemp12, mmxTemp12);
+           mmxTemp12 = vaddq_s16(mmxTemp12, mmxZ5);
+           mmxTemp6 = vsubq_s16(mmxTemp12, mmxTemp7); // tmp6 = tmp12 - tmp7
+           mmxTemp5 = vsubq_s16(mmxTemp11, mmxTemp6); // tmp5 = tmp11 - tmp6
+           mmxTemp = vld1q_s16(&s1082[0]); // 1.08239
+           mmxTemp10 = vsubq_s16(vqdmulhq_s16(vshlq_n_s16(mmxTemp4, 2), mmxTemp), mmxZ5); // tmp10 = ((tmp4 * 277)>>8) - z5
+           mmxTemp4 = vaddq_s16(mmxTemp10, mmxTemp5); // tmp4 = tmp10 + tmp5
+           }
+        else // need to do full calculation
+           {
+           // even part
+           mmxTemp0 = vld1q_s16(&pMCUSrc[0]); // get row 0
+           mmxTemp2 = vld1q_s16(&pMCUSrc[32]); // get row 4
+           mmxTemp10 = vld1q_s16(&pQuant[0]);
+           mmxTemp11 = vld1q_s16(&pQuant[32]);
+           mmxTemp0 = vmulq_s16(mmxTemp0, mmxTemp10); // dequant row 0
+           mmxTemp2 = vmulq_s16(mmxTemp2, mmxTemp11); // dequant row 4
+           mmxTemp10 = vaddq_s16(mmxTemp0, mmxTemp2); // 0+4
+           mmxTemp11 = vsubq_s16(mmxTemp0, mmxTemp2); // 0-4
+           mmxTemp1 = vld1q_s16(&pMCUSrc[16]); // get row 2
+           mmxTemp3 = vld1q_s16(&pMCUSrc[48]); // get row 6
+           mmxTemp = vld1q_s16(&pQuant[16]);
+           mmxTemp12 = vld1q_s16(&pQuant[48]);
+           mmxTemp1 = vmulq_s16(mmxTemp1, mmxTemp); // dequant row 2
+           mmxTemp3 = vmulq_s16(mmxTemp3, mmxTemp12); // dequant row 6
+           mmxTemp13 = vaddq_s16(mmxTemp1, mmxTemp3); // 1+3
+           mmxTemp = vld1q_s16(&s1414[0]); // load 1.414213562 constant
+           mmxTemp12 = vsubq_s16(vqdmulhq_s16(vshlq_n_s16(vsubq_s16(mmxTemp1,mmxTemp3),2), mmxTemp), mmxTemp13); // tmp12 = (((tmp1 - tmp3) * 1.414) - tmp13;
+           mmxTemp0 = vaddq_s16(mmxTemp10, mmxTemp13); // tmp0 = tmp10 + tmp13
+           mmxTemp3 = vsubq_s16(mmxTemp10, mmxTemp13); // tmp3 = tmp10 - tmp13
+           mmxTemp1 = vaddq_s16(mmxTemp11, mmxTemp12); // tmp1 = tmp11 + tmp12
+           mmxTemp2 = vsubq_s16(mmxTemp11, mmxTemp12); // tmp2 = tmp11 - tmp12
+           // odd part
+           mmxTemp5 = vld1q_s16(&pMCUSrc[24]); // get row 3
+           mmxTemp6 = vld1q_s16(&pMCUSrc[40]); // get row 5
+           mmxTemp10 = vld1q_s16(&pQuant[24]);
+           mmxTemp11 = vld1q_s16(&pQuant[40]);
+           mmxTemp5 = vmulq_s16(mmxTemp5, mmxTemp10); // dequant row 3
+           mmxTemp6 = vmulq_s16(mmxTemp6, mmxTemp11); // dequant row 5
+           mmxZ13 = vaddq_s16(mmxTemp6, mmxTemp5); // z13 = tmp6 + tmp5;
+           mmxZ10 = vsubq_s16(mmxTemp6, mmxTemp5); // z10 = tmp6 - tmp5;
+           mmxTemp4 = vld1q_s16(&pMCUSrc[8]); // get row 1
+           mmxTemp7 = vld1q_s16(&pMCUSrc[56]); // get row 7
+           mmxTemp10 = vld1q_s16(&pQuant[8]);
+           mmxTemp11 = vld1q_s16(&pQuant[56]);
+           mmxTemp4 = vmulq_s16(mmxTemp4, mmxTemp10); // dequant row 1
+           mmxTemp7 = vmulq_s16(mmxTemp7, mmxTemp11); // dequant row 7
+           mmxZ11 = vaddq_s16(mmxTemp4, mmxTemp7); // z11 = tmp4 + tmp7;
+           mmxZ12 = vsubq_s16(mmxTemp4, mmxTemp7); // z12 = tmp4 - tmp7;
+           mmxTemp7 = vaddq_s16(mmxZ11, mmxZ13); // tmp7 = z11 + z13;
+           mmxTemp11 = vqdmulhq_s16(vshlq_n_s16(vsubq_s16(mmxZ11, mmxZ13),2), mmxTemp); // tmp11 = ((z11 - z13) * 1.1414);
+           mmxTemp = vld1q_s16(&s1847[0]); // 1.8477
+           mmxZ5 = vqdmulhq_s16(vshlq_n_s16(vaddq_s16(mmxZ10, mmxZ12),2), mmxTemp); // z5 = ((z10+z12)*1.8477);
+           mmxTemp = vld1q_s16(&s2613[0]); // -2.6131259
+           mmxTemp12 = vqdmulhq_s16(vshlq_n_s16(mmxZ10,2), mmxTemp); // tmp12 = (z10 * -2.6131259) + z5;
+           // can't make that constant without overflowing, so double it after
+           mmxTemp12 = vaddq_s16(mmxTemp12, mmxTemp12);
+           mmxTemp12 = vaddq_s16(mmxTemp12, mmxZ5);
+           mmxTemp = vld1q_s16(&s1082[0]); // 1.08239
+           mmxTemp6 = vsubq_s16(mmxTemp12, mmxTemp7); // tmp6 = tmp12 - tmp7
+           mmxTemp5 = vsubq_s16(mmxTemp11, mmxTemp6); // tmp5 = tmp11 - tmp6
+           mmxTemp10 = vsubq_s16(vqdmulhq_s16(vshlq_n_s16(mmxZ12,2), mmxTemp), mmxZ5); // tmp10 = (z12 * 1.08239) - z5;
+           mmxTemp4 = vaddq_s16(mmxTemp10, mmxTemp5); // tmp4 = tmp10 + tmp5;
+           }
+        mmxRow0 = vaddq_s16(mmxTemp0, mmxTemp7); // row 0
+        vst1q_s16(&pMCUSrc[0], mmxRow0);
+        mmxRow1 = vaddq_s16(mmxTemp1, mmxTemp6); // row 1
+        vst1q_s16(&pMCUSrc[8], mmxRow1);
+        mmxRow2 = vaddq_s16(mmxTemp2, mmxTemp5); // row 2
+        vst1q_s16(&pMCUSrc[16], mmxRow2);
+        mmxRow3 = vsubq_s16(mmxTemp3, mmxTemp4); // row 3
+        vst1q_s16(&pMCUSrc[24], mmxRow3);
+        mmxRow4 = vaddq_s16(mmxTemp3, mmxTemp4); // row 4
+        vst1q_s16(&pMCUSrc[32], mmxRow4);
+        mmxRow5 = vsubq_s16(mmxTemp2, mmxTemp5); // row 5
+        vst1q_s16(&pMCUSrc[40], mmxRow5);
+        mmxRow6 = vsubq_s16(mmxTemp1, mmxTemp6); // row 6
+        vst1q_s16(&pMCUSrc[48], mmxRow6);
+        mmxRow7 = vsubq_s16(mmxTemp0, mmxTemp7); // row 7
+        vst1q_s16(&pMCUSrc[56], mmxRow7);
+#endif // HAS_NEON
+#if !defined (HAS_SSE) && !defined(HAS_NEON)
     // do columns first
-    ucColMask = ucMaxACCol | 1; // column 0 must always be calculated
-    for (iCol = 0; iCol < 8 && ucColMask; iCol++)
+    u16MCUFlags |= 1; // column 0 must always be calculated
+    for (iCol = 0; iCol < 8 && u16MCUFlags; iCol++)
     {
-        if (ucColMask & (1<<iCol)) // column has data in it
+        if (u16MCUFlags & (1<<iCol)) // column has data in it
         {
-            ucColMask &= ~(1<<iCol); // unmark this col after use
-            if (!(ucMaxACRow & (1<<iCol))) // simpler calculations if only half populated
+            u16MCUFlags &= ~(1<<iCol); // unmark the col after done
+            if (u16MCUFlags < 0x100) // simpler calculations if only half populated
             {
                 // even part
                 tmp10 = pMCUSrc[iCol] * pQuant[iCol];
@@ -1946,14 +2323,16 @@ static void JPEGIDCT(JPEGIMAGE *pJPEG, int iMCUOffset, int iQuantTable, int iACF
             } // full calculation needed
         } // if column has data in it
     } // for each column
+#endif // NO SIMD
     // now do rows
+    u16MCUFlags = pJPEG->u16MCUFlags;
     pOutput = (unsigned char *)pMCUSrc; // store output pixels back into MCU
     for (iRow=0; iRow<64; iRow+=8) // all rows must be calculated
     {
         // even part
-        if (ucMaxACCol < 0x10) // quick and dirty calculation (right 4 columns are all 0's)
+        if ((u16MCUFlags & 0xf0) == 0) // quick and dirty calculation (right 4 columns are all 0's)
         {
-            if (ucMaxACCol < 0x04) // very likely case (1 or 2 columns occupied)
+            if ((u16MCUFlags & 0xfc) == 0) // very likely case (1 or 2 columns occupied)
             {
                 // even part
                 tmp0 = tmp1 = tmp2 = tmp3 = pMCUSrc[iRow+0];
@@ -2028,6 +2407,7 @@ static void JPEGIDCT(JPEGIMAGE *pJPEG, int iMCUOffset, int iQuantTable, int iACF
             *(uint32_t *)&pOutput[4] = ulOut; // store second 4
         }
 #else
+        // I've tried various things to speed this up, but it always seems to take the same amount of time
         pOutput[0] = ucRangeTable[(((tmp0 + tmp7)>>5) & 0x3ff)];
         pOutput[1] = ucRangeTable[(((tmp1 + tmp6)>>5) & 0x3ff)];
         pOutput[2] = ucRangeTable[(((tmp2 + tmp5)>>5) & 0x3ff)];
@@ -2498,12 +2878,12 @@ static void JPEGPutMCU11(JPEGIMAGE *pJPEG, int x, int iPitch)
 
     if (pJPEG->ucPixelType == RGB8888) {
         pOutput += x; // 4 bytes per pixel, not 2
-    }
+    }   
 
     pY  = (unsigned char *)&pJPEG->sMCUs[0*DCTSIZE];
     pCb = (unsigned char *)&pJPEG->sMCUs[1*DCTSIZE];
     pCr = (unsigned char *)&pJPEG->sMCUs[2*DCTSIZE];
-    
+
     if (pJPEG->iOptions & JPEG_SCALE_HALF)
     {
         for (iRow=0; iRow<4; iRow++) // up to 8 rows to do
@@ -2605,6 +2985,125 @@ static void JPEGPutMCU11(JPEGIMAGE *pJPEG, int x, int iPitch)
         return;
     }
 // full size
+#ifdef ESP32S3_SIMD
+    if (pJPEG->ucPixelType == RGB8888) iPitch *= 2;
+    for (iRow=0; iRow<8; iRow++) {
+        s3_ycbcr_convert_444(pY, pCb, pCr, pOutput, i16_Consts, pJPEG->ucPixelType);
+        pCb += 8; pCr += 8; pY += 8; pOutput += iPitch;
+    }
+    return;
+#endif // ESP32S3_SIMD
+
+#ifdef HAS_SSE
+// SSE2 version
+// R = Y                + 1.40200 * Cr
+// G = Y - 0.34414 * Cb + 0.28586 * Cr - Cr
+// B = Y - 0.22800 * Cb + Cb + Cb
+
+ if (pJPEG->ucPixelType == RGB8888) {
+    __m128i mmxY, mmxCr, mmxCb, mmxTemp;
+    __m128i mmxTemp2, mmxR, mmxG, mmxB;
+        iPitch *= 2; // points to 32-bit values, not 16-bit
+      mmxTemp2 = _mm_cmpeq_epi16(_mm_setzero_si128(), _mm_setzero_si128()); // fix Cr/Cb values by subtracting 0x80
+      mmxTemp2 = _mm_slli_epi16 (mmxTemp2, 15); // now has 0x8000, 0x8000...
+      for (iRow=0; iRow<8; iRow++) { // do 8 rows
+         mmxCr = _mm_loadl_epi64((__m128i *)pCr); // load 1 row of Cr
+         mmxCb = _mm_loadl_epi64((__m128i *)pCb); // load 1 row of Cb
+         mmxY = _mm_loadl_epi64((__m128i *)pY); // load 1 row of Y
+         pCr += 8;
+         pCb += 8;
+         pY += 8;
+         mmxCr = _mm_unpacklo_epi8 (_mm_setzero_si128(), mmxCr); // zero-extend 8 Cr values to 16-bits
+         mmxCb = _mm_unpacklo_epi8 (_mm_setzero_si128(), mmxCb); // zero-extend 8 Cb values to 16-bits
+         mmxY = _mm_unpacklo_epi8 (mmxY, _mm_setzero_si128()); // zero-extend 8 Y values to 16-bits
+         mmxCr = _mm_add_epi16(mmxCr, mmxTemp2); // subtract 0x80
+         mmxCb = _mm_add_epi16(mmxCb, mmxTemp2);  // subtract 0x80
+         mmxY = _mm_slli_epi16(mmxY, 4); // x16 to put on par with Cr/Cb values
+         mmxTemp =  _mm_loadu_si128((__m128i *)&s1402[0]); // load the 1.402 constant
+         mmxTemp = _mm_mulhi_epi16(mmxCr, mmxTemp); // almost ready with R
+         mmxR = _mm_add_epi16(mmxTemp, mmxY); // now we have 8 R values
+         mmxTemp = _mm_loadu_si128((__m128i *)&s0714[0]);
+         mmxR = _mm_srai_epi16(mmxR, 4);
+         mmxR = _mm_packus_epi16 (mmxR, mmxR); // i16->u8 bit and saturate
+         mmxTemp = _mm_mulhi_epi16(mmxCr, mmxTemp); // Y-0.71414*Cr
+         mmxG = _mm_add_epi16(mmxY, mmxTemp);
+         mmxTemp = _mm_loadu_si128((__m128i *)&s0344[0]); // Y -= 0.34414*Cb
+         mmxTemp = _mm_mulhi_epi16(mmxCb, mmxTemp);
+         mmxG = _mm_add_epi16(mmxG, mmxTemp); // now we have 8 G values
+         mmxG = _mm_srai_epi16(mmxG, 4);
+         mmxG = _mm_packus_epi16 (mmxG, mmxG); // i16->u8 bit and saturate
+         mmxTemp = _mm_loadu_si128((__m128i *)&s1772[0]); // B = Y - 1.772*Cb
+         mmxTemp = _mm_mulhi_epi16(mmxCb, mmxTemp);
+         mmxB = _mm_add_epi16(mmxY, mmxTemp); // now we have 8 B values
+         mmxB = _mm_srai_epi16(mmxB, 4);
+         mmxB = _mm_packus_epi16 (mmxB, mmxB); // i16->u8 bit and saturate
+         mmxTemp = _mm_cmpeq_epi16(mmxTemp, mmxTemp); // Alpha set to FFFF
+         mmxCr = _mm_unpacklo_epi8(mmxB, mmxG); // interleave 8 B's and 8 G's
+         mmxCb = _mm_unpacklo_epi8(mmxR, mmxTemp); // interlave 8 R's and 8 A's
+         mmxTemp = _mm_unpacklo_epi16(mmxCr, mmxCb); // interleave 4 BG's and 4 RA's
+         mmxCr = _mm_unpackhi_epi16(mmxCr, mmxCb); // interleave 4 BG's and 4 RA's
+//         _mm_stream_si128((__m128i*)pOutput, mmxTemp);
+//	_mm_stream_si128((__m128i*)(pOutput+8), mmxCr); 
+         _mm_storeu_si128((__m128i *)pOutput, mmxTemp); // write 4 RGBA pixels
+         _mm_storeu_si128((__m128i *)(pOutput+8), mmxCr); // write 4 RGBA pixels
+         pOutput += iPitch;
+         } // for each row
+     return;
+     } else { // 16-bpp
+        __m128i mmxY, mmxCr, mmxCb, mmxTemp;
+        __m128i mmxTemp2, mmxR, mmxG, mmxB;
+      for (iRow=0; iRow<8; iRow++) { // do 8 rows
+         mmxCr = _mm_loadl_epi64((__m128i *)pCr); // load 1 row of Cr
+         mmxCb = _mm_loadl_epi64((__m128i *)pCb); // load 1 row of Cb
+         mmxY = _mm_loadl_epi64((__m128i *)pY); // load 1 row of Y
+         pCr += 8;
+         pCb += 8;
+         pY += 8;
+         mmxTemp = _mm_cmpeq_epi16(mmxY, mmxY); // fix Cr/Cb values by subtracting 0x80
+         mmxTemp = _mm_slli_epi16 (mmxTemp, 15); // now has 0x8000, 0x8000...
+         mmxTemp2 = _mm_setzero_si128(); // zero it to use to set upper bits to 0
+         mmxCr = _mm_unpacklo_epi8 (mmxTemp2, mmxCr); // zero-extend 8 Cr values to 16-bits
+         mmxCb = _mm_unpacklo_epi8 (mmxTemp2, mmxCb); // zero-extend 8 Cb values to 16-bits
+         mmxY = _mm_unpacklo_epi8 (mmxY, mmxTemp2); // zero-extend 8 Y values to 16-bits
+         mmxY = _mm_slli_epi16(mmxY, 4); // x16 to put on par with Cr/Cb values
+         mmxCr = _mm_add_epi16(mmxCr, mmxTemp); // subtract 0x80
+         mmxCb = _mm_add_epi16(mmxCb, mmxTemp);  // subtract 0x80
+         mmxTemp =  _mm_loadu_si128((__m128i *)&s1402[0]); // load the 1.402 constant
+         mmxTemp = _mm_mulhi_epi16(mmxCr, mmxTemp); // almost ready with R
+         mmxR = _mm_add_epi16(mmxTemp, mmxY); // now we have 8 R values
+         mmxTemp = _mm_loadu_si128((__m128i *)&s0714[0]);
+         mmxR = _mm_srai_epi16(mmxR, 4);
+         mmxTemp = _mm_mulhi_epi16(mmxCr, mmxTemp); // Y-0.71414*Cr
+         mmxR = _mm_packus_epi16 (mmxR, mmxR); // i16->u8 bit and saturate
+         mmxG = _mm_add_epi16(mmxY, mmxTemp);
+         mmxTemp = _mm_loadu_si128((__m128i *)&s0344[0]); // Y -= 0.34414*Cb
+         mmxTemp = _mm_mulhi_epi16(mmxCb, mmxTemp);
+         mmxG = _mm_add_epi16(mmxG, mmxTemp); // now we have 8 G values
+         mmxG = _mm_srai_epi16(mmxG, 4);
+         mmxG = _mm_packus_epi16 (mmxG, mmxG); // i16->u8 bit and saturate
+         mmxTemp = _mm_loadu_si128((__m128i *)&s1772[0]); // B = Y - 1.772*Cb
+         mmxTemp = _mm_mulhi_epi16(mmxCb, mmxTemp);
+         mmxB = _mm_add_epi16(mmxY, mmxTemp); // now we have 8 B values
+         mmxB = _mm_srai_epi16(mmxB, 4);
+         mmxTemp = _mm_setzero_si128(); // interleave with 0 to get back to 16-bit values
+         mmxB = _mm_packus_epi16 (mmxB, mmxB); // i16->u8 bit and saturate
+         mmxR = _mm_unpacklo_epi8(mmxR, mmxTemp); // zero-extend to 16-bits again
+         mmxB = _mm_unpacklo_epi8(mmxB, mmxTemp);
+         mmxG = _mm_unpacklo_epi8(mmxG, mmxTemp);
+         mmxR = _mm_srli_epi16(mmxR, 3); // reduce to 5-bits
+         mmxR = _mm_slli_epi16(mmxR, 11); // set in proper position
+         mmxB = _mm_srli_epi16(mmxB, 3); // reduce to 5-bits
+         mmxG = _mm_srli_epi16(mmxG, 2); // reduce to 6-bits
+         mmxG = _mm_slli_epi16(mmxG, 5); // set in proper position
+         mmxTemp = _mm_or_si128(mmxR, mmxG); // R+G
+         mmxTemp = _mm_or_si128(mmxTemp, mmxB); // R+G+B
+         _mm_storeu_si128((__m128i *)pOutput, mmxTemp); // write 8 RGB565 pixels
+         pOutput += iPitch;
+         } // for each row
+     return;
+     }
+#endif // HAS_SSE
+
     for (iRow=0; iRow<8; iRow++) // up to 8 rows to do
     {
         if (pJPEG->ucPixelType == RGB565_LITTLE_ENDIAN)
@@ -2635,7 +3134,7 @@ static void JPEGPutMCU11(JPEGIMAGE *pJPEG, int x, int iPitch)
                 JPEGPixelRGB((uint32_t *)&pOutput[iCol*2], Y, iCb, iCr);
             } // for col
         }
-        pOutput += iPitch;
+        pOutput += (pJPEG->ucPixelType == RGB8888) ? iPitch*2 : iPitch;
     } // for row
 } /* JPEGPutMCU11() */
 
@@ -2827,6 +3326,23 @@ static void JPEGPutMCU22(JPEGIMAGE *pJPEG, int x, int iPitch)
         return;
     }
 // full size
+#ifdef ESP32S3_SIMD
+    if (pJPEG->ucPixelType == RGB8888) iPitch *= 2;
+    for (iRow=0; iRow<4; iRow++) { // top L+R, 4 pairs of lines x 16 pixels
+        // each call converts 16 pixels
+        s3_ycbcr_convert_420(pY, pCb, pCr, pOutput, i16_Consts, pJPEG->ucPixelType);
+        s3_ycbcr_convert_420(pY+8, pCb, pCr, pOutput+iPitch, i16_Consts, pJPEG->ucPixelType);
+        pCb += 8; pCr += 8; pY += 16; pOutput += iPitch*2;
+    }
+    pY += (256 - 64);
+    for (iRow=0; iRow<4; iRow++) { // bottom L+R
+        s3_ycbcr_convert_420(pY, pCb, pCr, pOutput, i16_Consts, pJPEG->ucPixelType);
+        s3_ycbcr_convert_420(pY+8, pCb, pCr, pOutput+iPitch, i16_Consts, pJPEG->ucPixelType);
+        pCb += 8; pCr += 8; pY += 16; pOutput += iPitch*2;
+    }
+    return;
+#endif // ESP32S3_SIMD
+
 #ifdef HAS_NEON
     if (pJPEG->ucPixelType == RGB8888) {
        int8x8_t i88Cr, i88Cb;
@@ -3049,6 +3565,310 @@ static void JPEGPutMCU22(JPEGIMAGE *pJPEG, int x, int iPitch)
       } // 16bpp
 #endif // HAS_NEON
 
+#ifdef HAS_SSE
+// SSE2 version
+// R = Y                + 1.40200 * Cr
+// G = Y - 0.34414 * Cb + 0.28586 * Cr - Cr
+// B = Y - 0.22800 * Cb + Cb + Cb
+
+ if (pJPEG->ucPixelType == RGB8888) {
+    __m128i mmxY, mmxCr, mmxCb, mmxTemp;
+    __m128i mmxTemp2, mmxR, mmxG, mmxB;
+    __m128i mmxConst1402, mmxConst0714, mmxConst0344, mmxConst1772;
+	 mmxConst0344 = _mm_load_si128((__m128i *)&s0344[0]);
+	 mmxConst1402 = _mm_load_si128((__m128i *)&s1402[0]);
+	 mmxConst0714 = _mm_load_si128((__m128i *)&s0714[0]);
+	 mmxConst1772 = _mm_load_si128((__m128i *)&s1772[0]);
+     iPitch *= 2; // destination is 32-bit values, not 16
+	 for (iRow = 0; iRow<8; iRow++) // do 8 pairs of rows in 4 quadrants
+         {
+         // left block
+         mmxCr = _mm_loadl_epi64((__m128i *)pCr); // load 1 row of Cr
+         mmxCb = _mm_loadl_epi64((__m128i *)pCb); // load 1 row of Cb
+         mmxY = _mm_loadl_epi64((__m128i *)pY); // load 1 row of Y (top left block)
+         mmxTemp = _mm_cmpeq_epi16(mmxY, mmxY); // fix Cr/Cb values by subtracting 0x80
+         mmxTemp = _mm_slli_epi16 (mmxTemp, 15); // now has 0x8000, 0x8000...
+         mmxTemp2 = _mm_setzero_si128(); // zero it to use to set upper bits to 0
+         mmxCr = _mm_unpacklo_epi8 (mmxTemp2, mmxCr); // zero-extend 8 Cr values to 16-bits
+         mmxCb = _mm_unpacklo_epi8 (mmxTemp2, mmxCb); // zero-extend 8 Cb values to 16-bits (left shifted 8)
+         mmxY = _mm_unpacklo_epi8 (mmxY, mmxTemp2); // zero-extend 8 Y values to 16-bits
+         mmxY = _mm_slli_epi16(mmxY, 4); // x16 to put on par with Cr/Cb values
+         mmxCr = _mm_add_epi16(mmxCr, mmxTemp); // subtract 0x80
+         mmxCb = _mm_add_epi16(mmxCb, mmxTemp);  // subtract 0x80
+         mmxTemp = _mm_mulhi_epi16(mmxCr, mmxConst1402); // almost ready with R
+         mmxR = _mm_add_epi16(_mm_unpacklo_epi16(mmxTemp, mmxTemp), mmxY); // now we have 8 R values
+         mmxR = _mm_srai_epi16(mmxR, 4);
+         mmxR = _mm_packus_epi16 (mmxR, mmxR); // i16->u8 bit and saturate
+         mmxTemp = _mm_mulhi_epi16(mmxCr, mmxConst0714); // Y-0.71414*Cr
+         mmxG = _mm_add_epi16(mmxY, _mm_unpacklo_epi16(mmxTemp, mmxTemp));
+         mmxTemp = _mm_mulhi_epi16(mmxCb, mmxConst0344);
+         mmxG = _mm_add_epi16(mmxG, _mm_unpacklo_epi16(mmxTemp, mmxTemp)); // now we have 8 G values
+         mmxG = _mm_srai_epi16(mmxG, 4);
+         mmxG = _mm_packus_epi16 (mmxG, mmxG); // i16->u8 bit and saturate
+         mmxTemp = _mm_mulhi_epi16(mmxCb, mmxConst1772);
+         mmxB = _mm_add_epi16(mmxY, _mm_unpacklo_epi16(mmxTemp, mmxTemp)); // now we have 8 B values
+         mmxB = _mm_srai_epi16(mmxB, 4);
+         mmxB = _mm_packus_epi16 (mmxB, mmxB); // i16->u8 bit and saturate
+         mmxTemp = _mm_cmpeq_epi16(mmxTemp, mmxTemp); // Alpha set to FFFF
+         mmxY = _mm_unpacklo_epi8(mmxB, mmxG); // interleave 8 B's and 8 G's
+         mmxTemp2 = _mm_unpacklo_epi8(mmxR, mmxTemp); // interlave 8 R's and 8 A's
+         mmxTemp = _mm_unpacklo_epi16(mmxY, mmxTemp2); // interleave 4 BG's and 4 RA's
+         mmxTemp2 = _mm_unpackhi_epi16(mmxY, mmxTemp2); // interleave 4 BG's and 4 RA's
+         // store first row of pair
+         _mm_storeu_si128((__m128i *)pOutput, mmxTemp); // write 4 RGBA pixels
+         _mm_storeu_si128((__m128i *)(pOutput+8), mmxTemp2); // write 4 RGBA pixels
+         // second row of left block
+         mmxY = _mm_loadl_epi64((__m128i *)(pY+8)); // load 1 row of Y (top left block)
+         mmxTemp2 = _mm_setzero_si128(); // zero it to use to set upper bits to 0
+         mmxY = _mm_unpacklo_epi8 (mmxY, mmxTemp2); // zero-extend 8 Y values to 16-bits
+         mmxTemp = _mm_mulhi_epi16(mmxCr, mmxConst1402); // almost ready with R
+         mmxY = _mm_slli_epi16(mmxY, 4); // x16 to put on par with Cr/Cb values
+         mmxR = _mm_add_epi16(_mm_unpacklo_epi16(mmxTemp, mmxTemp), mmxY); // now we have 8 R values
+         mmxR = _mm_srai_epi16(mmxR, 4);
+         mmxR = _mm_packus_epi16 (mmxR, mmxR); // i16->u8 bit and saturate
+         mmxTemp = _mm_mulhi_epi16(mmxCr, mmxConst0714); // Y-0.71414*Cr
+         mmxG = _mm_add_epi16(mmxY, _mm_unpacklo_epi16(mmxTemp, mmxTemp));
+		 mmxTemp = _mm_mulhi_epi16(mmxCb, mmxConst0344); // Y -= 0.34414*Cb
+         mmxG = _mm_add_epi16(mmxG, _mm_unpacklo_epi16(mmxTemp, mmxTemp)); // now we have 8 G values
+         mmxG = _mm_srai_epi16(mmxG, 4);
+         mmxG = _mm_packus_epi16 (mmxG, mmxG); // i16->u8 bit and saturate
+		 mmxTemp = _mm_mulhi_epi16(mmxCb, mmxConst1772); // B = Y - 1.772*Cb
+         mmxB = _mm_add_epi16(mmxY, _mm_unpacklo_epi16(mmxTemp, mmxTemp)); // now we have 8 B values
+         mmxB = _mm_srai_epi16(mmxB, 4);
+         mmxB = _mm_packus_epi16 (mmxB, mmxB); // i16->u8 bit and saturate
+         mmxTemp = _mm_cmpeq_epi16(mmxTemp, mmxTemp); // Alpha set to FFFF
+         mmxY = _mm_unpacklo_epi8(mmxB, mmxG); // interleave 8 B's and 8 G's
+         mmxTemp2 = _mm_unpacklo_epi8(mmxR, mmxTemp); // interlave 8 R's and 8 A's
+         mmxTemp = _mm_unpacklo_epi16(mmxY, mmxTemp2); // interleave 4 BG's and 4 RA's
+         mmxTemp2 = _mm_unpackhi_epi16(mmxY, mmxTemp2); // interleave 4 BG's and 4 RA's
+         // store second row of pair
+         _mm_storeu_si128((__m128i *)(pOutput+iPitch), mmxTemp); // write 4 RGBA pixels
+         _mm_storeu_si128((__m128i *)(pOutput+iPitch+8), mmxTemp2); // write 4 RGBA pixels
+         // right block
+         mmxY = _mm_loadl_epi64((__m128i *)(pY+128)); // load 1 row of Y (right block)
+         mmxTemp2 = _mm_setzero_si128(); // zero it to use to set upper bits to 0
+         mmxY = _mm_unpacklo_epi8 (mmxY, mmxTemp2); // zero-extend 8 Y values to 16-bits
+         mmxY = _mm_slli_epi16(mmxY, 4); // x16 to put on par with Cr/Cb values
+         mmxTemp = _mm_mulhi_epi16(mmxCr, mmxConst1402); // almost ready with R
+         mmxR = _mm_add_epi16(_mm_unpackhi_epi16(mmxTemp, mmxTemp), mmxY); // now we have 8 R values
+         mmxR = _mm_srai_epi16(mmxR, 4);
+         mmxR = _mm_packus_epi16 (mmxR, mmxR); // i16->u8 bit and saturate
+         mmxTemp = _mm_mulhi_epi16(mmxCr, mmxConst0714); // Y-0.71414*Cr
+         mmxG = _mm_add_epi16(mmxY, _mm_unpackhi_epi16(mmxTemp, mmxTemp));
+         mmxTemp = _mm_mulhi_epi16(mmxCb, mmxConst0344);
+         mmxG = _mm_add_epi16(mmxG, _mm_unpackhi_epi16(mmxTemp, mmxTemp)); // now we have 8 G values
+         mmxG = _mm_srai_epi16(mmxG, 4);
+         mmxG = _mm_packus_epi16 (mmxG, mmxG); // i16->u8 bit and saturate
+         mmxTemp = _mm_mulhi_epi16(mmxCb, mmxConst1772);
+         mmxB = _mm_add_epi16(mmxY, _mm_unpackhi_epi16(mmxTemp, mmxTemp)); // now we have 8 B values
+         mmxB = _mm_srai_epi16(mmxB, 4);
+         mmxB = _mm_packus_epi16 (mmxB, mmxB); // i16->u8 bit and saturate
+         mmxTemp = _mm_cmpeq_epi16(mmxTemp, mmxTemp); // Alpha set to FFFF
+         mmxY = _mm_unpacklo_epi8(mmxB, mmxG); // interleave 8 B's and 8 G's
+         mmxTemp2 = _mm_unpacklo_epi8(mmxR, mmxTemp); // interlave 8 R's and 8 A's
+         mmxTemp = _mm_unpacklo_epi16(mmxY, mmxTemp2); // interleave 4 BG's and 4 RA's
+         mmxTemp2 = _mm_unpackhi_epi16(mmxY, mmxTemp2); // interleave 4 BG's and 4 RA's
+         // store first row of right block
+         _mm_storeu_si128((__m128i *)(pOutput+16), mmxTemp); // write 4 RGBA pixels
+         _mm_storeu_si128((__m128i *)(pOutput+24), mmxTemp2); // write 4 RGBA pixels
+         // prepare second row of right block
+         mmxY = _mm_loadl_epi64((__m128i *)(pY+136)); // load 1 row of Y (right block)
+         mmxTemp2 = _mm_setzero_si128(); // zero it to use to set upper bits to 0
+         mmxY = _mm_unpacklo_epi8 (mmxY, mmxTemp2); // zero-extend 8 Y values to 16-bits
+         mmxY = _mm_slli_epi16(mmxY, 4); // x16 to put on par with Cr/Cb values
+         mmxTemp = _mm_mulhi_epi16(mmxCr, mmxConst1402); // almost ready with R
+         mmxR = _mm_add_epi16(_mm_unpackhi_epi16(mmxTemp, mmxTemp), mmxY); // now we have 8 R values
+         mmxR = _mm_srai_epi16(mmxR, 4);
+         mmxR = _mm_packus_epi16 (mmxR, mmxR); // i16->u8 bit and saturate
+         mmxTemp = _mm_mulhi_epi16(mmxCr, mmxConst0714); // Y-0.71414*Cr
+         mmxG = _mm_add_epi16(mmxY, _mm_unpackhi_epi16(mmxTemp, mmxTemp));
+         mmxTemp = _mm_mulhi_epi16(mmxCb, mmxConst0344);
+         mmxG = _mm_add_epi16(mmxG, _mm_unpackhi_epi16(mmxTemp, mmxTemp)); // now we have 8 G values
+         mmxG = _mm_srai_epi16(mmxG, 4);
+         mmxG = _mm_packus_epi16 (mmxG, mmxG); // i16->u8 bit and saturate
+         mmxTemp = _mm_mulhi_epi16(mmxCb, mmxConst1772);
+         mmxB = _mm_add_epi16(mmxY, _mm_unpackhi_epi16(mmxTemp, mmxTemp)); // now we have 8 B values
+         mmxB = _mm_srai_epi16(mmxB, 4);
+         mmxB = _mm_packus_epi16 (mmxB, mmxB); // i16->u8 bit and saturate
+         mmxTemp = _mm_cmpeq_epi16(mmxTemp, mmxTemp); // Alpha set to FFFF
+         mmxY = _mm_unpacklo_epi8(mmxB, mmxG); // interleave 8 B's and 8 G's
+         mmxTemp2 = _mm_unpacklo_epi8(mmxR, mmxTemp); // interlave 8 R's and 8 A's
+         mmxTemp = _mm_unpacklo_epi16(mmxY, mmxTemp2); // interleave 4 BG's and 4 RA's
+         mmxTemp2 = _mm_unpackhi_epi16(mmxY, mmxTemp2); // interleave 4 BG's and 4 RA's
+         // store second row of right block
+         _mm_storeu_si128((__m128i *)(pOutput+iPitch+16), mmxTemp); // write 4 RGBA pixels
+         _mm_storeu_si128((__m128i *)(pOutput+iPitch+24), mmxTemp2); // write 4 RGBA pixels
+
+         pOutput += iPitch*2;
+         pCr += 8;
+         pCb += 8;
+         if (iRow == 3) // bottom 4 rows Y values are in 2 other MCUs
+            pY += 16 + 192; // skip to other 2 Y blocks
+         else
+            pY += 16;
+         } // for each row
+     return;
+ } else { // 16-bit pixels
+    __m128i mmxY, mmxCr, mmxCb, mmxTemp;
+    __m128i mmxTemp2, mmxR, mmxG, mmxB;
+    __m128i mmxConst1402, mmxConst0714, mmxConst0344, mmxConst1772;
+	 mmxConst0344 = _mm_load_si128((__m128i *)&s0344[0]);
+	 mmxConst1402 = _mm_load_si128((__m128i *)&s1402[0]);
+	 mmxConst0714 = _mm_load_si128((__m128i *)&s0714[0]);
+	 mmxConst1772 = _mm_load_si128((__m128i *)&s1772[0]);
+	 for (iRow = 0; iRow<8; iRow++) // do 8 pairs of rows in 4 quadrants
+         {
+         // left block
+         mmxCr = _mm_loadl_epi64((__m128i *)pCr); // load 1 row of Cr
+         mmxCb = _mm_loadl_epi64((__m128i *)pCb); // load 1 row of Cb
+         mmxY = _mm_loadl_epi64((__m128i *)pY); // load 1 row of Y (top left block)
+         mmxTemp = _mm_cmpeq_epi16(mmxY, mmxY); // fix Cr/Cb values by subtracting 0x80
+         mmxTemp = _mm_slli_epi16 (mmxTemp, 7); // now has 0xff80, 0xff80...
+         mmxTemp2 = _mm_setzero_si128(); // zero it to use to set upper bits to 0
+         mmxCr = _mm_unpacklo_epi8 (mmxCr, mmxTemp2); // zero-extend 8 Cr values to 16-bits
+         mmxCb = _mm_unpacklo_epi8 (mmxCb, mmxTemp2); // zero-extend 8 Cb values to 16-bits
+         mmxY = _mm_unpacklo_epi8 (mmxY, mmxTemp2); // zero-extend 8 Y values to 16-bits
+         mmxY = _mm_slli_epi16(mmxY, 4); // x16 to put on par with Cr/Cb values
+         mmxCr = _mm_add_epi16(mmxCr, mmxTemp); // subtract 0x80
+         mmxCb = _mm_add_epi16(mmxCb, mmxTemp);  // subtract 0x80
+         mmxCr = _mm_slli_epi16(mmxCr, 8); // put in top half of 16-bits
+         mmxCb = _mm_slli_epi16(mmxCb, 8); // put in top half of 16-bits
+         mmxTemp = _mm_mulhi_epi16(mmxCr, mmxConst1402); // almost ready with R
+         mmxR = _mm_add_epi16(_mm_unpacklo_epi16(mmxTemp, mmxTemp), mmxY); // now we have 8 R values
+         mmxR = _mm_srai_epi16(mmxR, 4);
+         mmxR = _mm_packus_epi16 (mmxR, mmxR); // i16->u8 bit and saturate
+         mmxTemp = _mm_mulhi_epi16(mmxCr, mmxConst0714); // Y-0.71414*Cr
+         mmxG = _mm_add_epi16(mmxY, _mm_unpacklo_epi16(mmxTemp, mmxTemp));
+		 mmxTemp = _mm_mulhi_epi16(mmxCb, mmxConst0344); // Y -= 0.34414*Cb
+         mmxG = _mm_add_epi16(mmxG, _mm_unpacklo_epi16(mmxTemp, mmxTemp)); // now we have 8 G values
+         mmxG = _mm_srai_epi16(mmxG, 4);
+         mmxG = _mm_packus_epi16 (mmxG, mmxG); // i16->u8 bit and saturate
+		 mmxTemp = _mm_mulhi_epi16(mmxCb, mmxConst1772); // B = Y - 1.772*Cb
+         mmxB = _mm_add_epi16(mmxY, _mm_unpacklo_epi16(mmxTemp, mmxTemp)); // now we have 8 B values
+         mmxB = _mm_srai_epi16(mmxB, 4);
+         mmxB = _mm_packus_epi16 (mmxB, mmxB); // i16->u8 bit and saturate
+         mmxTemp = _mm_setzero_si128(); // interleave with 0 to get back to 16-bit values
+         mmxR = _mm_unpacklo_epi8(mmxR, mmxTemp); // zero-extend to 16-bits again
+         mmxB = _mm_unpacklo_epi8(mmxB, mmxTemp);
+         mmxG = _mm_unpacklo_epi8(mmxG, mmxTemp);
+         mmxR = _mm_srli_epi16(mmxR, 3); // reduce to 5-bits
+         mmxR = _mm_slli_epi16(mmxR, 11); // set in proper position
+         mmxB = _mm_srli_epi16(mmxB, 3); // reduce to 5-bits
+         mmxG = _mm_srli_epi16(mmxG, 2); // reduce to 6-bits
+         mmxG = _mm_slli_epi16(mmxG, 5); // set in proper position
+         mmxTemp = _mm_or_si128(mmxR, mmxG); // R+G
+         mmxTemp = _mm_or_si128(mmxTemp, mmxB); // R+G+B
+         // store first row of pair
+         _mm_storeu_si128((__m128i *)pOutput, mmxTemp); // write 8 RGB565 pixels
+         // second row of left block
+         mmxY = _mm_loadl_epi64((__m128i *)(pY+8)); // load 1 row of Y (top left block)
+         mmxTemp2 = _mm_setzero_si128(); // zero it to use to set upper bits to 0
+         mmxY = _mm_unpacklo_epi8 (mmxY, mmxTemp2); // zero-extend 8 Y values to 16-bits
+         mmxTemp = _mm_mulhi_epi16(mmxCr, mmxConst1402); // almost ready with R
+         mmxY = _mm_slli_epi16(mmxY, 4); // x16 to put on par with Cr/Cb values
+         mmxR = _mm_add_epi16(_mm_unpacklo_epi16(mmxTemp, mmxTemp), mmxY); // now we have 8 R values
+         mmxR = _mm_srai_epi16(mmxR, 4);
+         mmxR = _mm_packus_epi16 (mmxR, mmxR); // i16->u8 bit and saturate
+         mmxTemp = _mm_mulhi_epi16(mmxCr, mmxConst0714); // Y-0.71414*Cr
+         mmxG = _mm_add_epi16(mmxY, _mm_unpacklo_epi16(mmxTemp, mmxTemp));
+         mmxTemp = _mm_mulhi_epi16(mmxCb, mmxConst0344);
+         mmxG = _mm_add_epi16(mmxG, _mm_unpacklo_epi16(mmxTemp, mmxTemp)); // now we have 8 G values
+         mmxG = _mm_srai_epi16(mmxG, 4);
+         mmxG = _mm_packus_epi16 (mmxG, mmxG); // i16->u8 bit and saturate
+		 mmxTemp = _mm_mulhi_epi16(mmxCb, mmxConst1772); // B = Y - 1.772*Cb
+         mmxB = _mm_add_epi16(mmxY, _mm_unpacklo_epi16(mmxTemp, mmxTemp)); // now we have 8 B values
+         mmxB = _mm_srai_epi16(mmxB, 4);
+         mmxB = _mm_packus_epi16 (mmxB, mmxB); // i16->u8 bit and saturate
+         mmxTemp = _mm_setzero_si128(); // interleave with 0 to get back to 16-bit values
+         mmxR = _mm_unpacklo_epi8(mmxR, mmxTemp); // zero-extend to 16-bits again
+         mmxB = _mm_unpacklo_epi8(mmxB, mmxTemp);
+         mmxG = _mm_unpacklo_epi8(mmxG, mmxTemp);
+         mmxR = _mm_srli_epi16(mmxR, 3); // reduce to 5-bits
+         mmxR = _mm_slli_epi16(mmxR, 11); // set in proper position
+         mmxB = _mm_srli_epi16(mmxB, 3); // reduce to 5-bits
+         mmxG = _mm_srli_epi16(mmxG, 2); // reduce to 6-bits
+         mmxG = _mm_slli_epi16(mmxG, 5); // set in proper position
+         mmxTemp = _mm_or_si128(mmxR, mmxG); // R+G
+         mmxTemp = _mm_or_si128(mmxTemp, mmxB); // R+G+B
+         // store second row of pair
+         _mm_storeu_si128((__m128i *)(pOutput+iPitch), mmxTemp); // write 8 RGB565 pixels
+         // right block
+         mmxY = _mm_loadl_epi64((__m128i *)(pY+128)); // load 1 row of Y (right block)
+         mmxTemp2 = _mm_setzero_si128(); // zero it to use to set upper bits to 0
+         mmxY = _mm_unpacklo_epi8 (mmxY, mmxTemp2); // zero-extend 8 Y values to 16-bits
+         mmxY = _mm_slli_epi16(mmxY, 4); // x16 to put on par with Cr/Cb values
+         mmxTemp = _mm_mulhi_epi16(mmxCr, mmxConst1402); // almost ready with R
+         mmxR = _mm_add_epi16(_mm_unpackhi_epi16(mmxTemp, mmxTemp), mmxY); // now we have 8 R values
+         mmxR = _mm_srai_epi16(mmxR, 4);
+         mmxR = _mm_packus_epi16 (mmxR, mmxR); // i16->u8 bit and saturate
+         mmxTemp = _mm_mulhi_epi16(mmxCr, mmxConst0714); // Y-0.71414*Cr
+         mmxG = _mm_add_epi16(mmxY, _mm_unpackhi_epi16(mmxTemp, mmxTemp));
+		 mmxTemp = _mm_mulhi_epi16(mmxCb, mmxConst0344); // Y -= 0.34414*Cb
+         mmxG = _mm_add_epi16(mmxG, _mm_unpackhi_epi16(mmxTemp, mmxTemp)); // now we have 8 G values
+         mmxG = _mm_srai_epi16(mmxG, 4);
+         mmxG = _mm_packus_epi16 (mmxG, mmxG); // i16->u8 bit and saturate
+		 mmxTemp = _mm_mulhi_epi16(mmxCb, mmxConst1772); // B = Y - 1.772*Cb
+         mmxB = _mm_add_epi16(mmxY, _mm_unpackhi_epi16(mmxTemp, mmxTemp)); // now we have 8 B values
+         mmxB = _mm_srai_epi16(mmxB, 4);
+         mmxB = _mm_packus_epi16 (mmxB, mmxB); // i16->u8 bit and saturate
+         mmxTemp = _mm_setzero_si128(); // interleave with 0 to get back to 16-bit values
+         mmxR = _mm_unpacklo_epi8(mmxR, mmxTemp); // zero-extend to 16-bits again
+         mmxB = _mm_unpacklo_epi8(mmxB, mmxTemp);
+         mmxG = _mm_unpacklo_epi8(mmxG, mmxTemp);
+         mmxR = _mm_srli_epi16(mmxR, 3); // reduce to 5-bits
+         mmxR = _mm_slli_epi16(mmxR, 11); // set in proper position
+         mmxB = _mm_srli_epi16(mmxB, 3); // reduce to 5-bits
+         mmxG = _mm_srli_epi16(mmxG, 2); // reduce to 6-bits
+         mmxG = _mm_slli_epi16(mmxG, 5); // set in proper position
+         mmxTemp = _mm_or_si128(mmxR, mmxG); // R+G
+         mmxTemp = _mm_or_si128(mmxTemp, mmxB); // R+G+B
+         // store first row of right block
+         _mm_storeu_si128((__m128i *)(pOutput+16), mmxTemp); // write 8 RGB565 pixels
+         // prepare second row of right block
+         mmxY = _mm_loadl_epi64((__m128i *)(pY+136)); // load 1 row of Y (right block)
+         mmxTemp2 = _mm_setzero_si128(); // zero it to use to set upper bits to 0
+         mmxY = _mm_unpacklo_epi8 (mmxY, mmxTemp2); // zero-extend 8 Y values to 16-bits
+         mmxY = _mm_slli_epi16(mmxY, 4); // x16 to put on par with Cr/Cb values
+         mmxTemp = _mm_mulhi_epi16(mmxCr, mmxConst1402); // almost ready with R
+         mmxR = _mm_add_epi16(_mm_unpackhi_epi16(mmxTemp, mmxTemp), mmxY); // now we have 8 R values
+         mmxR = _mm_srai_epi16(mmxR, 4);
+         mmxR = _mm_packus_epi16 (mmxR, mmxR); // i16->u8 bit and saturate
+         mmxTemp = _mm_mulhi_epi16(mmxCr, mmxConst0714); // Y-0.71414*Cr
+         mmxG = _mm_add_epi16(mmxY, _mm_unpackhi_epi16(mmxTemp, mmxTemp));
+         mmxTemp = _mm_mulhi_epi16(mmxCb, mmxConst0344);
+         mmxG = _mm_add_epi16(mmxG, _mm_unpackhi_epi16(mmxTemp, mmxTemp)); // now we have 8 G values
+         mmxG = _mm_srai_epi16(mmxG, 4);
+         mmxG = _mm_packus_epi16 (mmxG, mmxG); // i16->u8 bit and saturate
+		 mmxTemp = _mm_mulhi_epi16(mmxCb, mmxConst1772); // B = Y - 1.772*Cb
+         mmxB = _mm_add_epi16(mmxY, _mm_unpackhi_epi16(mmxTemp, mmxTemp)); // now we have 8 B values
+         mmxB = _mm_srai_epi16(mmxB, 4);
+         mmxB = _mm_packus_epi16 (mmxB, mmxB); // i16->u8 bit and saturate
+         mmxTemp = _mm_setzero_si128(); // interleave with 0 to get back to 16-bit values
+         mmxR = _mm_unpacklo_epi8(mmxR, mmxTemp); // zero-extend to 16-bits again
+         mmxB = _mm_unpacklo_epi8(mmxB, mmxTemp);
+         mmxG = _mm_unpacklo_epi8(mmxG, mmxTemp);
+         mmxR = _mm_srli_epi16(mmxR, 3); // reduce to 5-bits
+         mmxR = _mm_slli_epi16(mmxR, 11); // set in proper position
+         mmxB = _mm_srli_epi16(mmxB, 3); // reduce to 5-bits
+         mmxG = _mm_srli_epi16(mmxG, 2); // reduce to 6-bits
+         mmxG = _mm_slli_epi16(mmxG, 5); // set in proper position
+         mmxTemp = _mm_or_si128(mmxR, mmxG); // R+G
+         mmxTemp = _mm_or_si128(mmxTemp, mmxB); // R+G+B
+         // store second row of right block
+         _mm_storeu_si128((__m128i *)(pOutput+16+iPitch), mmxTemp); // write 8 RGB565 pixels
+
+         pOutput += iPitch*2;
+         pCr += 8;
+         pCb += 8;
+         if (iRow == 3) // bottom 4 rows Y values are in 2 other MCUs
+            pY += 16 + 192; // skip to other 2 Y blocks
+         else
+            pY += 16;
+         } // for each row
+     return;
+     } // 16bpp
+#endif // HAS_SSE
+    /* Reference C code */
     /* Convert YCC pixels into RGB pixels and store in output image */
     iYCount = 4;
     bUseOdd1 = bUseOdd2 = 1; // assume odd column can be used
@@ -3295,7 +4115,7 @@ static void JPEGPutMCU12(JPEGIMAGE *pJPEG, int x, int iPitch)
     
     if (pJPEG->ucPixelType == RGB8888) {
         pOutput += x; // 4 bytes per pixel, not 2
-    }
+    }   
 
     pY  = (uint8_t *)&pJPEG->sMCUs[0*DCTSIZE];
     pCb = (uint8_t *)&pJPEG->sMCUs[2*DCTSIZE];
@@ -3471,7 +4291,7 @@ static void JPEGPutMCU21(JPEGIMAGE *pJPEG, int x, int iPitch)
 
     if (pJPEG->ucPixelType == RGB8888) {
         pOutput += x; // 4 bytes per pixel, not 2
-    }
+    }   
 
     pY  = (uint8_t *)&pJPEG->sMCUs[0*DCTSIZE];
     pCb = (uint8_t *)&pJPEG->sMCUs[2*DCTSIZE];
@@ -3727,7 +4547,7 @@ int DecodeJPEG(JPEGIMAGE *pJPEG)
     
     // reorder and fix the quantization table for decoding
     JPEGFixQuantD(pJPEG);
-    pJPEG->bb.ulBits = MOTOLONG(&pJPEG->ucFileBuf[0]); // preload first 4 bytes
+    pJPEG->bb.ulBits = MOTOLONG(&pJPEG->ucFileBuf[0]); // preload first 4/8 bytes
     pJPEG->bb.pBuf = pJPEG->ucFileBuf;
     pJPEG->bb.ulBitOff = 0;
     
@@ -3834,14 +4654,23 @@ int DecodeJPEG(JPEGIMAGE *pJPEG)
     {
         jd.x = pJPEG->iXOffset;
         xoff = 0; // start of new LCD output group
-        iPitch = iMCUCount * mcuCX; // pixels per line of LCD buffer
+        if (pJPEG->pFramebuffer) { // user-supplied buffer is full width
+            iPitch = (pJPEG->iWidth + 7) & 0xfff8; // must be 16-byte aligned
+            pJPEG->usPixels = (uint16_t *)pJPEG->pFramebuffer;
+            pJPEG->usPixels += (y * mcuCY * iPitch);
+            if (pJPEG->ucPixelType == RGB8888) { // iPitch is 1/2
+                 pJPEG->usPixels += (y * mcuCY * iPitch);
+            }
+        } else { // use our internal buffer to do it a block at a time
+            iPitch = iMCUCount * mcuCX; // pixels per line of LCD buffer
+        }
         for (x = 0; x < cx && bContinue && iErr == 0; x++)
         {
             pJPEG->ucACTable = cACTable0;
             pJPEG->ucDCTable = cDCTable0;
             // do the first luminance component
             iErr = JPEGDecodeMCU(pJPEG, iLum0, &iDCPred0);
-            if (pJPEG->ucMaxACCol == 0 || bThumbnail) // no AC components, save some time
+            if (pJPEG->u16MCUFlags == 0 || bThumbnail) // no AC components, save some time
             {
                 pl = (uint32_t *)&pJPEG->sMCUs[iLum0];
                 c = ucRangeTable[((iDCPred0 * iQuant1) >> 5) & 0x3ff];
@@ -3852,13 +4681,13 @@ int DecodeJPEG(JPEGIMAGE *pJPEG)
             }
             else
             {
-                JPEGIDCT(pJPEG, iLum0, pJPEG->JPCI[0].quant_tbl_no, (pJPEG->ucMaxACCol | (pJPEG->ucMaxACRow << 8))); // first quantization table
+                JPEGIDCT(pJPEG, iLum0, pJPEG->JPCI[0].quant_tbl_no); // first quantization table
             }
             // do the second luminance component
             if (pJPEG->ucSubSample > 0x11) // subsampling
             {
                 iErr |= JPEGDecodeMCU(pJPEG, iLum1, &iDCPred0);
-                if (pJPEG->ucMaxACCol == 0 || bThumbnail) // no AC components, save some time
+                if (pJPEG->u16MCUFlags == 0 || bThumbnail) // no AC components, save some time
                 {
                     c = ucRangeTable[((iDCPred0 * iQuant1) >> 5) & 0x3ff];
                     l = c | ((uint32_t) c << 8) | ((uint32_t) c << 16) | ((uint32_t) c << 24);
@@ -3869,12 +4698,12 @@ int DecodeJPEG(JPEGIMAGE *pJPEG)
                 }
                 else
                 {
-                    JPEGIDCT(pJPEG, iLum1, pJPEG->JPCI[0].quant_tbl_no, (pJPEG->ucMaxACCol | (pJPEG->ucMaxACRow << 8))); // first quantization table
+                    JPEGIDCT(pJPEG, iLum1, pJPEG->JPCI[0].quant_tbl_no); // first quantization table
                 }
                 if (pJPEG->ucSubSample == 0x22)
                 {
                     iErr |= JPEGDecodeMCU(pJPEG, iLum2, &iDCPred0);
-                    if (pJPEG->ucMaxACCol == 0 || bThumbnail) // no AC components, save some time
+                    if (pJPEG->u16MCUFlags == 0 || bThumbnail) // no AC components, save some time
                     {
                         c = ucRangeTable[((iDCPred0 * iQuant1) >> 5) & 0x3ff];
                         l = c | ((uint32_t) c << 8) | ((uint32_t) c << 16) | ((uint32_t) c << 24);
@@ -3885,10 +4714,10 @@ int DecodeJPEG(JPEGIMAGE *pJPEG)
                     }
                     else
                     {
-                        JPEGIDCT(pJPEG, iLum2, pJPEG->JPCI[0].quant_tbl_no, (pJPEG->ucMaxACCol | (pJPEG->ucMaxACRow << 8))); // first quantization table
+                        JPEGIDCT(pJPEG, iLum2, pJPEG->JPCI[0].quant_tbl_no); // first quantization table
                     }
                     iErr |= JPEGDecodeMCU(pJPEG, iLum3, &iDCPred0);
-                    if (pJPEG->ucMaxACCol == 0 || bThumbnail) // no AC components, save some time
+                    if (pJPEG->u16MCUFlags == 0 || bThumbnail) // no AC components, save some time
                     {
                         c = ucRangeTable[((iDCPred0 * iQuant1) >> 5) & 0x3ff];
                         l = c | ((uint32_t) c << 8) | ((uint32_t) c << 16) | ((uint32_t) c << 24);
@@ -3899,7 +4728,7 @@ int DecodeJPEG(JPEGIMAGE *pJPEG)
                     }
                     else
                     {
-                        JPEGIDCT(pJPEG, iLum3, pJPEG->JPCI[0].quant_tbl_no, (pJPEG->ucMaxACCol | (pJPEG->ucMaxACRow << 8))); // first quantization table
+                        JPEGIDCT(pJPEG, iLum3, pJPEG->JPCI[0].quant_tbl_no); // first quantization table
                     }
                 } // if 2:2 subsampling
             } // if subsampling used
@@ -3909,7 +4738,7 @@ int DecodeJPEG(JPEGIMAGE *pJPEG)
                 pJPEG->ucACTable = cACTable1;
                 pJPEG->ucDCTable = cDCTable1;
                 iErr |= JPEGDecodeMCU(pJPEG, iCr, &iDCPred1);
-                if (pJPEG->ucMaxACCol == 0 || bThumbnail) // no AC components, save some time
+                if (pJPEG->u16MCUFlags == 0 || bThumbnail) // no AC components, save some time
                 {
                     c = ucRangeTable[((iDCPred1 * iQuant2) >> 5) & 0x3ff];
                     l = c | ((uint32_t) c << 8) | ((uint32_t) c << 16) | ((uint32_t) c << 24);
@@ -3920,13 +4749,13 @@ int DecodeJPEG(JPEGIMAGE *pJPEG)
                 }
                 else
                 {
-                    JPEGIDCT(pJPEG, iCr, pJPEG->JPCI[1].quant_tbl_no, (pJPEG->ucMaxACCol | (pJPEG->ucMaxACRow << 8))); // second quantization table
+                    JPEGIDCT(pJPEG, iCr, pJPEG->JPCI[1].quant_tbl_no); // second quantization table
                 }
                 // second chroma
                 pJPEG->ucACTable = cACTable2;
                 pJPEG->ucDCTable = cDCTable2;
                 iErr |= JPEGDecodeMCU(pJPEG, iCb, &iDCPred2);
-                if (pJPEG->ucMaxACCol == 0 || bThumbnail) // no AC components, save some time
+                if (pJPEG->u16MCUFlags == 0 || bThumbnail) // no AC components, save some time
                 {
                     c = ucRangeTable[((iDCPred2 * iQuant3) >> 5) & 0x3ff];
                     l = c | ((uint32_t) c << 8) | ((uint32_t) c << 16) | ((uint32_t) c << 24);
@@ -3937,7 +4766,7 @@ int DecodeJPEG(JPEGIMAGE *pJPEG)
                 }
                 else
                 {
-                    JPEGIDCT(pJPEG, iCb, pJPEG->JPCI[2].quant_tbl_no, (pJPEG->ucMaxACCol | (pJPEG->ucMaxACRow << 8)));
+                    JPEGIDCT(pJPEG, iCb, pJPEG->JPCI[2].quant_tbl_no);
                 }
             } // if color components present
             if (pJPEG->ucPixelType >= EIGHT_BIT_GRAYSCALE)
@@ -3966,7 +4795,7 @@ int DecodeJPEG(JPEGIMAGE *pJPEG)
                 } // switch on color option
             }
             xoff += mcuCX;
-            if (xoff == iPitch || x == cx-1) // time to draw
+            if (pJPEG->pFramebuffer == NULL && (xoff == iPitch || x == cx-1)) // time to draw
             {
                 xoff = 0;
                 jd.iWidth = jd.iWidthUsed = iPitch; // width of each LCD block group

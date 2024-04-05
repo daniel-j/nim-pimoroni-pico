@@ -5,8 +5,6 @@ when not defined(mock):
 
 import ../pico_graphics/error_diffusion
 
-var jpeg: JPEGDEC
-
 const PicoGraphicsJpeg888* {.booldefine.} = false
 
 when PicoGraphicsJpeg888:
@@ -40,6 +38,7 @@ type
     errDiff*: ErrorDiffusion[PGT]
     errDiffRow: seq[RgbLinear]
     colorModifier*: JpegColorModifier
+    jpeg: JpegDec
 
 proc jpegdecOpenCallback(filename: cstring, size: ptr int32): pointer {.cdecl.} =
   when not defined(mock):
@@ -108,7 +107,7 @@ proc drawScaled(self: var JpegDecoder; draw: ptr JPEGDRAW): bool =
     let symin = y * self.jpegH div self.h
     # if symin >= draw.iHeight: continue
 
-    case jpeg.getOrientation():
+    case self.jpeg.getOrientation():
     of 3: pos.y = self.coords.y + self.h - 1 - (dy + y)
     of 6: pos.x = self.coords.x + self.h - 1 - (dy + y)
     of 8: pos.x = self.coords.x + (dy + y)
@@ -123,7 +122,7 @@ proc drawScaled(self: var JpegDecoder; draw: ptr JPEGDRAW): bool =
       var color = constructRgb(JpegPixelRgbType(p[poffset + sxmin]))
       # color = color.getCacheKey().getCacheColor()
 
-      case jpeg.getOrientation():
+      case self.jpeg.getOrientation():
       of 3: pos.x = self.coords.x + self.w - 1 - (dx + x)
       of 6: pos.y = self.coords.y + (dx + x)
       of 8: pos.y = self.coords.y + self.w - 1 - (dx + x)
@@ -190,12 +189,14 @@ proc drawFast(self: var JpegDecoder; draw: ptr JPEGDRAW): bool =
   return true
 
 proc jpegdecDrawCallback[T](draw: ptr JPEGDRAW): cint {.cdecl.} =
+  assert(draw.pUser != nil)
   return cast[ptr T](draw.pUser)[].drawScaled(draw).cint
 
 
 proc init*(self: var JpegDecoder; graphics: var PicoGraphics) =
   self.graphics = graphics.addr
   self.errDiff = typeof(self.errDiff)(backend: autobackend(graphics))
+  self.jpeg.reset()
 
 proc drawJpeg*(self: var JpegDecoder; filename: string; x, y, w, h: int; gravity: tuple[x, y: float32] = (0.0f, 0.0f); contains: bool = true; drawMode: DrawMode = Default): int =
   if self.graphics.isNil:
@@ -211,7 +212,7 @@ proc drawJpeg*(self: var JpegDecoder; filename: string; x, y, w, h: int; gravity
 
   echo "- opening jpeg file ", filename
 
-  var jpegErr = jpeg.open(
+  var jpegErr = self.jpeg.open(
     filename,
     jpegdecOpenCallback,
     jpegdecCloseCallback,
@@ -219,16 +220,16 @@ proc drawJpeg*(self: var JpegDecoder; filename: string; x, y, w, h: int; gravity
     jpegdecSeekCallback,
     jpegdecDrawCallback[typeof(self)]
   )
-  jpeg.setUserPointer(self.addr)
+  self.jpeg.setUserPointer(self.addr)
 
   if jpegErr == 1:
-    echo "- jpeg dimensions: ", jpeg.getWidth(), "x", jpeg.getHeight()
-    echo "- jpeg orientation: ", jpeg.getOrientation()
+    echo "- jpeg dimensions: ", self.jpeg.getWidth(), "x", self.jpeg.getHeight()
+    echo "- jpeg orientation: ", self.jpeg.getOrientation()
 
-    self.jpegW = jpeg.getWidth()
-    self.jpegH = jpeg.getHeight()
+    self.jpegW = self.jpeg.getWidth()
+    self.jpegH = self.jpeg.getHeight()
 
-    case jpeg.getOrientation():
+    case self.jpeg.getOrientation():
       of 6, 8: # vertical
         self.w = h
         self.h = w
@@ -242,7 +243,7 @@ proc drawJpeg*(self: var JpegDecoder; filename: string; x, y, w, h: int; gravity
     else:
       self.w = (self.h.float32 * imgRatio).int
 
-    case jpeg.getOrientation():
+    case self.jpeg.getOrientation():
       of 6, 8: # vertical
         self.coords.x = ((w - self.h).float32 * gravity.x).int + x
         self.coords.y = ((h - self.w).float32 * gravity.y).int + y
@@ -278,7 +279,7 @@ proc drawJpeg*(self: var JpegDecoder; filename: string; x, y, w, h: int; gravity
 
     self.drawArea = self.graphics[].bounds.intersection(self.graphics[].clip.intersection(self.drawArea))
 
-    self.cropArea = case jpeg.getOrientation():
+    self.cropArea = case self.jpeg.getOrientation():
       of 3: constructRect(self.w - self.drawArea.w - self.drawArea.x + self.coords.x, self.h - self.drawArea.h - self.drawArea.y + self.coords.y, self.drawArea.w, self.drawArea.h)
       of 6: constructRect(self.drawArea.y - self.coords.y, self.drawArea.x - self.coords.x, self.drawArea.h, self.drawArea.w)
       of 8: constructRect(self.w - self.drawArea.h - self.drawArea.y + self.coords.y, self.drawArea.x - self.coords.x, self.drawArea.h, self.drawArea.w)
@@ -286,28 +287,28 @@ proc drawJpeg*(self: var JpegDecoder; filename: string; x, y, w, h: int; gravity
 
     echo (self.drawArea, self.cropArea)
 
-    jpeg.setPixelType(jpegdecPixelType)
+    self.jpeg.setPixelType(jpegdecPixelType)
 
     if self.drawMode == ErrorDiffusion:
       self.errDiff.init(self.graphics[], self.drawArea.x, self.drawArea.y, self.cropArea.w, self.cropArea.h, self.errDiff.matrix)
-      self.errDiff.orientation = jpeg.getOrientation()
+      self.errDiff.orientation = self.jpeg.getOrientation()
       if self.errDiff.backend == ErrorDiffusionBackend.BackendPsram:
         self.errDiff.psramAddress = PsramAddress self.graphics.bounds.w * self.graphics.bounds.h
 
     echo "- starting jpeg decode.."
     try:
-      jpegErr = jpeg.decode(0, 0, jpegScaleFactor.cint)
+      jpegErr = self.jpeg.decode(0, 0, jpegScaleFactor.cint)
     except CatchableError:
       echo "error: ", system.getCurrentException().msg, system.getCurrentException().getStackTrace()
-      echo jpeg.getLastError()
+      echo self.jpeg.getLastError()
       jpegErr = 0
     finally:
       self.errDiffRow.reset()
     if jpegErr != 1:
-      echo "- jpeg decoding error: ", jpeg.getLastError()
+      echo "- jpeg decoding error: ", self.jpeg.getLastError()
       return jpegErr
 
-    jpeg.close()
+    self.jpeg.close()
     if self.drawMode == ErrorDiffusion:
       self.errDiff.process()
       self.errDiff.deinit()
@@ -317,7 +318,7 @@ proc drawJpeg*(self: var JpegDecoder; filename: string; x, y, w, h: int; gravity
     # errorMatrix.setLen(0)
 
   else:
-    echo "- couldnt decode jpeg! error: ", jpeg.getLastError()
+    echo "- couldnt decode jpeg! error: ", self.jpeg.getLastError()
     return jpegErr
 
   return 1

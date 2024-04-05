@@ -58,14 +58,14 @@ else:
 ##
 
 type
-  JPEGDEC* {.bycopy.} = object
-    jpeg*: JPEGIMAGE
+  JpegDec* = object
+    jpeg: JPEGIMAGE
 
 ##
 ##  Memory initialization
 ##
 
-proc openRAM*(self: var JPEGDEC; pData: ptr uint8; iDataSize: cint; pfnDraw: JPEG_DRAW_CALLBACK): cint =
+proc openRAM*(self: var JpegDec; pData: ptr uint8; iDataSize: cint; pfnDraw: JPEG_DRAW_CALLBACK): cint =
   zeroMem(self.jpeg.addr, JPEGIMAGE.sizeof)
   self.jpeg.ucMemType = JPEG_MEM_RAM
   #self.jpeg.pfnRead = readRAM
@@ -78,7 +78,7 @@ proc openRAM*(self: var JPEGDEC; pData: ptr uint8; iDataSize: cint; pfnDraw: JPE
   self.jpeg.iMaxMCUs = 1000 ##  set to an unnaturally high value to start
   return JPEGInit(self.jpeg.addr)
 
-proc openFLASH*(self: var JPEGDEC; pData: ptr uint8; iDataSize: cint; pfnDraw: JPEG_DRAW_CALLBACK): cint =
+proc openFLASH*(self: var JpegDec; pData: ptr uint8; iDataSize: cint; pfnDraw: JPEG_DRAW_CALLBACK): cint =
   zeroMem(self.jpeg.addr, JPEGIMAGE.sizeof)
   self.jpeg.ucMemType = JPEG_MEM_FLASH
   #self.jpeg.pfnRead = readFLASH
@@ -95,7 +95,7 @@ proc openFLASH*(self: var JPEGDEC; pData: ptr uint8; iDataSize: cint; pfnDraw: J
 ##  File (SD/MMC) based initialization
 ##
 
-proc open*(self: var JPEGDEC; szFilename: string; pfnOpen: JPEG_OPEN_CALLBACK; pfnClose: JPEG_CLOSE_CALLBACK; pfnRead: JPEG_READ_CALLBACK; pfnSeek: JPEG_SEEK_CALLBACK; pfnDraw: JPEG_DRAW_CALLBACK): cint =
+proc open*(self: var JpegDec; szFilename: string; pfnOpen: JPEG_OPEN_CALLBACK; pfnClose: JPEG_CLOSE_CALLBACK; pfnRead: JPEG_READ_CALLBACK; pfnSeek: JPEG_SEEK_CALLBACK; pfnDraw: JPEG_DRAW_CALLBACK): cint =
   zeroMem(self.jpeg.addr, JPEGIMAGE.sizeof)
   self.jpeg.pfnRead = pfnRead
   self.jpeg.pfnSeek = pfnSeek
@@ -112,7 +112,7 @@ proc open*(self: var JPEGDEC; szFilename: string; pfnOpen: JPEG_OPEN_CALLBACK; p
 ##  data stream initialization
 ##
 
-proc open*(self: var JPEGDEC; fHandle: pointer; iDataSize: cint; pfnClose: JPEG_CLOSE_CALLBACK; pfnRead: JPEG_READ_CALLBACK; pfnSeek: JPEG_SEEK_CALLBACK; pfnDraw: JPEG_DRAW_CALLBACK): cint =
+proc open*(self: var JpegDec; fHandle: pointer; iDataSize: cint; pfnClose: JPEG_CLOSE_CALLBACK; pfnRead: JPEG_READ_CALLBACK; pfnSeek: JPEG_SEEK_CALLBACK; pfnDraw: JPEG_DRAW_CALLBACK): cint =
   zeroMem(self.jpeg.addr, JPEGIMAGE.sizeof)
   self.jpeg.pfnRead = pfnRead
   self.jpeg.pfnSeek = pfnSeek
@@ -123,7 +123,7 @@ proc open*(self: var JPEGDEC; fHandle: pointer; iDataSize: cint; pfnClose: JPEG_
   self.jpeg.JPEGFile.fHandle = fHandle
   return JPEGInit(self.jpeg.addr)
 
-proc close*(self: var JPEGDEC) =
+proc close*(self: var JpegDec) =
   #if self.jpeg.pfnClose != nil:
   self.jpeg.pfnClose(self.jpeg.JPEGFile.fHandle)
 
@@ -134,44 +134,48 @@ proc close*(self: var JPEGDEC) =
 ##  0 = error
 ##
 
-proc decode*(self: var JPEGDEC; x: cint; y: cint; iOptions: cint): cint =
+proc decode*(self: var JpegDec; x: cint; y: cint; iOptions: cint): cint =
   self.jpeg.iXOffset = x
   self.jpeg.iYOffset = y
   self.jpeg.iOptions = iOptions
   return DecodeJPEG(self.jpeg.addr)
 
-proc decodeDither*(self: var JPEGDEC; pDither: ptr uint8; iOptions: cint): cint =
+proc decodeDither*(self: var JpegDec; pDither: ptr uint8; iOptions: cint): cint =
   self.jpeg.iOptions = iOptions
   self.jpeg.pDitherBuffer = pDither
   return DecodeJPEG(self.jpeg.addr)
 
-proc getOrientation*(self: var JPEGDEC): cint {.inline.} = self.jpeg.ucOrientation.cint
-proc getWidth*(self: var JPEGDEC): cint {.inline.} = self.jpeg.iWidth
-proc getHeight*(self: var JPEGDEC): cint {.inline.} = self.jpeg.iHeight
-proc getBpp*(self: var JPEGDEC): cint {.inline.} = self.jpeg.ucBpp.cint
+proc getOrientation*(self: JpegDec): cint {.inline.} = self.jpeg.ucOrientation.cint
+proc getWidth*(self: JpegDec): cint {.inline.} = self.jpeg.iWidth
+proc getHeight*(self: JpegDec): cint {.inline.} = self.jpeg.iHeight
+proc getBpp*(self: JpegDec): cint {.inline.} = self.jpeg.ucBpp.cint
 
 ##
 ##  set draw callback user pointer variable
 ##
 
-proc setUserPointer*(self: var JPEGDEC; p: pointer) =
+proc setUserPointer*(self: var JpegDec; p: pointer) =
   self.jpeg.pUser = p
 
-proc getSubSample*(self: var JPEGDEC): cint {.inline.} = self.jpeg.ucSubSample.cint
-proc hasThumb*(self: var JPEGDEC): cint = self.jpeg.ucHasThumb.cint
-proc getThumbWidth*(self: var JPEGDEC): cint {.inline.} = self.jpeg.iThumbWidth
-proc getThumbHeight*(self: var JPEGDEC): cint {.inline.} = self.jpeg.iThumbHeight
-proc getLastError*(self: var JPEGDEC): int {.inline.} = self.jpeg.iError
-proc setPixelType*(self: var JPEGDEC; iType: uint8) =
+proc getSubSample*(self: JpegDec): cint {.inline.} = self.jpeg.ucSubSample.cint
+proc hasThumb*(self: JpegDec): bool {.inline.} = self.jpeg.ucHasThumb.bool
+proc getThumbWidth*(self: JpegDec): cint {.inline.} = self.jpeg.iThumbWidth
+proc getThumbHeight*(self: JpegDec): cint {.inline.} = self.jpeg.iThumbHeight
+proc getLastError*(self: JpegDec): int {.inline.} = self.jpeg.iError
+
+proc setPixelType*(self: var JpegDec; iType: uint8) =
   if iType >= 0 and iType < INVALID_PIXEL_TYPE:
     self.jpeg.ucPixelType = iType
   else:
     self.jpeg.iError = JPEG_INVALID_PARAMETER.ord
-proc setMaxOutputSize*(self: var JPEGDEC; iMaxMCUs: cint) =
+
+proc setMaxOutputSize*(self: var JpegDec; iMaxMCUs: cint) =
   if iMaxMCUs < 1:
     self.jpeg.iMaxMCUs = 1
   else:
     self.jpeg.iMaxMCUs = iMaxMCUs
+
+proc setFramebuffer*(self: var JpegDec; pFramebuffer: pointer) {.inline.} = self.jpeg.pFramebuffer = pFramebuffer
 
 #[
 when defined(FS_H):
