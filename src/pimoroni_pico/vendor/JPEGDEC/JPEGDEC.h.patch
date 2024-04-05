@@ -1,0 +1,98 @@
+--- JPEGDEC.h.1	2024-04-05 15:27:47.150151601 +0200
++++ JPEGDEC.h	2024-04-05 14:44:47.503265417 +0200
+@@ -13,7 +13,7 @@
+ //
+ #ifndef __JPEGDEC__
+ #define __JPEGDEC__
+-#if defined( __MACH__ ) || defined( __LINUX__ ) || defined( __MCUXPRESSO ) || defined( ESP_PLATFORM )
++#if defined( __MACH__ ) || defined( __linux__ ) || defined( __MCUXPRESSO ) || defined( ESP_PLATFORM ) || defined(PICO_BUILD)
+ #include <stdlib.h>
+ #include <string.h>
+ #include <stdint.h>
+@@ -73,7 +73,7 @@
+ #define MCU4 (DCTSIZE * 4)
+ #define MCU5 (DCTSIZE * 5)
+ 
+-#if defined(__arm64__) || defined(__aarch64__) || defined (__x86_64__)
++#if 0 //defined(__arm64__) || defined(__aarch64__) || defined (__x86_64__)
+ #define REGISTER_WIDTH 64
+ typedef uint64_t my_ulong;
+ typedef int64_t my_long;
+@@ -135,11 +135,11 @@
+ } JPEGDRAW;
+ 
+ // Callback function prototypes
+-typedef int32_t (JPEG_READ_CALLBACK)(JPEGFILE *pFile, uint8_t *pBuf, int32_t iLen);
+-typedef int32_t (JPEG_SEEK_CALLBACK)(JPEGFILE *pFile, int32_t iPosition);
+-typedef int (JPEG_DRAW_CALLBACK)(JPEGDRAW *pDraw);
+-typedef void * (JPEG_OPEN_CALLBACK)(const char *szFilename, int32_t *pFileSize);
+-typedef void (JPEG_CLOSE_CALLBACK)(void *pHandle);
++typedef int32_t (*JPEG_READ_CALLBACK)(JPEGFILE *pFile, uint8_t *pBuf, int32_t iLen);
++typedef int32_t (*JPEG_SEEK_CALLBACK)(JPEGFILE *pFile, int32_t iPosition);
++typedef int (*JPEG_DRAW_CALLBACK)(JPEGDRAW *pDraw);
++typedef void * (*JPEG_OPEN_CALLBACK)(const char *szFilename, int32_t *pFileSize);
++typedef void (*JPEG_CLOSE_CALLBACK)(void *pHandle);
+ 
+ /* JPEG color component info */
+ typedef struct _jpegcompinfo
+@@ -200,11 +200,11 @@
+     int iVLCSize; // current quantity of data in the VLC buffer
+     int iResInterval, iResCount; // restart interval
+     int iMaxMCUs; // max MCUs of pixels per JPEGDraw call
+-    JPEG_READ_CALLBACK *pfnRead;
+-    JPEG_SEEK_CALLBACK *pfnSeek;
+-    JPEG_DRAW_CALLBACK *pfnDraw;
+-    JPEG_OPEN_CALLBACK *pfnOpen;
+-    JPEG_CLOSE_CALLBACK *pfnClose;
++    JPEG_READ_CALLBACK pfnRead;
++    JPEG_SEEK_CALLBACK pfnSeek;
++    JPEG_DRAW_CALLBACK pfnDraw;
++    JPEG_OPEN_CALLBACK pfnOpen;
++    JPEG_CLOSE_CALLBACK pfnClose;
+     JPEGCOMPINFO JPCI[MAX_COMPS_IN_SCAN]; /* Max color components */
+     JPEGFILE JPEGFile;
+     BUFFERED_BITS bb;
+@@ -232,14 +232,14 @@
+ class JPEGDEC
+ {
+   public:
+-    int openRAM(uint8_t *pData, int iDataSize, JPEG_DRAW_CALLBACK *pfnDraw);
+-    int openFLASH(uint8_t *pData, int iDataSize, JPEG_DRAW_CALLBACK *pfnDraw);
+-    int open(const char *szFilename, JPEG_OPEN_CALLBACK *pfnOpen, JPEG_CLOSE_CALLBACK *pfnClose, JPEG_READ_CALLBACK *pfnRead, JPEG_SEEK_CALLBACK *pfnSeek, JPEG_DRAW_CALLBACK *pfnDraw);
+-    int open(void *fHandle, int iDataSize, JPEG_CLOSE_CALLBACK *pfnClose, JPEG_READ_CALLBACK *pfnRead, JPEG_SEEK_CALLBACK *pfnSeek, JPEG_DRAW_CALLBACK *pfnDraw);
++    int openRAM(uint8_t *pData, int iDataSize, JPEG_DRAW_CALLBACK pfnDraw);
++    int openFLASH(uint8_t *pData, int iDataSize, JPEG_DRAW_CALLBACK pfnDraw);
++    int open(const char *szFilename, JPEG_OPEN_CALLBACK pfnOpen, JPEG_CLOSE_CALLBACK pfnClose, JPEG_READ_CALLBACK pfnRead, JPEG_SEEK_CALLBACK pfnSeek, JPEG_DRAW_CALLBACK pfnDraw);
++    int open(void *fHandle, int iDataSize, JPEG_CLOSE_CALLBACK pfnClose, JPEG_READ_CALLBACK pfnRead, JPEG_SEEK_CALLBACK pfnSeek, JPEG_DRAW_CALLBACK pfnDraw);
+     void setFramebuffer(void *pFramebuffer);
+ 
+ #ifdef FS_H
+-    int open(File &file, JPEG_DRAW_CALLBACK *pfnDraw);
++    int open(File &file, JPEG_DRAW_CALLBACK pfnDraw);
+ #endif
+     void close();
+     int decode(int x, int y, int iOptions);
+@@ -262,9 +262,9 @@
+ };
+ #else
+ #define JPEG_STATIC
+-int JPEG_openRAM(JPEGIMAGE *pJPEG, uint8_t *pData, int iDataSize, JPEG_DRAW_CALLBACK *pfnDraw);
++int JPEG_openRAM(JPEGIMAGE *pJPEG, uint8_t *pData, int iDataSize, JPEG_DRAW_CALLBACK pfnDraw);
+ void JPEG_setFramebuffer(JPEGIMAGE *pJPEG, void *pFramebuffer);
+-int JPEG_openFile(JPEGIMAGE *pJPEG, const char *szFilename, JPEG_DRAW_CALLBACK *pfnDraw);
++int JPEG_openFile(JPEGIMAGE *pJPEG, const char *szFilename, JPEG_DRAW_CALLBACK pfnDraw);
+ int JPEG_getWidth(JPEGIMAGE *pJPEG);
+ int JPEG_getHeight(JPEGIMAGE *pJPEG);
+ int JPEG_decode(JPEGIMAGE *pJPEG, int x, int y, int iOptions);
+@@ -282,6 +282,11 @@
+ void JPEG_setMaxOutputSize(JPEGIMAGE *pJPEG, int iMaxMCUs);
+ #endif // __cplusplus
+ 
++// forward references
++int JPEGInit(JPEGIMAGE *pJPEG);
++int JPEGParseInfo(JPEGIMAGE *pPage, int bExtractThumb);
++int DecodeJPEG(JPEGIMAGE *pImage);
++
+ #ifdef ALLOWS_UNALIGNED
+ #define INTELSHORT(p) (*(uint16_t *)p)
+ #define INTELLONG(p) (*(uint32_t *)p)

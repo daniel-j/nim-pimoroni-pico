@@ -1584,6 +1584,7 @@ int JPEGParseInfo(JPEGIMAGE *pPage, int bExtractThumb)
                     iTagCount = TIFFSHORT(&s[iOffset+16], bMotorola);
                     GetTIFFInfo(pPage, bMotorola, IFD+iOffset+8);
                     // The second IFD defines the thumbnail (if present)
+                    // TODO: Fix this code, seems to access data outside of buffer
                     // if (iTagCount >= 1 && iTagCount < 32) // valid number of tags for EXIF data 'page'
                     // {
                     //     // point to next IFD

@@ -1,0 +1,79 @@
+--- jpeg.inl	2024-04-05 15:31:08.498860479 +0200
++++ jpeg.inl.c	2024-04-05 15:33:02.196969859 +0200
+@@ -58,13 +58,13 @@
+ #endif
+ 
+ // forward references
+-static int JPEGInit(JPEGIMAGE *pJPEG);
+-static int JPEGParseInfo(JPEGIMAGE *pPage, int bExtractThumb);
++int JPEGInit(JPEGIMAGE *pJPEG);
++int JPEGParseInfo(JPEGIMAGE *pPage, int bExtractThumb);
+ static void JPEGGetMoreData(JPEGIMAGE *pPage);
+-static int DecodeJPEG(JPEGIMAGE *pImage);
++int DecodeJPEG(JPEGIMAGE *pImage);
+ static int32_t readRAM(JPEGFILE *pFile, uint8_t *pBuf, int32_t iLen);
+ static int32_t seekMem(JPEGFILE *pFile, int32_t iPosition);
+-#if defined (__MACH__) || defined( __LINUX__ ) || defined( __MCUXPRESSO )
++#if defined (__MACH__) || defined( __linux__ ) || defined( __MCUXPRESSO )
+ static int32_t readFile(JPEGFILE *pFile, uint8_t *pBuf, int32_t iLen);
+ static int32_t seekFile(JPEGFILE *pFile, int32_t iPosition);
+ static void closeFile(void *handle);
+@@ -755,7 +755,7 @@
+ // returns 1 for success, 0 for failure
+ // Fills in the basic image info fields of the JPEGIMAGE structure
+ //
+-static int JPEGInit(JPEGIMAGE *pJPEG)
++int JPEGInit(JPEGIMAGE *pJPEG)
+ {
+     return JPEGParseInfo(pJPEG, 0); // gather info for image
+ } /* JPEGInit() */
+@@ -1494,7 +1494,7 @@
+ // Parse the JPEG header, gather necessary info to decode the image
+ // Returns 1 for success, 0 for failure
+ //
+-static int JPEGParseInfo(JPEGIMAGE *pPage, int bExtractThumb)
++int JPEGParseInfo(JPEGIMAGE *pPage, int bExtractThumb)
+ {
+     int iBytesRead;
+     int i, iOffset, iTableOffset;
+@@ -1584,18 +1584,19 @@
+                     iTagCount = TIFFSHORT(&s[iOffset+16], bMotorola);
+                     GetTIFFInfo(pPage, bMotorola, IFD+iOffset+8);
+                     // The second IFD defines the thumbnail (if present)
+-                    if (iTagCount >= 1 && iTagCount < 32) // valid number of tags for EXIF data 'page'
+-                    {
+-                       // point to next IFD
+-                        IFD += (12 * iTagCount) + 2;
+-                        IFD = TIFFLONG(&s[IFD + iOffset + 8], bMotorola);
+-                        if (IFD != 0) // Thumbnail present?
+-                        {
+-                            pPage->ucHasThumb = 1;
+-                            GetTIFFInfo(pPage, bMotorola, IFD+iOffset+8); // info for second 'page' of TIFF
+-                            pPage->iThumbData += iOffset + 8; // absolute offset in the file
+-                        }
+-                    }
++                    // TODO: Fix this code, seems to access data outside of buffer
++                    // if (iTagCount >= 1 && iTagCount < 32) // valid number of tags for EXIF data 'page'
++                    // {
++                    //     // point to next IFD
++                    //     IFD += (12 * iTagCount) + 2;
++                    //     IFD = TIFFLONG(&s[IFD + iOffset + 8], bMotorola);
++                    //     if (IFD != 0) // Thumbnail present?
++                    //     {
++                    //         pPage->ucHasThumb = 1;
++                    //         GetTIFFInfo(pPage, bMotorola, IFD+iOffset+8); // info for second 'page' of TIFF
++                    //         pPage->iThumbData += iOffset + 8; // absolute offset in the file
++                    //     }
++                    // }
+                 }
+                 break;
+             case 0xffc0: // SOFx - start of frame
+@@ -4505,7 +4506,7 @@
+ // Decode the image
+ // returns 0 for error, 1 for success
+ //
+-static int DecodeJPEG(JPEGIMAGE *pJPEG)
++int DecodeJPEG(JPEGIMAGE *pJPEG)
+ {
+     int cx, cy, x, y, mcuCX, mcuCY;
+     int iLum0, iLum1, iLum2, iLum3, iCr, iCb;
