@@ -155,6 +155,26 @@ func getDitherCandidates*(col: RgbLinear; palette: seq[RgbLinear]; paletteLab: s
     return l2 - l1
   )
 
+proc getDitherCandidateFast*(col: RgbLinear; palette: seq[RgbLinear]; paletteLab: seq[Lab]; cache: NearestColorCache; ditherIndex: int): uint8 =
+  var error: RgbLinear
+  var frequency = newSeq[int](palette.len)
+  const errorFactor = 0.8
+  for i in 0 ..< ditherCacheLength:
+    let targetColor = (col + (error * errorFactor))
+    when ditherGenerateCache:
+      let closestColor = targetColor.clamp().toLab().closest(paletteLab).uint8
+    else:
+      let closestColor = cache[targetColor.fromLinear().getCacheKey()]
+    inc(frequency[closestColor])
+    error += col - palette[closestColor]
+    error = error.clamp(RgbLinearComponent.low + rgbMultiplier * 3, RgbLinearComponent.high - rgbMultiplier * 3)
+
+  var cumulativeSum = 0
+  for i in 0'u8..<frequency.len.uint8:
+    cumulativeSum += frequency[i]
+    if ditherIndex < cumulativeSum:
+      return i
+
 func generateNearestCache*(cache: var NearestColorCache; palette: seq[RgbLinear]) {.compileTime.} =
   # cache.setLen(colorCacheSize)
   debugEcho "Generating nearest color cache with size ", sizeof(cache[0]) * cache.len
@@ -181,7 +201,7 @@ func generateNearestCache*(palette: seq[RgbLinear]): NearestColorCache {.compile
   result.generateNearestCache(palette)
 
 # code from https://nelari.us/post/quick_and_dirty_dithering/#bayer-matrix
-func bayerMatrix*[T](M: static[Natural]; gamma: float32 = defaultGamma): array[1 shl M shl M, T] {.compileTime.} =
+func bayerMatrix*[T](M: static[Natural]): array[1 shl M shl M, T] {.compileTime.} =
   # const length = 1 shl M shl M
   const dim = 1 shl M
   # echo "Generating Bayer matrix " & $dim & "x" & $dim

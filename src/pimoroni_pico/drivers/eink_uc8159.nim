@@ -171,7 +171,7 @@ proc updateUc8159*(self: var EinkDriver; graphics: var PicoGraphicsPen3Bit) =
   ## Any garbage data will do.
   ##  2px per byte, so we need width * 24 bytes
   if self.height == 400 and self.rotation == Rotate_0:
-    discard self.spi.writeBlocking(graphics.frameBuffer[0].addr, self.width * 24)
+    discard self.spi.writeBlocking(cast[ptr uint8](graphics.frameBuffer), self.width * 24)
 
   let spiPtr = self.spi
   let csPin = self.csPin

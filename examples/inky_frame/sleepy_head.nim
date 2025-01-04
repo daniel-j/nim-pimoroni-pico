@@ -5,7 +5,7 @@ import pimoroni_pico/libraries/inky_frame
 import pimoroni_pico/libraries/hershey_fonts_data
 
 
-var inky: InkyFrame
+var inky: InkyFrame[InkyFrame7_3]
 inky.boot()
 
 discard stdioInitAll()
@@ -31,7 +31,7 @@ inky.setFont(futural)
 inky.setThickness(1)
 echo "Wake Up Events: ", inky.getWakeUpEvents()
 
-var dt = inky.rtc.getDatetime().toNimDateTime()
+var dt = inky.rtc.getDatetime()
 
 echo "Current time: ", dt, " ", inky.rtc.wasReset
 
@@ -39,7 +39,7 @@ inky.text("Current time: " & $dt & " " & $inky.rtc.wasReset, Point(x: 10, y: 20)
 
 inky.text("Wakeup events: " & $inky.getWakeUpEvents(), Point(x: 10, y: 50), 200, 0.8)
 
-let now = inky.rtc.getDatetime().toNimDateTime()
+let now = inky.rtc.getDatetime()
 var target = now + initDuration(minutes = 1, seconds = 30)
 
 inky.text("Estimated wakeup: " & $target, Point(x: 10, y: 80), 200, 0.6)
@@ -78,7 +78,7 @@ inky.clear()
 
 inky.setPen(Black)
 
-dt = inky.rtc.getDatetime().toNimDateTime()
+dt = inky.rtc.getDatetime()
 
 inky.text($dt, Point(x: 10, y: 20), 200, 0.8)
 

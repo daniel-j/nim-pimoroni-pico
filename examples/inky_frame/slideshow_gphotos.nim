@@ -30,7 +30,7 @@ const seekPattern5 = ",null,0], sideChannel"
 
 discard stdioInitAll()
 
-var inky: InkyFrame
+var inky: InkyFrame[InkyFrame7_3]
 inky.boot()
 
 var fs: FATFS

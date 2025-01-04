@@ -70,7 +70,7 @@ proc busyWait*(self: var EinkDriver; minimumWaitMs: uint32 = 0) =
   # let endTime = getAbsoluteTime()
   # echo diffUs(startTime, endTime)
 
-proc command*(self: var EinkDriver; reg: EinkReg; len: Natural; data: ptr uint8) =
+proc command*(self: EinkDriver; reg: EinkReg; len: Natural; data: ptr uint8) =
   # var d = newSeq[uint8](len)
   # for i in 0..<len:
   #   d[i] = cast[ptr uint8](cast[uint](data) + i.uint)[]
@@ -85,13 +85,13 @@ proc command*(self: var EinkDriver; reg: EinkReg; len: Natural; data: ptr uint8)
     discard self.spi.writeBlocking(data, len.csize_t)
   self.csPin.put(High)
 
-proc command*(self: var EinkDriver; reg: EinkReg; data: varargs[uint8]) =
+proc command*(self: EinkDriver; reg: EinkReg; data: varargs[uint8]) =
   if data.len > 0:
     self.command(reg, data.len, data[0].unsafeAddr)
   else:
     self.command(reg, 0, nil)
 
-proc data*(self: var EinkDriver; len: uint; data: varargs[uint8]) =
+proc data*(self: EinkDriver; len: uint; data: varargs[uint8]) =
   self.csPin.put(Low)
   # data mode
   self.dcPin.put(High)

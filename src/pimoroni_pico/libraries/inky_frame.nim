@@ -10,6 +10,25 @@ import ./pico_graphics
 import ../drivers/wakeup
 
 export options, pico_graphics, fatfs, sdcard, psram_display, Colour, rtc_pcf85063a, wakeup, times, cyw43_arch
+type
+  InkyFrameKind* = enum
+    InkyFrame4_0
+    InkyFrame5_7
+    InkyFrame7_3
+
+  InkyFrameInfo = object
+    width*: uint16
+    height*: uint16
+
+const inkyFrame4_0 = InkyFrameInfo(width: 640, height: 400)
+const inkyFrame5_7 = InkyFrameInfo(width: 600, height: 448)
+const inkyFrame7_3 = InkyFrameInfo(width: 800, height: 480)
+
+func getInkyFrameInfo(kind: InkyFrameKind): InkyFrameInfo =
+  return case kind:
+  of InkyFrame4_0: inkyFrame4_0
+  of InkyFrame5_7: inkyFrame5_7
+  of InkyFrame7_3: inkyFrame7_3
 
 const
   PinHoldSysEn = 2.Gpio
@@ -26,15 +45,11 @@ const
   PinLedC* = 13.Gpio
   PinLedD* = 14.Gpio
   PinLedE* = 15.Gpio
-  #PinMiso = 16.Gpio
+  PinMiso = 16.Gpio
   PinEinkCs = 17.Gpio
   PinClk = 18.Gpio
   PinMosi = 19.Gpio
-  #PinSdDat0 = 19.Gpio
-  #PinSdDat1 = 20.Gpio
-  #PinSdDat2 = 21.Gpio
-  #PinSdDat3 = 22.Gpio
-  #PinSdCs = 22.Gpio
+  PinSdCs = 22.Gpio
   #PinAdc0 = 26.Gpio
   PinEinkReset = 27.Gpio
   PinEinkDc = 28.Gpio
@@ -72,15 +87,15 @@ type
 
   Pen* = Colour
 
-  InkyFrameKind* = enum
-    InkyFrame4_0, InkyFrame5_7, InkyFrame7_3
+type
 
-  InkyFrame* = object of PicoGraphicsPen3Bit
-    kind*: InkyFrameKind
+  InkyFrame*[kind: static[InkyFrameKind]] = object of PicoGraphicsPen3Bit
     einkDriver: EinkDriver
     rtc*: Pcf85063a
     width*, height*: int
     wakeUpEvents: set[WakeUpEvent]
+    when kind != InkyFrame7_3:
+      fb: array[PicoGraphicsPen3Bit.bufferSize(getInkyFrameInfo(kind).width, getInkyFrameInfo(kind).height), uint8]
 
 const PicoGraphicsPen3BitPaletteLut7_3* = generateNearestCache(PicoGraphicsPen3BitPalette7_3[0..<7])
 const PicoGraphicsPen3BitPaletteLut5_7* = generateNearestCache(PicoGraphicsPen3BitPalette5_7[0..<7])
@@ -127,7 +142,7 @@ proc boot*(self: var InkyFrame) =
 
   # detect Inky Frame model in runtime
   # Fallback to Inky Frame 5.7" if test fails
-  self.kind = detectInkyFrameModel().get(InkyFrame5_7)
+  # self.kind = detectInkyFrameModel().get(InkyFrame5_7)
 
   # setup the shift register
   sr.init()
@@ -166,25 +181,24 @@ proc boot*(self: var InkyFrame) =
   adcInit()
 
 proc init*(self: var InkyFrame) =
-  (self.width, self.height) =
-    case self.kind:
-    of InkyFrame4_0: (640, 400)
-    of InkyFrame5_7: (600, 448)
-    of InkyFrame7_3: (800, 480)
+  const info = getInkyFrameInfo(self.kind)
+  self.width = info.width.int
+  self.height = info.height.int
 
   PicoGraphicsPen3Bit(self).init(
     width = self.width.uint16,
     height = self.height.uint16,
-    backend = if self.kind == InkyFrame7_3: BackendPsram else: BackendMemory,
-    palette = if self.kind == InkyFrame7_3: PicoGraphicsPen3BitPalette7_3 else: PicoGraphicsPen3BitPalette5_7,
-    # paletteSize = if self.kind == InkyFrame5_7: 8 else: 7 # clean colour is a greenish gradient on inky7, so avoid it
+    backend = when self.kind == InkyFrame7_3: BackendPsram else: BackendMemory,
+    palette = when self.kind == InkyFrame7_3: PicoGraphicsPen3BitPalette7_3 else: PicoGraphicsPen3BitPalette5_7,
+    frameBuffer = when self.kind == InkyFrame7_3: nil else: self.fb[0].addr
+    # paletteSize = when self.kind == InkyFrame5_7: 8 else: 7 # clean colour is a greenish gradient on inky7, so avoid it
   )
   self.cacheNearest = if self.kind == InkyFrame7_3: PicoGraphicsPen3BitPaletteLut7_3.unsafeAddr else: PicoGraphicsPen3BitPaletteLut5_7.unsafeAddr
   # self.cacheNearestBuilt = true
 
   let pins = SpiPins(spi: PimoroniSpiDefaultInstance, cs: PinEinkCs, sck: PinClk, mosi: PinMosi, dc: PinEinkDc)
 
-  self.einkDriver.kind = if self.kind == InkyFrame7_3: KindAc073tc1a else: KindUc8159
+  self.einkDriver.kind = when self.kind == InkyFrame7_3: KindAc073tc1a else: KindUc8159
 
   self.einkDriver.init(
     self.width.uint16,
@@ -257,7 +271,7 @@ proc sleep*(self: var InkyFrame; wakeInMinutes: int = -1; emulateSleep = false) 
     #   self.rtc.enableTimerInterrupt(true)
     # else:
     #   # more than 255 minutes, calculate wakeup time and day
-    let now = self.rtc.getDatetime().toNimDateTime()
+    let now = self.rtc.getDatetime()
     if minutes == 1 and now.second >= 55:
       inc(minutes)
     let dt = now + initDuration(minutes = minutes, seconds = -now.second)

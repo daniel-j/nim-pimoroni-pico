@@ -1,12 +1,13 @@
 import std/bitops
 import std/strutils
+import std/times
 
 import picostdlib/[
-  hardware/i2c, hardware/rtc
+  hardware/i2c, hardware/rtc, helpers
 ]
 import ../common/[pimoroni_common, pimoroni_i2c]
 
-export pimoroni_i2c
+export pimoroni_i2c, times
 
 type
   BcdNum = distinct range[0x00'u8 .. 0x99'u8]
@@ -203,12 +204,12 @@ type
 
 proc waitForOscillator*(self: var Pcf85063a) =
   # read the oscillator stop bit until it is cleared
-  var status = self.i2c.regReadUint8(self.address, SECONDS.uint8)
+  var status = self.i2c.regReadUint8(self.address, Registers.SECONDS.uint8)
   while status.testBit(7):
     # attempt to clear oscillator stop flag, then read it back
     # status.clearBit(7)
-    discard self.i2c.regWriteUint8(self.address, SECONDS.uint8, 0x00)
-    status = self.i2c.regReadUint8(self.address, SECONDS.uint8)
+    discard self.i2c.regWriteUint8(self.address, Registers.SECONDS.uint8, 0x00)
+    status = self.i2c.regReadUint8(self.address, Registers.SECONDS.uint8)
 
 proc reset*(self: var Pcf85063a) =
   # magic soft reset command
@@ -242,7 +243,7 @@ proc init*(self: var Pcf85063a; i2c: I2c; interrupt: GpioOptional = GpioUnused) 
     self.reset()
 
   # read the oscillator stop bit and reset if it is set
-  var status = self.i2c.regReadUint8(self.address, SECONDS.uint8)
+  var status = self.i2c.regReadUint8(self.address, Registers.SECONDS.uint8)
 
   if status.testBit(7):
     # self.reset()
@@ -269,26 +270,26 @@ func initialState*(self: Pcf85063a): Pcf85063aState = self.initialState
 
 func wasReset*(self: Pcf85063a): bool = self.wasReset
 
-proc getDatetime*(self: var Pcf85063a): DatetimeT =
+proc getDatetime*(self: var Pcf85063a): DateTime =
   var data: Pcf85063aTimestamp
   discard self.i2c.readBytes(self.address, Registers.SECONDS.uint8, cast[ptr uint8](data.addr), sizeof(data).uint)
-  return DatetimeT(
-    year: data.years.years.bcdDecode().int16 + 2000,
-    month: data.months.months.bcdDecode().int8,
-    day: data.days.days.bcdDecode().int8,
-    dotw: data.weekdays.weekdays.ord.int8,
-    hour: data.hours.hours.bcdDecode().int8,
-    min: data.minutes.minutes.bcdDecode().int8,
-    sec: data.seconds.seconds.bcdDecode().int8
+  return dateTime(
+    year = int data.years.years.bcdDecode().int16 + 2000,
+    month = Month data.months.months.bcdDecode().int8,
+    monthday = MonthdayRange data.days.days.bcdDecode().int8,
+    hour = HourRange data.hours.hours.bcdDecode().int8,
+    minute = MinuteRange data.minutes.minutes.bcdDecode().int8,
+    second = SecondRange data.seconds.seconds.bcdDecode().int8,
+    zone = utc()
   )
 
-proc setDatetime*(self: var Pcf85063a; t: DatetimeT) =
+proc setDatetime*(self: var Pcf85063a; t: DateTime) =
   var data: Pcf85063aTimestamp
-  data.seconds.seconds = t.sec.int
-  data.minutes.minutes = t.min.int
-  data.hours.hours = t.min.int
-  data.days.days = t.day.int
-  data.weekdays.weekdays = DayOfWeek(t.dotw)
+  data.seconds.seconds = t.second.int
+  data.minutes.minutes = t.minute.int
+  data.hours.hours = t.hour.int
+  data.days.days = t.monthday.int
+  data.weekdays.weekdays = cast[DayOfWeek](t.weekday)
   data.months.months = t.month.int
   data.years.years = t.year.int - 2000
   discard self.i2c.writeBytes(self.address, Registers.SECONDS.uint8, cast[ptr uint8](data.addr), sizeof(data).uint)
@@ -372,17 +373,17 @@ proc setRamByte*(self: var Pcf85063a; v: uint8) =
 proc getRamByte*(self: var Pcf85063a): uint8 =
   return self.i2c.regReadUint8(self.address, Registers.RAM_BYTE.uint8)
 
+when picoIncludeRtcDatetime and picoRp2040:
+  proc syncFromPicoRtc*(self: var Pcf85063a): bool =
+    var dt = createDatetime()
+    if not rtcGetDatetime(dt.addr):
+      return false
+    self.setDatetime(dt)
+    return true
 
-proc syncFromPicoRtc*(self: var Pcf85063a): bool =
-  var dt = createDatetime()
-  if not rtcGetDatetime(dt.addr):
-    return false
-  self.setDatetime(dt)
-  return true
-
-proc syncToPicoRtc*(self: var Pcf85063a): bool =
-  var dt = self.getDatetime()
-  return rtcSetDatetime(dt.addr)
+  proc syncToPicoRtc*(self: var Pcf85063a): bool =
+    var dt = self.getDatetime()
+    return rtcSetDatetime(dt.addr)
 
 
 iterator iterRtcState*(state: Pcf85063aState): string =
@@ -396,13 +397,13 @@ iterator iterRtcState*(state: Pcf85063aState): string =
       of OFFSET: $cast[RegOffset](data)
       of RAM_BYTE: $data
 
-      of SECONDS: $cast[RegSeconds](data)
-      of MINUTES: $cast[RegMinutes](data)
-      of HOURS: $cast[RegHours24](data)
-      of DAYS: $cast[RegDays](data)
-      of WEEKDAYS: $cast[RegWeekdays](data)
-      of MONTHS: $cast[RegMonths](data)
-      of YEARS: $cast[RegYears](data)
+      of Registers.SECONDS: $cast[RegSeconds](data)
+      of Registers.MINUTES: $cast[RegMinutes](data)
+      of Registers.HOURS: $cast[RegHours24](data)
+      of Registers.DAYS: $cast[RegDays](data)
+      of Registers.WEEKDAYS: $cast[RegWeekdays](data)
+      of Registers.MONTHS: $cast[RegMonths](data)
+      of Registers.YEARS: $cast[RegYears](data)
 
       of SECOND_ALARM: $cast[RegSecondAlarm](data)
       of MINUTE_ALARM: $cast[RegMinuteAlarm](data)

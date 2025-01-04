@@ -41,6 +41,7 @@ type
     einkDriver*: Uc8151
     buttonStates*: set[Gpio]
     wakeButtonStates*: set[Gpio]
+    fb*: array[PicoGraphicsPen1Bit.bufferSize(296, 128), uint8]
 
 proc width*(self: Badger2040): int {.inline.} = self.bounds.w
 proc height*(self: Badger2040): int {.inline.} = self.bounds.h
@@ -75,7 +76,7 @@ proc init*(self: var Badger2040) =
   PinLed.setFunction(Pwm)
   PinLed.setPwmLevel(0)
 
-  PicoGraphicsPen1Bit(self).init(296, 128)
+  PicoGraphicsPen1Bit(self).init(296, 128, frameBuffer = self.fb[0].addr)
 
   let pins = SpiPins(spi: PimoroniSpiDefaultInstance, cs: PinEinkCs, sck: PinClk, mosi: PinMosi, dc: PinEinkDc)
 

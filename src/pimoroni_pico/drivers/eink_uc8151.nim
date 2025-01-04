@@ -292,7 +292,7 @@ proc partialUpdateUc8151*(self: var Uc8151; graphics: var PicoGraphicsPen1Bit; r
   # region.y is given in columns ("banks"), which are groups of 8 horiontal pixels
   # region.x is given in pixels
 
-  var fb = cast[ptr UncheckedArray[uint8]](graphics.frameBuffer[0].addr)
+  let fb = cast[ptr UncheckedArray[uint8]](graphics.frameBuffer)
   if self.getBlocking():
     self.busyWait()
 
@@ -333,7 +333,7 @@ proc updateUc8151*(self: var Uc8151; graphics: var PicoGraphicsPen1Bit) =
 
   self.command(Ptou) # disable partial mode
 
-  self.command(Dtm2, graphics.frameBuffer.len, graphics.frameBuffer[0].addr) # transmit framebuffer
+  self.command(Dtm2, graphics.bufferSize(), cast[ptr uint8](graphics.frameBuffer)) # transmit framebuffer
   self.command(Dsp) # data stop
 
   self.command(Drf) # start display refresh

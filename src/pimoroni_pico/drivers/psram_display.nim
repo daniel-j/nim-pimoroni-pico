@@ -38,12 +38,12 @@ proc init(self: var PsramDisplay) =
   discard self.spi.writeBlocking(ResetEnable.uint8, Reset.uint8)
   self.pinCs.put(High)
 
-proc init*(self: var PsramDisplay; width, height: uint16; pins: SpiPins = SpiPins(spi: PimoroniSpiDefaultInstance, cs: 3.Gpio, sck: SpiDefaultSck, mosi: SpiDefaultMosi, miso: SpiDefaultMiso)) =
+proc init*(self: var PsramDisplay; width, height: uint16; pins: SpiPins = SpiPins(spi: PimoroniSpiDefaultInstance, cs: 3.Gpio, sck: SpiDefaultSck, mosi: SpiDefaultMosi, miso: GpioOptional(SpiDefaultMiso))) =
   self.spi = pins.spi
   self.pinCs = pins.cs
   self.pinSck = pins.sck
   self.pinMosi = pins.mosi
-  self.pinMiso = pins.miso
+  self.pinMiso = Gpio(pins.miso)
   self.width = width
   self.height = height
   self.startAddress = 0x000000

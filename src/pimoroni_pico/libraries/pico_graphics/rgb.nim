@@ -506,6 +506,9 @@ func toRgb565Be*(self: Rgb): Rgb565 =
     ((self.b and 0b11111000) shr 3).uint16
   return builtinBswap16(p).Rgb565
 
+func toRgb565Be*(self: Rgb565): Rgb565 =
+  return self.uint16.builtinBswap16.Rgb565
+
 func toRgb332*(self: Rgb): Rgb332 =
   let c = self.clamp()
   Rgb332(

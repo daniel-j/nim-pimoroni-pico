@@ -34,7 +34,7 @@ type
 
   PicoGraphicsBase* = object of RootObj
     backend*: PicoGraphicsBackend
-    frameBuffer*: seq[uint8]
+    frameBuffer*: pointer
     fbPsram*: PsramDisplay
     bounds*: Rect
     clip*: Rect
@@ -56,11 +56,13 @@ proc setDimensions*(self: var PicoGraphicsBase; width: uint16; height: uint16) =
   self.clip.w = width.int
   self.clip.h = height.int
 
-proc init*(self: var PicoGraphicsBase; width: uint16; height: uint16; backend: PicoGraphicsBackend = BackendMemory; frameBuffer: seq[uint8] = @[]) =
+proc init*(self: var PicoGraphicsBase; width: uint16; height: uint16; backend: PicoGraphicsBackend = BackendMemory; frameBuffer: pointer) =
   self.setDimensions(width, height)
   self.backend = backend
   if self.backend == BackendMemory:
     self.frameBuffer = frameBuffer
+    if self.frameBuffer.isNil:
+      raise newException(ValueError, "frameBuffer is nil")
   # self.setFont(font6)
 
 # func constructPicoGraphics*(width: uint16; height: uint16; backend: PicoGraphicsBackend = BackendMemory; frameBuffer: seq[uint8] = @[]): PicoGraphics =
@@ -76,7 +78,7 @@ proc setFont*(self: var PicoGraphicsBase; font: HersheyFont) =
   self.hersheyFont = font.unsafeAddr
 # proc setFont*(self: var PicoGraphicsBase; font: string) = discard
 
-func setFramebuffer*(self: var PicoGraphicsBase; frameBuffer: seq[uint8]) = self.frameBuffer = frameBuffer
+func setFramebuffer*(self: var PicoGraphicsBase; frameBuffer: pointer) = self.frameBuffer = frameBuffer
 
 ## these seem to be unused?
 # proc getData*(self: var PicoGraphicsBase): pointer = discard
@@ -95,14 +97,17 @@ type
   PicoGraphicsPen1Bit* = object of PicoGraphicsBase
     color*: uint8
 
-func bufferSize*(self: PicoGraphicsPen1Bit; w: uint; h: uint): uint =
+func bufferSize*(_: typedesc[PicoGraphicsPen1Bit]; w: uint; h: uint): uint =
   return w * h div 8
 
-proc init*(self: var PicoGraphicsPen1Bit; width: uint16; height: uint16; backend: PicoGraphicsBackend = BackendMemory; frameBuffer: seq[uint8] = @[]) =
+func bufferSize*(self: PicoGraphicsPen1Bit): uint {.inline.} =
+  return PicoGraphicsPen1Bit.bufferSize(self.bounds.w.uint, self.bounds.h.uint)
+
+proc init*(self: var PicoGraphicsPen1Bit; width: uint16; height: uint16; backend: PicoGraphicsBackend = BackendMemory; frameBuffer: pointer) =
   PicoGraphicsBase(self).init(width, height, backend, frameBuffer)
   if self.backend == BackendMemory:
-    if self.frameBuffer.len == 0:
-      self.frameBuffer = newSeq[uint8](self.bufferSize(width, height))
+    if self.frameBuffer.isNil:
+      raise newException(ValueError, "frameBuffer is nil")
 
 proc setPen*(self: var PicoGraphicsPen1Bit; c: uint) {.inline.} =
   self.color = c.clamp(0, 255).uint8
@@ -116,7 +121,7 @@ proc setPixel*(self: var PicoGraphicsPen1Bit; p: Point) =
 
   let base = (p.y div 8) + (p.x * self.bounds.h div 8)
   let bitOffsetMask = 1'u8 shl (7 - (p.y and 0b111))
-  let buf = self.frameBuffer[base].addr
+  let buf = cast[ptr UncheckedArray[uint8]](self.frameBuffer)[base].addr
 
   let bit = if self.color == uint8.low:
     false
@@ -211,15 +216,17 @@ const PicoGraphicsPen3BitPalette5_7* = [
 #   for c in PicoGraphicsPen3BitPalette5_7:
 #     echo "#", c.fromLinear().toRgb888().BiggestInt.toHex(6)
 
-
-func bufferSize*(self: PicoGraphicsPen3Bit; w: uint; h: uint): uint =
+func bufferSize*(_: typedesc[PicoGraphicsPen3Bit]; w: uint; h: uint): uint =
   return (w * h div 8) * 3
+
+func bufferSize*(self: PicoGraphicsPen3Bit): uint {.inline.} =
+  return PicoGraphicsPen3Bit.bufferSize(self.bounds.w.uint, self.bounds.h.uint)
 
 func getPaletteSize*(self: PicoGraphicsPen3Bit): uint8 = self.paletteSize
 func setPaletteSize*(self: var PicoGraphicsPen3Bit; paletteSize: uint8) =
   self.paletteSize = paletteSize.clamp(1'u8, self.palette.len.uint8)
 
-proc init*(self: var PicoGraphicsPen3Bit; width: uint16; height: uint16; backend: PicoGraphicsBackend = BackendMemory; frameBuffer: seq[uint8] = @[]; palette: array[8, RgbLinear];
+proc init*(self: var PicoGraphicsPen3Bit; width: uint16; height: uint16; backend: PicoGraphicsBackend = BackendMemory; frameBuffer: pointer; palette: array[8, RgbLinear];
     paletteSize: uint8 = 7) =
   PicoGraphicsBase(self).init(width, height, backend, frameBuffer)
   self.palette = palette
@@ -235,8 +242,8 @@ proc init*(self: var PicoGraphicsPen3Bit; width: uint16; height: uint16; backend
     self.paletteLuma[i] = int c.toLab().L * 100
   case self.backend:
   of BackendMemory:
-    if self.frameBuffer.len == 0:
-      self.frameBuffer = newSeq[uint8](self.bufferSize(width, height))
+    if self.frameBuffer.isNil:
+      raise newException(ValueError, "frameBuffer is nil")
   of BackendPsram:
     self.fbPsram.init(width, height)
 
@@ -303,9 +310,10 @@ proc setPixelImpl*(self: var PicoGraphicsPen3Bit; p: Point; col: uint8) =
     let offset = (self.bounds.w * self.bounds.h) div 8
     let base = (p.x div 8) + (p.y * self.bounds.w div 8)
     let bitOffsetMask = 1'u8 shl (7 - (p.x and 0b111))
-    let bufA = self.frameBuffer[base].addr
-    let bufB = self.frameBuffer[base + offset].addr
-    let bufC = self.frameBuffer[base + offset + offset].addr
+    let fb = cast[ptr UncheckedArray[uint8]](self.frameBuffer)
+    let bufA = fb[base].addr
+    let bufB = fb[base + offset].addr
+    let bufC = fb[base + offset + offset].addr
     if col.testBit(2):
       bufA[].setMask(bitOffsetMask)
     else:
@@ -349,6 +357,7 @@ proc getPixel*(self: PicoGraphicsPen3Bit; p: Point): uint8 =
   if not self.bounds.contains(p) or not self.clip.contains(p):
     return
 
+  let fb = cast[ptr UncheckedArray[uint8]](self.frameBuffer)
   let base = (p.x div 8) + (p.y * self.bounds.w div 8)
   let offset = (self.bounds.w * self.bounds.h) div 8
   let offA = base
@@ -356,9 +365,9 @@ proc getPixel*(self: PicoGraphicsPen3Bit; p: Point): uint8 =
   let offC = offB + offset
   let bo = 7 - (uint8 p.x and 0b111)
   result =
-    ((self.frameBuffer[offA] and (1'u8 shl bo)) shr bo shl 2) or
-    ((self.frameBuffer[offB] and (1'u8 shl bo)) shr bo shl 1) or
-    ((self.frameBuffer[offC] and (1'u8 shl bo)) shr bo)
+    ((fb[offA] and (1'u8 shl bo)) shr bo shl 2) or
+    ((fb[offB] and (1'u8 shl bo)) shr bo shl 1) or
+    ((fb[offC] and (1'u8 shl bo)) shr bo)
 
 proc setPixelSpan*(self: var PicoGraphicsPen3Bit; p: Point; l: uint) =
   if self.backend == BackendPsram and (self.color and RGB_FLAG) != RGB_FLAG:
@@ -481,18 +490,31 @@ type
     srcColor*: Rgb
     color*: Rgb565
 
-
-# proc constructPicoGraphicsPenRgb565*(width: uint16; height: uint16;
-#                                     frameBuffer: pointer): PicoGraphicsPenRgb565 {.
-#     constructor.} = discard
 proc setPen*(self: var PicoGraphicsPenRgb565; c: uint) = discard
-proc setPen*(self: var PicoGraphicsPenRgb565; c: Rgb) = discard
+proc setPen*(self: var PicoGraphicsPenRgb565; c: Rgb) =
+  self.srcColor = c
+  self.color = c.toRgb565()
+
 proc createPen*(self: var PicoGraphicsPenRgb565; c: Rgb): uint = discard
-proc setPixel*(self: var PicoGraphicsPenRgb565; p: Point) = discard
-proc setPixelSpan*(self: var PicoGraphicsPenRgb565; p: Point; l: uint) = discard
+proc setPixel*(self: var PicoGraphicsPenRgb565; p: Point) =
+  let offset = (p.y * self.bounds.w + p.x) * 2
+  cast[ptr UncheckedArray[Rgb565]](self.frameBuffer)[offset] = self.color.toRgb565Be()
+
+proc setPixelSpan*(self: var PicoGraphicsPenRgb565; p: Point; l: uint) =
+  let startOffset = p.y * self.bounds.w + p.x
+  let fb = cast[ptr UncheckedArray[Rgb565]](self.frameBuffer)
+  let colBe = self.color.toRgb565Be()
+  for i in 0 ..< l.int:
+    fb[startOffset + i] = colBe
+
 func bufferSize*(self: PicoGraphicsPenRgb565; w: uint; h: uint): uint =
   return w * h * uint sizeof(Rgb565)
 
+proc init*(self: var PicoGraphicsPenRgb565; width: uint16; height: uint16; backend: PicoGraphicsBackend = BackendMemory; frameBuffer: pointer) =
+  PicoGraphicsBase(self).init(width, height, backend, frameBuffer)
+  if self.backend == BackendMemory:
+    if self.frameBuffer.isNil:
+      raise newException(ValueError, "frameBuffer is nil")
 
 ##
 ## Pico Graphics Pen RGB888
@@ -507,11 +529,11 @@ type
 func bufferSize*(self: PicoGraphicsPenRgb888; w: uint; h: uint): uint =
   return w * h * 3
 
-proc init*(self: var PicoGraphicsPenRgb888; width: uint16; height: uint16; backend: PicoGraphicsBackend = BackendMemory; frameBuffer: seq[uint8] = @[]) =
+proc init*(self: var PicoGraphicsPenRgb888; width: uint16; height: uint16; backend: PicoGraphicsBackend = BackendMemory; frameBuffer: pointer) =
   init(PicoGraphicsBase(self), width, height, backend, frameBuffer)
   if self.backend == BackendMemory:
-    if self.frameBuffer.len == 0:
-      self.frameBuffer = newSeq[uint8](self.bufferSize(width, height))
+    if self.frameBuffer.isNil:
+      raise newException(ValueError, "frameBuffer is nil")
 
 proc setPen*(self: var PicoGraphicsPenRgb888; c: uint) =
   self.srcColor = constructRgb(c.Rgb888)
@@ -527,19 +549,21 @@ proc createPen*(self: var PicoGraphicsPenRgb888; c: Rgb): uint =
 proc setPixel*(self: var PicoGraphicsPenRgb888; p: Point) =
   let offset = (p.y * self.bounds.w + p.x) * 3
 
-  self.frameBuffer[offset + 0] = (self.color.uint32 shr 16).uint8
-  self.frameBuffer[offset + 1] = (self.color.uint32 shr 8).uint8
-  self.frameBuffer[offset + 2] = self.color.uint8
+  let fb = cast[ptr UncheckedArray[uint8]](self.frameBuffer)
+  fb[offset + 0] = (self.color.uint32 shr 16).uint8
+  fb[offset + 1] = (self.color.uint32 shr 8).uint8
+  fb[offset + 2] = self.color.uint8
 
 proc setPixelSpan*(self: var PicoGraphicsPenRgb888; p: Point; l: uint) =
+  let fb = cast[ptr UncheckedArray[uint8]](self.frameBuffer)
   let r = uint8 self.color.uint32 and 0xff
   let g = uint8 (self.color.uint32 shr 8) and 0xff
   let b = uint8 (self.color.uint32 shr 16) and 0xff
   let startOffset = p.y * self.bounds.w + p.x
   for i in 0 ..< l.int:
-    self.frameBuffer[(startOffset + i) * 3 + 0] = r
-    self.frameBuffer[(startOffset + i) * 3 + 1] = g
-    self.frameBuffer[(startOffset + i) * 3 + 2] = b
+    fb[(startOffset + i) * 3 + 0] = r
+    fb[(startOffset + i) * 3 + 1] = g
+    fb[(startOffset + i) * 3 + 2] = b
 
 
 ##
@@ -810,7 +834,7 @@ proc line*(self: var PicoGraphics; p1, p2: Point) =
       inc(x, sx)
       dec(s)
 
-proc thickLine*(self: var PicoGraphics; p1, p2: Point; thickness: Positive = self.thickness) =
+proc thickLine*(self: var PicoGraphics; p1, p2: Point; thickness: Positive) =
   let ht = thickness div 2 # half thickness
   let t = thickness # alias for thickness
 
@@ -865,12 +889,13 @@ proc frameConvert*(self: var PicoGraphicsPen3Bit; `type`: typedesc[PicoGraphics]
   if `type` is PicoGraphicsPenP4:
     case self.backend:
     of BackendMemory:
+      let fb = cast[ptr UncheckedArray[uint8]](self.frameBuffer)
       var rowBuf = newSeq[uint8](self.bounds.w div 2)
       var offset = ((self.bounds.w * self.bounds.h) div 8).uint
       for y in 0 ..< self.bounds.h:
         for x in 0 ..< self.bounds.w:
           var bo: uint = 7 - (uint x and 0b111)
-          var bufA: ptr uint8 = addr(self.frameBuffer[(x div 8) + (y * self.bounds.w div 8)])
+          var bufA: ptr uint8 = addr(fb[(x div 8) + (y * self.bounds.w div 8)])
           var bufB: ptr uint8 = cast[ptr uint8](cast[uint](bufA) + offset)
           var bufC: ptr uint8 = cast[ptr uint8](cast[uint](bufA) + offset + offset)
           var nibble: uint8 = (bufA[] shr bo) and 1

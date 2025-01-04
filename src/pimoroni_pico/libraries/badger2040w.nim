@@ -63,7 +63,7 @@ proc init*(self: var Badger2040W) =
   PinLed.setFunction(Pwm)
   PinLed.setPwmLevel(0)
 
-  PicoGraphicsPen1Bit(self).init(296, 128)
+  PicoGraphicsPen1Bit(self).init(296, 128, frameBuffer = self.fb[0].addr)
 
   let pins = SpiPins(spi: PimoroniSpiDefaultInstance, cs: PinEinkCs, sck: PinClk, mosi: PinMosi, dc: PinEinkDc)
 
@@ -117,7 +117,7 @@ proc sleep*(self: var Badger2040W; wakeInMinutes: int = -1; emulateSleep = false
 
   self.rtc.clearAlarmFlag()
   if wakeInMinutes > 0:
-    let now = self.rtc.getDatetime().toNimDateTime()
+    let now = self.rtc.getDatetime()
     if minutes == 1 and now.second >= 55:
       inc(minutes)
     let dt = now + initDuration(minutes = minutes, seconds = -now.second)
