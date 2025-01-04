@@ -378,11 +378,11 @@ when picoIncludeRtcDatetime and picoRp2040:
     var dt = createDatetime()
     if not rtcGetDatetime(dt.addr):
       return false
-    self.setDatetime(dt)
+    self.setDatetime(dt.toNimDateTime())
     return true
 
   proc syncToPicoRtc*(self: var Pcf85063a): bool =
-    var dt = self.getDatetime()
+    var dt = self.getDatetime().fromNimDateTime()
     return rtcSetDatetime(dt.addr)
 
 

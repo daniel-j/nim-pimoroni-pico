@@ -53,10 +53,10 @@ type
 
   InkyFrameKind* = enum
     InkyFrame4_0, InkyFrame5_7, InkyFrame7_3
-  InkyFrame* = object of PicoGraphicsPen3Bit
-    kind*: InkyFrameKind
+  InkyFrame*[kind: static[InkyFrameKind]] = object of PicoGraphicsPen3Bit
     width*, height*: int
     image*: Image
+    fb: seq[uint8]
 
 const PicoGraphicsPen3BitPaletteLut7_3* = generateNearestCache(PicoGraphicsPen3BitPalette7_3[0..<7])
 const PicoGraphicsPen3BitPaletteLut5_7* = generateNearestCache(PicoGraphicsPen3BitPalette5_7[0..<7])
@@ -67,11 +67,15 @@ proc init*(self: var InkyFrame) =
     of InkyFrame4_0: (640, 400)
     of InkyFrame5_7: (600, 448)
     of InkyFrame7_3: (800, 480)
+
+  self.fb.setLen(PicoGraphicsPen3Bit.bufferSize(self.width.uint, self.height.uint))
+
   PicoGraphicsPen3Bit(self).init(
     width = self.width.uint16,
     height = self.height.uint16,
     backend = BackendMemory,
-    palette = if self.kind == InkyFrame7_3: PicoGraphicsPen3BitPalette7_3 else: PicoGraphicsPen3BitPalette5_7,
+    palette = when self.kind == InkyFrame7_3: PicoGraphicsPen3BitPalette7_3 else: PicoGraphicsPen3BitPalette5_7,
+    frameBuffer = self.fb[0].addr
     # paletteSize = if self.kind == InkyFrame5_7: 8 else: 7 # clean colour is a greenish gradient on inky7, so avoid it
   )
   self.cacheNearest = if self.kind == InkyFrame7_3: PicoGraphicsPen3BitPaletteLut7_3.unsafeAddr else: PicoGraphicsPen3BitPaletteLut5_7.unsafeAddr

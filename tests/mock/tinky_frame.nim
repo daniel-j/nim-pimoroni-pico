@@ -3,10 +3,10 @@ import pimoroni_pico/libraries/inky_frame_mock
 import pimoroni_pico/libraries/pico_graphics/drawjpeg
 import pimoroni_pico/libraries/pico_graphics/error_diffusion
 
-proc drawHslChart(kind: InkyFrameKind; drawMode: DrawMode; matrix: ErrorDiffusionMatrix = ErrorDiffusionMatrix()) =
+proc drawHslChart(kind: static[InkyFrameKind]; drawMode: DrawMode; matrix: ErrorDiffusionMatrix = ErrorDiffusionMatrix()) =
   echo "Drawing HSL/LCh chart..."
 
-  var inky = InkyFrame(kind: kind)
+  var inky = InkyFrame[kind = kind]()
   inky.init()
 
   var errDiff: ErrorDiffusion[inky]
@@ -68,8 +68,8 @@ proc drawHslChart(kind: InkyFrameKind; drawMode: DrawMode; matrix: ErrorDiffusio
     echo "Writing image to " & filename & "..."
     inky.image.writeFile(filename)
 
-proc drawFile(filename: string; kind: InkyFrameKind; drawMode: DrawMode; matrix: ErrorDiffusionMatrix = ErrorDiffusionMatrix(); hybridDither: bool = false; variableDither: bool = false): bool =
-  var inky = InkyFrame(kind: kind)
+proc drawFile(filename: string; kind: static[InkyFrameKind]; drawMode: DrawMode; matrix: ErrorDiffusionMatrix = ErrorDiffusionMatrix(); hybridDither: bool = false; variableDither: bool = false, outfile: string = ""): bool =
+  var inky = InkyFrame[kind]()
   var jpegDecoder: JpegDecoder[PicoGraphicsPen3Bit]
   # jpegDecoder.setErrorDiffusionMatrix(Sierra)
   inky.init()
