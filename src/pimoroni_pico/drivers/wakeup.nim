@@ -1,3 +1,4 @@
+import picostdlib/pico/time
 import picostdlib/hardware/[gpio, i2c]
 import ./shiftregister
 import wakeup_config
@@ -21,14 +22,36 @@ proc initWakeup*(): Wakeup =
     WAKEUP_PIN_MASK.putMasked(WAKEUP_PIN_VALUE)
 
   result.wakeup_gpio_state = gpioGetAll()
+  sleepMs(5)
+  result.wakeup_gpio_state.incl(gpioGetAll())
+
+  when WAKEUP_HAS_RTC:
+    static: echo "Wakeup has RTC"
+    # Set up RTC I2C pins and send reset command
+    discard WAKEUP_RTC_I2C_INST.init(100_000)
+    WAKEUP_RTC_SDA.init()
+    WAKEUP_RTC_SCL.init()
+    WAKEUP_RTC_SDA.setFunction(I2c); WAKEUP_RTC_SDA.pullUp()
+    WAKEUP_RTC_SCL.setFunction(I2c); WAKEUP_RTC_SCL.pullUp()
+
+    # Turn off CLOCK_OUT by writing 0b111 to CONTROL_2 (0x01) register
+    const data = [uint8 0x01, 0b111]
+    discard WAKEUP_RTC_I2C_INST.writeBlocking(WAKEUP_RTC_I2C_ADDR, data[0].addr, data.len.csize_t, false)
+
+    WAKEUP_RTC_I2C_INST.deinit()
+
+    # Cleanup
+    WAKEUP_RTC_SDA.init()
+    WAKEUP_RTC_SCL.init()
 
   when WAKEUP_HAS_SHIFT_REGISTER:
-    static: echo "Shift register ", sr
+    static: echo "Wakeup has shift register ", sr
     sr.init()
     result.shift_register_state = sr.read().uint8
     sr.deinit()
 
-var wakeup0* {.codegenDecl: "$# $# __attribute__ ((init_priority (101)))".} = initWakeup()
+# init_priority is C++ only, but gcc doesn't give error
+var wakeup0 {.codegenDecl: "$# $# __attribute__ ((init_priority (101)))".} = initWakeup()
 
 proc getGpioState*(): set[Gpio] = wakeup0.wakeup_gpio_state
 proc resetGpioState*() = wakeup0.wakeup_gpio_state.reset()

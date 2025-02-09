@@ -55,15 +55,15 @@ FetchContent_Declare(freertos_kernel
 )
 
 # fetch and use alternative mbedtls version
-#FetchContent_Populate(mbedtls)
+#FetchContent_MakeAvailable(mbedtls)
 #set(PICO_MBEDTLS_PATH ${mbedtls_SOURCE_DIR})
 
 # fetch and use alternative lwip version
-#FetchContent_Populate(lwip)
+#FetchContent_MakeAvailable(lwip)
 #set(PICO_LWIP_PATH ${lwip_SOURCE_DIR})
 
 # fetch and initialize FreeRTOS-Kernel
-#FetchContent_Populate(freertos_kernel)
+#FetchContent_MakeAvailable(freertos_kernel)
 #include(${freertos_kernel_SOURCE_DIR}/portable/ThirdParty/GCC/RP2040/FreeRTOS_Kernel_import.cmake)
 
 
@@ -72,12 +72,6 @@ pico_sdk_init()
 
 include(${PICOSTDLIB_DIR}/picostdlib/cmake/picostdlib.cmake)
 include(${CMAKE_CURRENT_LIST_DIR}/../src/pimoroni_pico/cmake/pimoroni_pico.cmake)
-
-# Pico SDK patches
-# pico_sdk_patch_source("src/rp2_common/pico_standard_link/crt0.S" "${PIMORONI_PICO_DIR}/pico_sdk_crt0.patch" pico_standard_link)
-# pico_sdk_patch_source("src/rp2_common/pico_runtime/runtime.c" "${PIMORONI_PICO_DIR}/pico_sdk_runtime.patch" pico_runtime)
-# pico_sdk_patch_source("src/rp2_common/pico_standard_link/crt0.S" "${PIMORONI_PICO_DIR}/pico_sdk_crt0_startup_overclock.patch" pico_standard_link)
-
 
 function(add_example target name)
   add_executable(${target})

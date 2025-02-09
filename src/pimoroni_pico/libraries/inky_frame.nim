@@ -209,16 +209,14 @@ proc init*(self: var InkyFrame) =
     blocking = true)
 
 proc update*(self: var InkyFrame) =
-  if not self.einkDriver.getBlocking():
-    while isBusy():
-      tightLoopContents()
+  while self.einkDriver.getBlocking() and isBusy():
+    tightLoopContents()
   self.einkDriver.update(PicoGraphicsPen3Bit(self))
-  if not self.einkDriver.getBlocking():
-    while isBusy():
-      tightLoopContents()
-    self.einkDriver.powerOff()
-    while isBusy():
-      tightLoopContents()
+  while self.einkDriver.getBlocking() and isBusy():
+    tightLoopContents()
+  self.einkDriver.powerOff()
+  while self.einkDriver.getBlocking() and isBusy():
+    tightLoopContents()
 
 proc pressed*(button: Button): bool =
   sr.readBit(button.uint8)

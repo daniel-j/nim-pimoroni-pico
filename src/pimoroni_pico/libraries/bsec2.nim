@@ -74,6 +74,8 @@ import picostdlib/hardware/timer
 import ../common/pimoroni_i2c
 import ../drivers/bme68x
 
+export bme68x
+
 const
   BSEC_TOTAL_HEAT_DUR* = 140.uint16
   BSEC_INSTANCE_SIZE* = 3272
@@ -98,6 +100,8 @@ type
     nOutputs*: uint8
 
   BsecCallback* = proc (data: Bme68xData; outputs: BsecOutputs; bsec: var Bsec2)
+
+var workBuffer: array[BSEC_MAX_WORKBUFFER_SIZE, uint8]
 
 proc BSEC_CHECK_INPUT(x: uint32; shift: BsecPhysicalSensorT): bool =
   (x.int and (1 shl (shift.int-1))) != 0
@@ -147,7 +151,7 @@ proc begin*(self: var Bsec2; intf: Bme68xIntf; read: Bme68xReadFptrT; write: Bme
   discard
 
 proc begin*(self: var Bsec2; i2c: var I2c; i2cAddr: I2cAddress; idleTask: Bme68xDelayUsFptrT = bme68xDelayUs): bool =
-  ## Function to initialize the sensor based on the I2c library
+  ## Function to initialize the sensor based on the I2C library
   ## @param i2cAddr  : The I2C address the sensor is at
   ## @param i2c      : The I2c object
   ## @param idleTask : Delay or Idle function
@@ -352,39 +356,50 @@ proc getState*(self: Bsec2; state: ptr uint8): bool =
   ## Function to get the state of the algorithm to save to non-volatile memory
   ## @param state			: Pointer to a memory location, to hold the state
   ## @return	true for success, false otherwise
-  discard
+  var n_serialized_state = BSEC_MAX_STATE_BLOB_SIZE.uint32
+
+  let status = bsec_get_state_m(self.bsecInstance, 0, state, BSEC_MAX_STATE_BLOB_SIZE, workBuffer[0].addr, BSEC_MAX_WORKBUFFER_SIZE, n_serialized_state.addr)
+  if status != BSEC_OK:
+    return false
+  return true
 
 proc setState*(self: var Bsec2; state: ptr uint8): bool =
   ## Function to set the state of the algorithm from non-volatile memory
   ## @param state			: Pointer to a memory location that contains the state
   ## @return	true for success, false otherwise
-  discard
+  let status = bsec_set_state_m(self.bsecInstance, state, BSEC_MAX_STATE_BLOB_SIZE, workBuffer[0].addr, BSEC_MAX_WORKBUFFER_SIZE)
+  if status != BSEC_OK:
+    return false
+
+  zeroMem(self.bmeConf.addr, sizeof(self.bmeConf))
+
+  return true
 
 proc getConfig*(self: Bsec2; config: ptr uint8): bool =
   ## Function to retrieve the current library configuration
   ## @param config    : Pointer to a memory location, to hold the serialized config blob
   ## @return	true for success, false otherwise
-  discard
+  var n_serialized_settings: uint32
+
+  let status = bsec_get_configuration_m(self.bsecInstance, 0, config, BSEC_MAX_PROPERTY_BLOB_SIZE, workBuffer[0].addr, BSEC_MAX_WORKBUFFER_SIZE, n_serialized_settings.addr)
+  if status != BSEC_OK:
+    return false
+
+  return true
 
 proc setConfig*(self: var Bsec2; config: ptr uint8): bool =
   ## Function to set the configuration of the algorithm from memory
   ## @param state			: Pointer to a memory location that contains the configuration
   ## @return	true for success, false otherwise
-  discard
+  let status = bsec_set_configuration_m(self.bsecInstance, config, BSEC_MAX_PROPERTY_BLOB_SIZE, workBuffer[0].addr, BSEC_MAX_WORKBUFFER_SIZE)
+  if status != BSEC_OK:
+    return false
+
+  zeroMem(self.bmeConf.addr, sizeof(self.bmeConf))
+
+  return true
 
 proc setTemperatureOffset*(self: var Bsec2; tempOffset: float) =
   ## Function to set the temperature offset
   ## @param tempOffset	: Temperature offset in degree Celsius
   self.extTempOffset = tempOffset
-
-proc allocateMemory*(self: var Bsec2; memBlock: var array[BSEC_INSTANCE_SIZE, uint8]) =
-  ## Function to assign the memory block to the bsec instance
-  ## @param[in] memBlock : reference to the memory block
-  # self.bsecInstance = memBlock[0].addr
-  discard
-
-proc clearMemory*(self: var Bsec2) =
-  ## Function to de-allocate the dynamically allocated memory
-  # dealloc(self.bsecInstance)
-  discard
-
