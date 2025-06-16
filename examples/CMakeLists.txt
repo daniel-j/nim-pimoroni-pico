@@ -91,7 +91,7 @@ function(add_example target name)
 
   target_compile_definitions(${target} PRIVATE
     # CYW43_HOST_NAME="PicoW"
-    PICO_STDIO_USB_CONNECT_WAIT_TIMEOUT_MS=0
+    PICO_STDIO_USB_CONNECT_WAIT_TIMEOUT_MS=2000
   )
 
   # enable usb output, disable uart output
@@ -104,9 +104,6 @@ function(add_example target name)
   # add url via pico_set_program_url
   # pico_set_program_url(${target} "")
 endfunction()
-
-# Badger 2040
-add_example(badger2040_hello hello)
 
 if(NOT PICO_CYW43_SUPPORTED)
 

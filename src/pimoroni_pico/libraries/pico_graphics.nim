@@ -460,24 +460,24 @@ func bufferSize*(self: PicoGraphicsPenP8; w: uint; h: uint): uint =
 ##
 
 type
-  PicoGraphicsPenRGB332* = object of PicoGraphicsBase
+  PicoGraphicsPenRgb332* = object of PicoGraphicsBase
     color*: Rgb332
 
 
 # proc constructPicoGraphicsPenRGB332*(width: uint16; height: uint16;
-#                                     frameBuffer: pointer): PicoGraphicsPenRGB332 {.
+#                                     frameBuffer: pointer): PicoGraphicsPenRgb332 {.
 #     constructor.} = discard
-proc setPen*(self: var PicoGraphicsPenRGB332; c: uint) = discard
-proc setPen*(self: var PicoGraphicsPenRGB332; c: Rgb) = discard
-proc createPen*(self: var PicoGraphicsPenRGB332; c: Rgb): uint = discard
-proc setPixel*(self: var PicoGraphicsPenRGB332; p: Point) = discard
-proc setPixelSpan*(self: var PicoGraphicsPenRGB332; p: Point; l: uint) = discard
-proc setPixelDither*(self: var PicoGraphicsPenRGB332; p: Point; c: RgbLinear) = discard
-# proc setPixelDither*(self: var PicoGraphicsPenRGB332; p: Point; c: Rgb565) = discard
-proc sprite*(self: var PicoGraphicsPenRGB332; data: pointer; sprite: Point; dest: Point;
+proc setPen*(self: var PicoGraphicsPenRgb332; c: uint) = discard
+proc setPen*(self: var PicoGraphicsPenRgb332; c: Rgb) = discard
+proc createPen*(self: var PicoGraphicsPenRgb332; c: Rgb): uint = discard
+proc setPixel*(self: var PicoGraphicsPenRgb332; p: Point) = discard
+proc setPixelSpan*(self: var PicoGraphicsPenRgb332; p: Point; l: uint) = discard
+proc setPixelDither*(self: var PicoGraphicsPenRgb332; p: Point; c: RgbLinear) = discard
+# proc setPixelDither*(self: var PicoGraphicsPenRgb332; p: Point; c: Rgb565) = discard
+proc sprite*(self: var PicoGraphicsPenRgb332; data: pointer; sprite: Point; dest: Point;
             scale: int; transparent: int) = discard
-# proc frameConvert*(self: var PicoGraphicsPenRGB332; `type`: PicoGraphicsPenType; callback: PicoGraphicsConversionCallbackFunc) = discard
-func bufferSize*(self: PicoGraphicsPenRGB332; w: uint; h: uint): uint =
+# proc frameConvert*(self: var PicoGraphicsPenRgb332; `type`: PicoGraphicsPenType; callback: PicoGraphicsConversionCallbackFunc) = discard
+func bufferSize*(self: PicoGraphicsPenRgb332; w: uint; h: uint): uint =
   return w * h
 
 
@@ -573,7 +573,7 @@ proc setPixelSpan*(self: var PicoGraphicsPenRgb888; p: Point; l: uint) =
 type
   PicoGraphics* = PicoGraphicsPen1Bit | # PicoGraphicsPen1BitY |
     PicoGraphicsPen3Bit | PicoGraphicsPenP4 | PicoGraphicsPenP8 |
-    PicoGraphicsPenRGB332 | PicoGraphicsPenRgb565 | PicoGraphicsPenRgb888
+    PicoGraphicsPenRgb332 | PicoGraphicsPenRgb565 | PicoGraphicsPenRgb888
 
 proc pixel*(self: var PicoGraphics; p: Point) =
   if self.clip.contains(p):
@@ -883,7 +883,6 @@ proc thickLine*(self: var PicoGraphics; p1, p2: Point; thickness: Positive) =
       inc(y, sy)
       inc(x, sx)
       dec(s)
-
 
 proc frameConvert*(self: var PicoGraphicsPen3Bit; `type`: typedesc[PicoGraphics]; callback: PicoGraphicsConversionCallbackFunc) =
   if `type` is PicoGraphicsPenP4:

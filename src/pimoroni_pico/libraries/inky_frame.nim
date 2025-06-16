@@ -3,13 +3,15 @@ import std/math, std/bitops, std/options, std/times
 import picostdlib
 import picostdlib/hardware/[i2c, pwm, adc, watchdog]
 import picostdlib/pico/cyw43_arch
+import picostdlib/pico/filesystem
 import picostdlib/power
 
-import ../drivers/[eink_driver_wrapper, rtc_pcf85063a, shiftregister, fatfs, sdcard, psram_display]
+import ../drivers/[eink_driver_wrapper, rtc_pcf85063a, shiftregister, psram_display]
 import ./pico_graphics
 import ../drivers/wakeup
 
-export options, pico_graphics, fatfs, sdcard, psram_display, Colour, rtc_pcf85063a, wakeup, times, cyw43_arch
+export options, pico_graphics, psram_display, Colour, rtc_pcf85063a, wakeup, times, cyw43_arch, filesystem
+
 type
   InkyFrameKind* = enum
     InkyFrame4_0
@@ -99,6 +101,26 @@ type
 
 const PicoGraphicsPen3BitPaletteLut7_3* = generateNearestCache(PicoGraphicsPen3BitPalette7_3[0..<7])
 const PicoGraphicsPen3BitPaletteLut5_7* = generateNearestCache(PicoGraphicsPen3BitPalette5_7[0..<7])
+
+
+when (defined(pico_filesystem) and defined(pico_filesystem_blockdevice_sd) and defined(pico_filesystem_filesystem_fat) and not defined(pico_filesystem_default)) or defined(nimcheck):
+  var sdBlock: ptr Blockdevice
+  var sdFatFs: ptr Filesystem
+
+  proc fsInit*(): bool =
+    sdBlock = blockdeviceSdCreate(spi0, PinMosi, PinMiso, PinClk, PinSdCs, 24 * MHz, false)
+    sdFatFs = filesystemFatCreate()
+    var err = fsMount("/sd", sdFatFs, sdBlock)
+    if err != 0:
+      echo "fs_mount error: ", strerror(errno)
+      echo fsStrerror(err)
+      filesystemFatFree(sdFatFs)
+      sdFatFs = nil
+      blockdeviceSdFree(sdBlock)
+      sdBlock = nil
+      return false
+
+    return true
 
 proc gpioConfigure*(gpio: Gpio; dir: Direction; value: Value = Low) =
   gpio.setFunction(Sio)

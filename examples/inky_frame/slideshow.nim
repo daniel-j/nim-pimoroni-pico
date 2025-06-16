@@ -15,9 +15,9 @@ const pictureDelay = 5
 discard stdioInitAll()
 
 var inky: InkyFrame[InkyFrame7_3]
+
 inky.boot()
 
-var fs: FATFS
 var jpegDecoder: JpegDecoder[PicoGraphicsPen3Bit]
 
 echo "Detected Inky Frame model: ", inky.kind
@@ -75,18 +75,12 @@ proc drawFile(filename: string) =
   else:
     inky.led(LedActivity, 0)
 
-iterator walkDir(directory: string): FILINFO =
-  var file: FILINFO
-  var dir: DIR
-  discard f_opendir(dir.addr, directory.cstring)
-  while f_readdir(dir.addr, file.addr) == FR_OK and file.fname[0].bool:
-    yield file
-
-proc getFileN(directory: string; n: Natural): FILINFO =
+proc getFileN(directory: string; n: Natural): string =
   var i = 0
-  for file in walkDir(directory):
+  for file in fsWalkDir(directory):
+    if file.kind != DtReg: continue
     if i == n:
-      return file
+      return file.name
     inc(i)
 
 proc inkyProc() =
@@ -95,9 +89,9 @@ proc inkyProc() =
 
   echo "Mounting SD card..."
 
-  let fr = f_mount(fs.addr, "".cstring, 1)
-  if fr != FR_OK:
-    echo "Failed to mount SD card, error: ", fr
+  let fsAvailable = fsInit()
+  if not fsAvailable:
+    echo "Failed to mount SD card"
 
   if EvtBtnA in inky.getWakeUpEvents():
     inky.led(LedA, 50)
@@ -262,12 +256,13 @@ proc inkyProc() =
     inky.update()
     inky.led(LedE, 0)
 
-  if fr == FR_OK:
+  if fsAvailable:
     echo "Listing SD card contents.."
-    let directory = "/images"
+    let directory = "/sd/images"
     var fileCount = 0
-    for i in walkDir(directory):
-      inc(fileCount)
+    for f in fsWalkDir(directory):
+      if f.kind == DtReg:
+        inc(fileCount)
     echo "number of files: ", fileCount
     var fileOrder = newSeq[int](fileCount)
     for i in 0..<fileCount:
@@ -279,23 +274,23 @@ proc inkyProc() =
     echo "shuffled file order:"
     for i in fileOrder:
       let file = getFileN(directory, i)
-      echo "- ", file.getFname()
+      echo "- ", file
 
     echo "starting main image loop"
 
     for i in fileOrder:
-      let file = getFileN(directory, i)
-      echo "- ", file.getFname(), " ", file.fsize
-      if file.fsize == 0:
+      let fname = getFileN(directory, i)
+      let file = directory / fname
+      let fsize = getFileSize(file)
+      echo "- ", file, " ", fsize
+      if fsize == 0:
         continue
 
-      echo "- file timestamp: ", $file.getFileDate(), " ", $file.getFileTime()
+      echo "- file timestamp: ", getLastModificationTime(file).utc
 
-      let filename = directory & "/" & file.getFname()
+      drawFile(file)
 
-      drawFile(filename)
-
-    discard f_unmount("")
+    discard fsUnmount("/sd")
     sleepMs(30 * 1000)
     watchdogReboot(0, 0, 0)
 

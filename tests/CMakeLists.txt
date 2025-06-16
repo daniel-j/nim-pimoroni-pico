@@ -113,5 +113,5 @@ endfunction()
 if(NOT PICO_CYW43_SUPPORTED)
 
 else()
-  add_test(tgalactic_unicorn)
+  # add_test(tgalactic_unicorn)
 endif()

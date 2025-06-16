@@ -1,3 +1,6 @@
+#ifndef MBEDTLS_CONFIG_H
+#define MBEDTLS_CONFIG_H
+
 /* Workaround for some mbedtls source files using INT_MAX without including limits.h */
 #include <limits.h>
 
@@ -8,6 +11,7 @@
 
 #define MBEDTLS_ALLOW_PRIVATE_ACCESS
 #define MBEDTLS_HAVE_TIME
+#define MBEDTLS_PLATFORM_MS_TIME_ALT
 
 #define MBEDTLS_CIPHER_MODE_CBC
 #define MBEDTLS_ECP_DP_SECP192R1_ENABLED
@@ -60,3 +64,12 @@
 #define MBEDTLS_ECP_C
 #define MBEDTLS_ECDSA_C
 #define MBEDTLS_ASN1_WRITE_C
+
+// The following is needed to parse a certificate
+#define MBEDTLS_PEM_PARSE_C
+#define MBEDTLS_BASE64_C
+
+// The following significantly speeds up mbedtls due to NIST optimizations.
+#define MBEDTLS_ECP_NIST_OPTIM
+
+#endif

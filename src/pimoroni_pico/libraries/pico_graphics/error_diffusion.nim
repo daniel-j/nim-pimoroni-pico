@@ -2,14 +2,10 @@ import ../pico_graphics
 export pico_graphics
 when not defined(mock):
   import ../../drivers/psram_display
-  import ../../drivers/fatfs
   export psram_display
 else:
   import ../../drivers/psram_display_mock
   export psram_display_mock
-
-when defined(mock):
-  type FIL* = File
 
 type
   ErrorDiffusionBackend* = enum
@@ -31,8 +27,7 @@ type
     case backend*: ErrorDiffusionBackend:
     of BackendMemory: fbMemory*: seq[RgbLinear]
     of BackendPsram: psramAddress*: PsramAddress
-    of BackendFile:
-      fbFile*: FIL
+    of BackendFile: fbFile*: File
 
 # Inspired by https://github.com/makew0rld/dither/blob/master/error_diffusers.go
 func currentPixel(matrix: ErrorDiffusionMatrix): int =
@@ -436,8 +431,7 @@ proc init*(self: var ErrorDiffusion; graphics: var PicoGraphics; x, y, width, he
   of BackendPsram: discard
   of BackendFile:
     when not defined(mock):
-      discard f_open(self.fbFile.addr, "/error_diffusion.bin", FA_CREATE_ALWAYS or FA_READ or FA_WRITE)
-      discard f_expand(self.fbFile.addr, FSIZE_t self.width * self.height * sizeof(RgbLinear), 1)
+      discard self.fbFile.open("/sd/error_diffusion.bin", fmReadWrite)
     else:
       discard self.fbFile.open("error_diffusion.bin", fmReadWrite)
 
@@ -455,11 +449,7 @@ proc deinit*(self: var ErrorDiffusion) =
   case self.backend:
   of BackendMemory: self.fbMemory.reset()
   of BackendPsram: discard
-  of BackendFile:
-    when not defined(mock):
-      discard f_close(self.fbFile.addr)
-    else:
-      self.fbFile.close()
+  of BackendFile: self.fbFile.close()
 
 proc rowToAddress(self: ErrorDiffusion; x, y: int; offset: uint32 = 0; stride: uint32 = sizeof(RgbLinear).uint32): PsramAddress =
   return offset + ((y.uint32 * self.width.uint32) + x.uint32) * stride
@@ -476,14 +466,8 @@ proc readRow*(self: var ErrorDiffusion; y: int): seq[RgbLinear] =
     return rgb
   of BackendFile:
     var rgb = newSeq[RgbLinear](self.width)
-    when not defined(mock):
-      if f_tell(self.fbFile.addr) != self.rowToAddress(0, y):
-        discard f_lseek(self.fbFile.addr, FSIZE_t self.rowToAddress(0, y))
-      var br: cuint
-      discard f_read(self.fbFile.addr, rgb[0].addr, cuint sizeof(RgbLinear) * self.width, br.addr)
-    else:
-      self.fbFile.setFilePos(self.rowToAddress(0, y).int)
-      discard self.fbFile.readBuffer(rgb[0].addr, sizeof(RgbLinear) * self.width)
+    self.fbFile.setFilePos(self.rowToAddress(0, y).int)
+    discard self.fbFile.readBuffer(rgb[0].addr, sizeof(RgbLinear) * self.width)
     return rgb
 
 proc write*(self: var ErrorDiffusion; x, y: int; rgb: openArray[RgbLinear]; length: int = -1) =
@@ -496,14 +480,8 @@ proc write*(self: var ErrorDiffusion; x, y: int; rgb: openArray[RgbLinear]; leng
   of BackendPsram:
     self.graphics[].fbPsram.write(self.rowToAddress(x, y, self.psramAddress), uint sizeof(RgbLinear) * length, cast[ptr uint8](rgb[0].unsafeAddr))
   of BackendFile:
-    when not defined(mock):
-      if f_tell(self.fbFile.addr) != self.rowToAddress(x, y):
-        discard f_lseek(self.fbFile.addr, FSIZE_t self.rowToAddress(x, y))
-      var bw: cuint
-      discard f_write(self.fbFile.addr, rgb[0].unsafeAddr, cuint sizeof(RgbLinear) * length, bw.addr)
-    else:
-      self.fbFile.setFilePos(self.rowToAddress(x, y).int)
-      discard self.fbFile.writeBuffer(rgb[0].unsafeAddr, sizeof(RgbLinear) * length)
+    self.fbFile.setFilePos(self.rowToAddress(x, y).int)
+    discard self.fbFile.writeBuffer(rgb[0].unsafeAddr, sizeof(RgbLinear) * length)
 
 proc rowPos(y, rowCount: int): int {.inline.} = y mod rowCount
 

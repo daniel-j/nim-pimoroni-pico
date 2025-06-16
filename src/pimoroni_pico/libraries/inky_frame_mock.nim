@@ -37,6 +37,16 @@ const palette5_7 = [
   Hsl(h:  32/360, s: 0.70, l: 0.80).toRgb().toLinear(paletteGamma), ##  clean
 ]
 
+const basic_palette = [
+  Rgb(r:   0, g:   0, b:   0),
+  Rgb(r: 255, g: 255, b: 255),
+  Rgb(r:   0, g: 255, b:   0),
+  Rgb(r:   0, g:   0, b: 255),
+  Rgb(r: 255, g:   0, b:   0),
+  Rgb(r: 255, g: 255, b:   0),
+  Rgb(r: 255, g: 128, b:   0),
+  Rgb(r: 255, g:   0, b: 255),
+]
 
 type
   Colour* = enum
@@ -94,7 +104,7 @@ proc update*(self: var InkyFrame) =
         let x = i div 2
         let offset = (i mod 2)
         let pen = if offset == 0: (arr[x] shr 4) else: (arr[x] and 0b1111)
-        let color = palette[pen].fromLinear(cheat = true)
+        let color = palette[pen].fromLinear(cheat = true) #basic_palette[pen]
         image[i, y] = ColorRGB(
           r: color.r.uint8,
           g: color.g.uint8,

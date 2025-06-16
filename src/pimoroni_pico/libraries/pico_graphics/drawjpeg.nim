@@ -1,7 +1,5 @@
 import ../pico_graphics
 import ../jpegdec
-when not defined(mock):
-  import ../../drivers/fatfs
 
 import ../pico_graphics/error_diffusion
 
@@ -41,45 +39,26 @@ type
     jpeg: JpegDec
 
 proc jpegdecOpenCallback(filename: cstring, size: ptr int32): pointer {.cdecl.} =
-  when not defined(mock):
-    let fil = create(FIL)
-    if f_open(fil, filename, FA_READ) != FR_OK:
-      return nil
-    size[] = f_size(fil).int32
-    return fil
-  else:
-    let file = new File
-    if not file[].open($filename, fmRead):
-      return nil
-    size[] = file[].getFileSize().int32
-    GC_ref(file)
-    return cast[pointer](file)
+  let file = new File
+  if not file[].open($filename, fmRead):
+    return nil
+  size[] = file[].getFileSize().int32
+  GC_ref(file)
+  return cast[pointer](file)
 
 proc jpegdecCloseCallback(handle: pointer) {.cdecl.} =
-  when not defined(mock):
-    discard f_close(cast[ptr FIL](handle))
-    dealloc(cast[ptr FIL](handle))
-  else:
-    let file = cast[ref File](handle)
-    file[].close()
-    GC_unref(file)
+  let file = cast[ref File](handle)
+  file[].close()
+  GC_unref(file)
 
 proc jpegdecReadCallback(jpeg: ptr JPEGFILE; p: ptr uint8, c: int32): int32 {.cdecl.} =
-  when not defined(mock):
-    var br: cuint
-    discard f_read(cast[ptr FIL](jpeg.fHandle), p, c.cuint, br.addr)
-    return br.int32
-  else:
-    let file = cast[ref File](jpeg.fHandle)
-    return file[].readBuffer(p, c).int32
+  let file = cast[ref File](jpeg.fHandle)
+  return file[].readBuffer(p, c).int32
 
 proc jpegdecSeekCallback(jpeg: ptr JPEGFILE, p: int32): int32 {.cdecl.} =
-  when not defined(mock):
-    (f_lseek(cast[ptr FIL](jpeg.fHandle), p.FSIZE_t) == FR_OK).int32
-  else:
-    let file = cast[ref File](jpeg.fHandle)
-    file[].setFilePos(p)
-    return 1
+  let file = cast[ref File](jpeg.fHandle)
+  file[].setFilePos(p)
+  return 1
 
 
 proc drawScaled(self: var JpegDecoder; draw: ptr JPEGDRAW): bool =
