@@ -29,7 +29,7 @@ const palette7_3 = [
 const palette5_7 = [
   Hsl(h: 200/360, s: 0.67, l: 0.18).toRgb().toLinear(paletteGamma), ##  black
   Hsl(h:  45/360, s: 0.25, l: 0.80).toRgb().toLinear(paletteGamma), ##  white
-  Hsl(h: 125/360, s: 0.82, l: 0.35).toRgb().toLinear(paletteGamma), ##  green
+  Hsl(h: 125/360, s: 0.85, l: 0.33).toRgb().toLinear(paletteGamma), ##  green
   Hsl(h: 265/360, s: 0.08, l: 0.45).toRgb().toLinear(paletteGamma), ##  blue
   Hsl(h:  10/360, s: 0.55, l: 0.60).toRgb().toLinear(paletteGamma), ##  red
   Hsl(h:  50/360, s: 0.80, l: 0.60).toRgb().toLinear(paletteGamma), ##  yellow
