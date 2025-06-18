@@ -60,6 +60,7 @@ proc drawFile(filename: string) =
     of InkyFrame4_0: (0, 0, inky.width, inky.height)
     of InkyFrame5_7: (0, -1, 600, 450)
     of InkyFrame7_3: (-27, 0, 854, 480)
+    of InkyFrame13_3: (0, 0, 1600, 1200)
 
   # let (x, y, w, h) = (0, 0, inky.width, inky.height)
 

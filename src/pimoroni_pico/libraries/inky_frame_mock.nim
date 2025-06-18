@@ -2,6 +2,18 @@ import pixie
 import ./pico_graphics
 export pixie, pico_graphics
 
+
+const palette13_3 = [
+  Hsl(h:   0/360, s: 1.00, l: 0.00).toRgb().toLinear(0.9), ##  black
+  Hsl(h:   0/360, s: 0.00, l: 1.00).toRgb().toLinear(0.9), ##  white
+  Hsl(h: 145/360, s: 1.00, l: 0.19).toRgb().toLinear(0.9), ##  green
+  Hsl(h: 228/360, s: 0.85, l: 0.37).toRgb().toLinear(0.9), ##  blue
+  Hsl(h:   0/360, s: 1.00, l: 0.35).toRgb().toLinear(0.9), ##  red
+  Hsl(h:  60/360, s: 1.00, l: 0.50).toRgb().toLinear(0.9), ##  yellow
+  constructRgb(255, 0, 255).toLinear(0.9), ##  7th colour unused
+  constructRgb(255, 0, 255).toLinear(0.9), ##  8th colour unused
+]
+
 const paletteGamma = 1.8
 
 const palette7_3 = [
@@ -14,17 +26,6 @@ const palette7_3 = [
   Hsl(h:  28/360, s: 0.60, l: 0.57).toRgb().toLinear(paletteGamma), ##  orange
   constructRgb(255, 0, 255).toLinear(paletteGamma), ##  clean - do not use on inky7 as colour
 ]
-
-# const palette7_3 = [
-#   Hsv(h: 0, s: 0, v: 0).toRgb().toLinear(1.0), ##  black
-#   Hsv(h: 0, s: 0, v: 1).toRgb().toLinear(1.0), ##  white
-#   Hsv(h: 121/360, s: 0.90, v: 0.53).toRgb().toLinear(1.0), ##  green
-#   Hsv(h: 230/360, s: 0.34, v: 0.63).toRgb().toLinear(1.0), ##  blue
-#   Hsv(h:   7/360, s: 0.61, v: 0.88).toRgb().toLinear(1.0), ##  red
-#   Hsv(h:  51/360, s: 0.80, v: 1.00).toRgb().toLinear(1.0), ##  yellow
-#   Hsv(h:  28/360, s: 0.76, v: 0.95).toRgb().toLinear(1.0), ##  orange
-#   constructRgb(255, 0, 255).toLinear(paletteGamma), ##  clean - do not use on inky7 as colour
-# ]
 
 const palette5_7 = [
   Hsl(h: 200/360, s: 0.67, l: 0.18).toRgb().toLinear(paletteGamma), ##  black
@@ -62,21 +63,24 @@ type
   Pen* = Colour
 
   InkyFrameKind* = enum
-    InkyFrame4_0, InkyFrame5_7, InkyFrame7_3
+    InkyFrame4_0, InkyFrame5_7, InkyFrame7_3, InkyFrame13_3
   InkyFrame*[kind: static[InkyFrameKind]] = object of PicoGraphicsPen3Bit
     width*, height*: int
+    colorCount*: int
     image*: Image
     fb: seq[uint8]
 
-const PicoGraphicsPen3BitPaletteLut7_3* = generateNearestCache(PicoGraphicsPen3BitPalette7_3[0..<7])
 const PicoGraphicsPen3BitPaletteLut5_7* = generateNearestCache(PicoGraphicsPen3BitPalette5_7[0..<7])
+const PicoGraphicsPen3BitPaletteLut7_3* = generateNearestCache(PicoGraphicsPen3BitPalette7_3[0..<7])
+const PicoGraphicsPen3BitPaletteLut13_3* = generateNearestCache(PicoGraphicsPen3BitPalette13_3[0..<6])
 
 proc init*(self: var InkyFrame) =
-  (self.width, self.height) =
+  (self.width, self.height, self.colorCount) =
     case self.kind:
-    of InkyFrame4_0: (640, 400)
-    of InkyFrame5_7: (600, 448)
-    of InkyFrame7_3: (800, 480)
+    of InkyFrame4_0: (640, 400, 7)
+    of InkyFrame5_7: (600, 448, 7)
+    of InkyFrame7_3: (800, 480, 7)
+    of InkyFrame13_3: (1600, 1200, 6)
 
   self.fb.setLen(PicoGraphicsPen3Bit.bufferSize(self.width.uint, self.height.uint))
 
@@ -84,18 +88,27 @@ proc init*(self: var InkyFrame) =
     width = self.width.uint16,
     height = self.height.uint16,
     backend = BackendMemory,
-    palette = when self.kind == InkyFrame7_3: PicoGraphicsPen3BitPalette7_3 else: PicoGraphicsPen3BitPalette5_7,
-    frameBuffer = self.fb[0].addr
-    # paletteSize = if self.kind == InkyFrame5_7: 8 else: 7 # clean colour is a greenish gradient on inky7, so avoid it
+    palette = case self.kind:
+      of InkyFrame13_3: PicoGraphicsPen3BitPalette13_3
+      of InkyFrame7_3: PicoGraphicsPen3BitPalette7_3
+      else: PicoGraphicsPen3BitPalette5_7,
+    frameBuffer = self.fb[0].addr,
+    paletteSize = self.colorCount.uint8
   )
-  self.cacheNearest = if self.kind == InkyFrame7_3: PicoGraphicsPen3BitPaletteLut7_3.unsafeAddr else: PicoGraphicsPen3BitPaletteLut5_7.unsafeAddr
+  self.cacheNearest = case self.kind:
+    of InkyFrame13_3: PicoGraphicsPen3BitPaletteLut13_3.unsafeAddr
+    of InkyFrame7_3: PicoGraphicsPen3BitPaletteLut7_3.unsafeAddr
+    else: PicoGraphicsPen3BitPaletteLut5_7.unsafeAddr
   # self.cacheNearestBuilt = true
 
   self.image = newImage(self.width, self.height)
 
 proc update*(self: var InkyFrame) =
   let image = self.image
-  let palette = if self.kind == InkyFrame7_3: palette7_3 else: palette5_7
+  let palette = case self.kind:
+    of InkyFrame13_3: palette13_3
+    of InkyFrame7_3: palette7_3
+    else: palette5_7
   var y = 0
   self.frameConvert(PicoGraphicsPenP4, (proc (buf: pointer; length: uint) =
     if length > 0:

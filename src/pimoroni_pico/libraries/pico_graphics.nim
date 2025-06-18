@@ -168,6 +168,20 @@ type
       ditherCandidateColor*: RgbLinear
       paletteLab*: seq[Lab]
 
+const luma13_3 = 1/0.95
+const sat13_3 = 1/1.30
+
+const PicoGraphicsPen3BitPalette13_3* = [
+  LChToLab(0.10, 0.30, 150), ##  black
+  LChToLab(1.00, 0.05, 110), ##  white
+  LChToLab(luma13_3 * 0.59, sat13_3 * 0.53, 148), ##  green
+  LChToLab(luma13_3 * 0.52, sat13_3 * 0.60, 260), ##  blue
+  LChToLab(luma13_3 * 0.52, sat13_3 * 0.57,  29), ##  red
+  LChToLab(luma13_3 * 0.87, sat13_3 * 0.60, 110), ##  yellow
+  Lab(), ##  unused
+  Lab(), ##  unused
+].fromLab()
+
 const luma7_3 = 1/1.00
 const sat7_3 = 1/1.65
 
@@ -209,6 +223,9 @@ const PicoGraphicsPen3BitPalette5_7* = [
 
 # import strutils
 # static:
+#   echo "Inky Frame 13.3\" palette:"
+#   for c in PicoGraphicsPen3BitPalette13_3:
+#     echo "#", c.toLab().toLch()
 #   echo "Inky Frame 7.3\" palette:"
 #   for c in PicoGraphicsPen3BitPalette7_3:
 #     echo "#", c.fromLinear().toRgb888().BiggestInt.toHex(6)
@@ -226,8 +243,7 @@ func getPaletteSize*(self: PicoGraphicsPen3Bit): uint8 = self.paletteSize
 func setPaletteSize*(self: var PicoGraphicsPen3Bit; paletteSize: uint8) =
   self.paletteSize = paletteSize.clamp(1'u8, self.palette.len.uint8)
 
-proc init*(self: var PicoGraphicsPen3Bit; width: uint16; height: uint16; backend: PicoGraphicsBackend = BackendMemory; frameBuffer: pointer; palette: array[8, RgbLinear];
-    paletteSize: uint8 = 7) =
+proc init*(self: var PicoGraphicsPen3Bit; width: uint16; height: uint16; backend: PicoGraphicsBackend = BackendMemory; frameBuffer: pointer; palette: array[8, RgbLinear]; paletteSize: uint8 = 7) =
   PicoGraphicsBase(self).init(width, height, backend, frameBuffer)
   self.palette = palette
   self.setPaletteSize(paletteSize)

@@ -17,20 +17,24 @@ type
     InkyFrame4_0
     InkyFrame5_7
     InkyFrame7_3
+    InkyFrame13_3
 
   InkyFrameInfo = object
     width*: uint16
     height*: uint16
+    colorCount*: uint8
 
-const inkyFrame4_0 = InkyFrameInfo(width: 640, height: 400)
-const inkyFrame5_7 = InkyFrameInfo(width: 600, height: 448)
-const inkyFrame7_3 = InkyFrameInfo(width: 800, height: 480)
+const inkyFrame4_0 = InkyFrameInfo(width: 640, height: 400, colorCount: 7)
+const inkyFrame5_7 = InkyFrameInfo(width: 600, height: 448, colorCount: 7)
+const inkyFrame7_3 = InkyFrameInfo(width: 800, height: 480, colorCount: 7)
+const inkyFrame13_3 = InkyFrameInfo(width: 1600, height: 1200, colorCount: 6)
 
-func getInkyFrameInfo(kind: InkyFrameKind): InkyFrameInfo =
+func getInkyFrameInfo(kind: static[InkyFrameKind]): static[InkyFrameInfo] =
   return case kind:
   of InkyFrame4_0: inkyFrame4_0
   of InkyFrame5_7: inkyFrame5_7
   of InkyFrame7_3: inkyFrame7_3
+  of InkyFrame13_3: inkyFrame13_3
 
 const
   PinHoldSysEn = 2.Gpio
@@ -95,12 +99,14 @@ type
     einkDriver: EinkDriver
     rtc*: Pcf85063a
     width*, height*: int
+    colorCount*: int
     wakeUpEvents: set[WakeUpEvent]
-    when kind != InkyFrame7_3:
+    when kind notin [InkyFrame7_3, InkyFrame13_3]:
       fb: array[PicoGraphicsPen3Bit.bufferSize(getInkyFrameInfo(kind).width, getInkyFrameInfo(kind).height), uint8]
 
-const PicoGraphicsPen3BitPaletteLut7_3* = generateNearestCache(PicoGraphicsPen3BitPalette7_3[0..<7])
 const PicoGraphicsPen3BitPaletteLut5_7* = generateNearestCache(PicoGraphicsPen3BitPalette5_7[0..<7])
+const PicoGraphicsPen3BitPaletteLut7_3* = generateNearestCache(PicoGraphicsPen3BitPalette7_3[0..<7])
+const PicoGraphicsPen3BitPaletteLut13_3* = generateNearestCache(PicoGraphicsPen3BitPalette13_3[0..<6])
 
 
 when (defined(pico_filesystem) and defined(pico_filesystem_blockdevice_sd) and defined(pico_filesystem_filesystem_fat) and not defined(pico_filesystem_default)) or defined(nimcheck):
@@ -206,21 +212,32 @@ proc init*(self: var InkyFrame) =
   const info = getInkyFrameInfo(self.kind)
   self.width = info.width.int
   self.height = info.height.int
+  self.colorCount = info.colorCount.int
 
   PicoGraphicsPen3Bit(self).init(
     width = self.width.uint16,
     height = self.height.uint16,
-    backend = when self.kind == InkyFrame7_3: BackendPsram else: BackendMemory,
-    palette = when self.kind == InkyFrame7_3: PicoGraphicsPen3BitPalette7_3 else: PicoGraphicsPen3BitPalette5_7,
-    frameBuffer = when self.kind == InkyFrame7_3: nil else: self.fb[0].addr
-    # paletteSize = when self.kind == InkyFrame5_7: 8 else: 7 # clean colour is a greenish gradient on inky7, so avoid it
+    backend = when self.kind in [InkyFrame7_3, InkyFrame13_3]: BackendPsram else: BackendMemory,
+    palette = case self.kind:
+      of InkyFrame13_3: PicoGraphicsPen3BitPalette13_3
+      of InkyFrame7_3: PicoGraphicsPen3BitPalette7_3
+      else: PicoGraphicsPen3BitPalette5_7,
+    frameBuffer = when self.kind in [InkyFrame7_3, InkyFrame13_3]: nil else: self.fb[0].addr,
+    paletteSize = self.colorCount.uint8
   )
-  self.cacheNearest = if self.kind == InkyFrame7_3: PicoGraphicsPen3BitPaletteLut7_3.unsafeAddr else: PicoGraphicsPen3BitPaletteLut5_7.unsafeAddr
+  self.cacheNearest = case self.kind:
+    of InkyFrame13_3: PicoGraphicsPen3BitPaletteLut13_3.unsafeAddr
+    of InkyFrame7_3: PicoGraphicsPen3BitPaletteLut7_3.unsafeAddr
+    else: PicoGraphicsPen3BitPaletteLut5_7.unsafeAddr
   # self.cacheNearestBuilt = true
 
   let pins = SpiPins(spi: PimoroniSpiDefaultInstance, cs: PinEinkCs, sck: PinClk, mosi: PinMosi, dc: PinEinkDc)
 
-  self.einkDriver.kind = when self.kind == InkyFrame7_3: KindAc073tc1a else: KindUc8159
+  self.einkDriver.kind = static:
+    case self.kind:
+    of InkyFrame7_3: KindAc073tc1a
+    of InkyFrame5_7: KindUc8159
+    else: KindUnknown
 
   self.einkDriver.init(
     self.width.uint16,

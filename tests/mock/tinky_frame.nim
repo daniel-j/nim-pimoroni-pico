@@ -81,6 +81,7 @@ proc drawFile(filename: string; kind: static[InkyFrameKind]; drawMode: DrawMode;
     of InkyFrame4_0: (0, 0, inky.width, inky.height)
     of InkyFrame5_7: (0, -1, 600, 450)
     of InkyFrame7_3: (-27, 0, 854, 480)
+    of InkyFrame13_3: (0, 0, 1600, 1200)
 
   # let (x, y, w, h) = (0, 0, inky.width, inky.height)
 
@@ -113,10 +114,12 @@ proc drawFile(filename: string; kind: static[InkyFrameKind]; drawMode: DrawMode;
     inky.rectangle(constructRect((inky.width div 8) * 4, 0, inky.width div 8, height))
     inky.setPen(Yellow)
     inky.rectangle(constructRect((inky.width div 8) * 5, 0, inky.width div 8, height))
-    inky.setPen(Orange)
-    inky.rectangle(constructRect((inky.width div 8) * 6, 0, inky.width div 8, height))
-    inky.setPen(Clean)
-    inky.rectangle(constructRect((inky.width div 8) * 7, 0, inky.width div 8, height))
+    if inky.colorCount >= 7:
+      inky.setPen(Orange)
+      inky.rectangle(constructRect((inky.width div 8) * 6, 0, inky.width div 8, height))
+    if inky.colorCount >= 8:
+      inky.setPen(Clean)
+      inky.rectangle(constructRect((inky.width div 8) * 7, 0, inky.width div 8, height))
 
     inky.update()
     if matrix.s > 0:
