@@ -448,7 +448,7 @@ func level*(self: Rgb; black: float32 = 0; white: float32 = 1; gamma: float32 = 
   var g = self.g.float32 / 255.0f
   var b = self.b.float32 / 255.0f
 
-  if black > 0 or white < 1:
+  if black != 0 or white != 1:
     let wb = white - black
     r = (r - black) / wb
     g = (g - black) / wb

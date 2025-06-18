@@ -177,7 +177,7 @@ proc init*(self: var JpegDecoder; graphics: var PicoGraphics) =
   self.errDiff = typeof(self.errDiff)(backend: autobackend(graphics))
   self.jpeg.reset()
 
-proc drawJpeg*(self: var JpegDecoder; filename: string; x, y, w, h: int; gravity: tuple[x, y: float32] = (0.0f, 0.0f); contains: bool = true; drawMode: DrawMode = Default): int =
+proc drawJpeg*(self: var JpegDecoder; filename: string; x, y, w, h: int; gravity: tuple[x, y: float32] = (0.5f, 0.5f); contains: bool = true; drawMode: DrawMode = Default): int =
   if self.graphics.isNil:
     return 0
 

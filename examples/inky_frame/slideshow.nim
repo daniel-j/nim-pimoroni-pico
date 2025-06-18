@@ -1,5 +1,6 @@
 import std/random
 import std/typetraits
+import std/strutils
 
 import picostdlib
 import picostdlib/pico/rand
@@ -14,7 +15,7 @@ const pictureDelay = 5
 
 discard stdioInitAll()
 
-var inky: InkyFrame[InkyFrame7_3]
+var inky: InkyFrame[InkyFrame5_7]
 
 inky.boot()
 
@@ -46,7 +47,7 @@ jpegDecoder.errDiff.variableDither = true
 jpegDecoder.errDiff.hybridDither = false
 
 jpegDecoder.colorModifier = proc (color: var Rgb) =
-  color = color.level(gamma=1.4)
+  color = color.level(gamma=1.3, black=0.05, white=1.02)
 
 proc drawFile(filename: string) =
   inky.led(LedActivity, 50)
@@ -62,7 +63,7 @@ proc drawFile(filename: string) =
 
   # let (x, y, w, h) = (0, 0, inky.width, inky.height)
 
-  if jpegDecoder.drawJpeg(filename, x, y, w, h, gravity=(0.5f, 0.5f), contains = true, DrawMode.ErrorDiffusion) == 1:
+  if jpegDecoder.drawJpeg(filename, x, y, w, h, gravity=(0.5f, 0.5f), contains = false, DrawMode.ErrorDiffusion) == 1:
     let endTime = getAbsoluteTime()
     echo "Time: ", diffUs(startTime, endTime) div 1000, "ms"
     inky.led(LedActivity, 100)
@@ -282,10 +283,10 @@ proc inkyProc() =
       let fname = getFileN(directory, i)
       let file = directory / fname
       let fsize = getFileSize(file)
-      echo "- ", file, " ", fsize
-      if fsize == 0:
+      if fsize == 0 or not (file.toLower().endsWith(".jpg") or file.toLower().endsWith(".jpeg")):
         continue
 
+      echo "- ", file, " ", fsize
       echo "- file timestamp: ", getLastModificationTime(file).utc
 
       drawFile(file)

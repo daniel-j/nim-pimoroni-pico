@@ -1,7 +1,7 @@
-cmake_minimum_required(VERSION 3.13...3.27)
+cmake_minimum_required(VERSION 3.13)
 
 # Set CMake build type. Debug, Release, MinSizeRel, RelWithDebInfo
-set(CMAKE_BUILD_TYPE Release)
+set(CMAKE_BUILD_TYPE Debug)
 
 # Set standards
 set(CMAKE_C_STANDARD 11)
@@ -22,6 +22,9 @@ set(PICO_CXX_ENABLE_EXCEPTIONS 1)
 
 # Uncomment to disable picotool binary info
 # set(PICO_NO_BINARY_INFO 1)
+
+# Uncomment to enable fastest supported clock speed
+set(PICO_USE_FASTEST_SUPPORTED_CLOCK 1)
 
 execute_process(
   COMMAND nimble path picostdlib
@@ -92,6 +95,11 @@ function(add_example target name)
   target_compile_definitions(${target} PRIVATE
     # CYW43_HOST_NAME="PicoW"
     PICO_STDIO_USB_CONNECT_WAIT_TIMEOUT_MS=2000
+    PICO_VFS_NO_RTC=0
+    _POSIX_TIMERS=200809L
+    _POSIX_MONOTONIC_CLOCK=200809L
+    _POSIX_CPUTIME=200809L
+    _POSIX_THREAD_CPUTIME=200809L
   )
 
   # enable usb output, disable uart output

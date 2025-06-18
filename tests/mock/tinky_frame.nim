@@ -93,7 +93,7 @@ proc drawFile(filename: string; kind: static[InkyFrameKind]; drawMode: DrawMode;
   jpegDecoder.errDiff.variableDither = variableDither
   jpegDecoder.errDiff.hybridDither = hybridDither
   jpegDecoder.colorModifier = proc (color: var Rgb) =
-    color = color.level(gamma=1.4) #.contrast(1.15) #.level(gamma=1.6)
+    color = color.level(gamma=1.3, black=0.05, white=1.02) #.contrast(1.15) #.level(gamma=1.6)
 
   echo "Drawing jpeg image..."
 

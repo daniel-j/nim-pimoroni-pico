@@ -197,12 +197,12 @@ const luma5_7 = 1/1.20
 const sat5_7 = 1/1.50
 
 const PicoGraphicsPen3BitPalette5_7* = [
-  LChToLab(0.12, sat5_7 * 0.25, 200), ##  black
-  LChToLab(0.98, sat5_7 * 0.01,  90), ##  white
-  LChToLab(luma5_7 * 0.66, sat5_7 * 0.82, 138), ##  green
-  LChToLab(luma5_7 * 0.58, sat5_7 * 0.40, 260), ##  blue
-  LChToLab(luma5_7 * 0.60, sat5_7 * 0.60,  30), ##  red
-  LChToLab(0.88, sat5_7 * 0.80, 100), ##  yellow
+  LChToLab(0.09, sat5_7 * 0.25, 200), ##  black
+  LChToLab(0.99, sat5_7 * 0.01,  90), ##  white
+  LChToLab(luma5_7 * 0.68, sat5_7 * 0.82, 138), ##  green
+  LChToLab(luma5_7 * 0.47, sat5_7 * 0.60, 260), ##  blue
+  LChToLab(luma5_7 * 0.63, sat5_7 * 0.72,  32), ##  red
+  LChToLab(0.91, sat5_7 * 0.80, 100), ##  yellow
   LChToLab(luma5_7 * 0.70, sat5_7 * 0.85,  50), ##  orange
   LChToLab(luma5_7 * 0.90, sat5_7 * 0.60,  80), ##  clean
 ].fromLab()
